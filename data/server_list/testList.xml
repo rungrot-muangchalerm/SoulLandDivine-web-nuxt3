@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 被2011 rel. 2 sp1 (TeaM DJiNN) 使用XMLSpy vTeaM DJiNN编辑的 (http://www.altova.com) by -->
+<idspace id="ServerList">
+	<class id="1001" name="1001服 暮色森林" openTime="2020-03-16 10:00" isOpen="1" crossGroup="1" IsNew="1" IsLineUp="false" IsRecommend="true" IsMaintaining="false" RegistLimit="90000"/>
+	<class id="1002" name="1002服 鲜花峡谷" openTime="2020-03-16 10:00" isOpen="1" crossGroup="1" IsNew="1" IsLineUp="false" IsRecommend="true" IsMaintaining="false" RegistLimit="90000"/>
+	<class id="1003" name="1003服 夜色朦胧" openTime="2020-03-16 10:00" isOpen="1" crossGroup="1" IsNew="1" IsLineUp="false" IsRecommend="true" IsMaintaining="false" RegistLimit="90000"/>
+</idspace>

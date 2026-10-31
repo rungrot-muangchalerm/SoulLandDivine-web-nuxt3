@@ -1,0 +1,10 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "legacy/**",
+    "dl_gm/**",
+    "dl_gm_vue/**",
+    ".output/**"
+  ]
+}

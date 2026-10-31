@@ -1,0 +1,21 @@
+{
+  "name": "soulland-divine-admin",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0 --port 8081",
+    "build": "nuxt build",
+    "preview": "nuxt preview --host 0.0.0.0 --port 8081",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "element-plus": "^2.9.5",
+    "js-md5": "^0.7.3",
+    "mysql2": "^3.14.0",
+    "nuxt": "^3.17.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vue-tsc": "^2.2.8"
+  }
+}
