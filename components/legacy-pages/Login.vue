@@ -77,12 +77,13 @@
                 this.$refs[formName].validate(async (valid) => {
                     if (valid) {
                         // localStorage.setItem('ms_username',this.ruleForm.username);
+                        const username = this.ruleForm.username.trim();
                         var params = {
                             channel: this.ruleForm.channel,
-                            username: this.ruleForm.username,
-                            password: md5(this.ruleForm.username + this.ruleForm.password)
+                            username,
+                            password: md5(username + this.ruleForm.password)
                         }
-                        setCookie('username',this.ruleForm.username);
+                        setCookie('username', username);
                         setCookie('channel',this.ruleForm.channel);
                         this.$api.post('/api/login', params)
                         .then((res)=> {
@@ -97,12 +98,12 @@
                             } else {
                                 this.tips = res.data.message
                             }
-                        }).catch(function (err) {
-                            console.log('fetch faild: ' + err);
+                        }).catch((err) => {
+                            this.tips = err?.data?.statusMessage || 'เข้าสู่ระบบไม่สำเร็จ';
+                            ElMessage.error(this.tips);
                         });
 
                     } else {
-                        console.log('error submit!!');
                         return false;
                     }
                 });

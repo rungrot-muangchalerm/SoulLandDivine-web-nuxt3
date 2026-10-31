@@ -14,7 +14,7 @@ interface MenuEntry {
 }
 
 const menu: MenuEntry[] = [
-  { title: 'ข้อมูลตัวละคร', path: '/role', limit: 0 },
+  { title: 'ข้อมูลผู้เล่น', path: '/role', limit: 0 },
   { title: 'หักทรัพยากร', limit: 4, children: [
     { title: 'หักไอเทม', path: '/item' },
     { title: 'หักความคืบหน้าการเติมเงินสะสม', path: '/recharge' },

@@ -16,7 +16,8 @@
                     ></el-option>
 				</el-select>
             </div>
-            <el-table :data="tableData" border v-loading="loading" style="width: 100%;margin-bottom: 14px;">
+            <div v-if="loading" class="loading-message">กำลังโหลดข้อมูลผู้เล่น...</div>
+            <el-table :data="tableData" border style="width: 100%;margin-bottom: 14px;">
                 <el-table-column type="expand">
                     <template #default="scope">
                         <el-table :data="scope.row.characters" border>
@@ -279,11 +280,9 @@
     .handle-box {
         margin-bottom: 20px;
     }
-    .role-id {
-        width: 150px;
-    }
-    .role-name {
-        width: 150px;
+    .loading-message {
+        margin-bottom: 12px;
+        color: #606266;
     }
     .dialog-input {
         margin-bottom: 15px;

@@ -33,11 +33,13 @@ Apply `database/migrations/20261031_admin_users_gamedb.sql` once to create the
 `gamedb.admin_user`. Channels, operation logs, and broadcasts still use
 `dlbackstage`, so the rest of the web-admin schema has not been consolidated.
 
-The character information page reads character, resource, recharge, and server
-data from `gamedb`. Character searches are scoped to the selected server. The
-online state is not stored in the exported character tables, so the page
-displays it as unknown. Mute/unmute and freeze/unfreeze actions continue to use
-the Game Server protocol.
+The player information page lists accounts with characters in the selected
+server, 50 accounts per page. Expanding an account shows its characters,
+resources, and recharge totals. Player totals are aggregated from that
+account's characters on the selected server. Online state is not stored in the
+exported character tables, so it displays as unknown. Mute/unmute and
+freeze/unfreeze actions remain targeted to an individual character and continue
+to use the Game Server protocol.
 
 Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
 Nitro handles login/session validation, channel and user administration,
