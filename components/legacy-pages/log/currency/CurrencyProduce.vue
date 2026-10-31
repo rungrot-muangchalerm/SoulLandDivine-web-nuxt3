@@ -1,24 +1,24 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-date"></i> ค้นหาบันทึก</el-breadcrumb-item>
-                <el-breadcrumb-item>ค้นหาการได้รับเงินตรา</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="date"></i> ค้นหาบันทึก</bs-breadcrumb-item>
+                <bs-breadcrumb-item>ค้นหาการได้รับเงินตรา</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <el-option 
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
+                    <bs-option 
                         v-for="item in server_list" 
                         :key="item.$.id" 
                         :label="item.$.name" 
                         :value="item.$.id"
-                    ></el-option>
-                </el-select>
-                <el-input class="uid mr10" placeholder="กรอก uid" v-model="uid"></el-input>
-                <el-input class="uid mr10" placeholder="กรอก itemId" v-model="itemId"></el-input>
-                <el-date-picker
+                    ></bs-option>
+                </bs-select>
+                <bs-input class="uid mr10" placeholder="กรอก uid" v-model="uid"></bs-input>
+                <bs-input class="uid mr10" placeholder="กรอก itemId" v-model="itemId"></bs-input>
+                <bs-date-picker
                     v-model="selected_time"
                     type="datetimerange"
                     :picker-options="words.time.pickerInterval"
@@ -28,37 +28,37 @@
                     align="right"
                     class="time"
                     value-format="yyyy-MM-dd HH:mm:ss"
-                ></el-date-picker>
-                <el-select filterable v-model="selected_obtain" placeholder="ช่องทางที่ได้รับ" class="mr10">
-                    <el-option
+                ></bs-date-picker>
+                <bs-select filterable v-model="selected_obtain" placeholder="ช่องทางที่ได้รับ" class="mr10">
+                    <bs-option
                         v-for="item in words.myListArr.gainWay"
                         :key="item.value"
                         :label="item.label"
                         :value="item.value">
-                    </el-option>
-                </el-select>
-                <el-switch
+                    </bs-option>
+                </bs-select>
+                <bs-switch
                     v-model="order"
                     active-text="เก่าไปใหม่"
                     inactive-text="ใหม่ไปเก่า">
-                </el-switch>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch(cur_page,page_size)">ค้นหา</el-button>
+                </bs-switch>
+                <bs-button type="primary" @click="handleSearch(cur_page,page_size)">ค้นหา</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="uid" label="uid" align="center"></el-table-column>
-                <el-table-column prop="modelId" label="รหัสไอเทม" align="center"></el-table-column>
-                <el-table-column prop="time" label="เวลา" align="center"></el-table-column>
-                <el-table-column prop="level" label="level" align="center"></el-table-column>
-                <el-table-column prop="channel" label="ช่องทาง" align="center"></el-table-column>
-                <el-table-column prop="way" label="ช่องทางที่ได้รับ" align="center"></el-table-column>
-                <el-table-column prop="type" label="ประเภทการได้รับ" align="center"></el-table-column>
-                <el-table-column prop="changeNum" label="จำนวนที่ได้รับ" align="center"></el-table-column>
-                <el-table-column prop="currNum" label="จำนวนปัจจุบัน" align="center"></el-table-column>
-                <el-table-column prop="extraParam" label="พารามิเตอร์เพิ่มเติม" align="center"></el-table-column>
-            </el-table>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="uid" label="uid" align="center"></bs-table-column>
+                <bs-table-column prop="modelId" label="รหัสไอเทม" align="center"></bs-table-column>
+                <bs-table-column prop="time" label="เวลา" align="center"></bs-table-column>
+                <bs-table-column prop="level" label="level" align="center"></bs-table-column>
+                <bs-table-column prop="channel" label="ช่องทาง" align="center"></bs-table-column>
+                <bs-table-column prop="way" label="ช่องทางที่ได้รับ" align="center"></bs-table-column>
+                <bs-table-column prop="type" label="ประเภทการได้รับ" align="center"></bs-table-column>
+                <bs-table-column prop="changeNum" label="จำนวนที่ได้รับ" align="center"></bs-table-column>
+                <bs-table-column prop="currNum" label="จำนวนปัจจุบัน" align="center"></bs-table-column>
+                <bs-table-column prop="extraParam" label="พารามิเตอร์เพิ่มเติม" align="center"></bs-table-column>
+            </bs-table>
             <div class="pagination">
-                <el-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="total_size" :page-size="page_size">
-                </el-pagination>
+                <bs-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="total_size" :page-size="page_size">
+                </bs-pagination>
             </div>
         </div>
     </div>
@@ -67,11 +67,10 @@
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElInput, ElOption, ElPagination, ElSelect, ElSwitch, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElInput, ElOption, ElPagination, ElSelect, ElSwitch, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -110,7 +109,7 @@
             },
             handleSearch (cur_page,page_size) {
                 if (this.selceted_serverId === "" || this.uid === "" || this.selected_time === "" || this.selected_obtain ==="") {
-                    ElMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน');
+                    BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน');
                 } else {
                     var params = {
                         serverId: this.selceted_serverId,
@@ -130,7 +129,7 @@
                             this.total_size = res.data.count;
                         } else {
                             this.tableData = [];
-                            ElMessage.warning('ไม่พบข้อมูล');
+                            BsMessage.warning('ไม่พบข้อมูล');
                         }
                     }).catch(function (err) {
                         console.log('fetch faild:' + err);
@@ -141,13 +140,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
 
-    .uid {
-        width: 15%;
-    }
-
-</style>

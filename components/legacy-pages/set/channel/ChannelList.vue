@@ -1,61 +1,60 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-present"></i> จัดการการตั้งค่า</el-breadcrumb-item>
-                <el-breadcrumb-item>จัดการช่องทาง</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="present"></i> จัดการการตั้งค่า</bs-breadcrumb-item>
+                <bs-breadcrumb-item>จัดการช่องทาง</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-button type="success" icon="el-icon-edit" @click="handleAdd()">เพิ่ม</el-button>
-                <!-- <el-input class="uid mr10" placeholder="输入福利ID" v-model="welfare_id"></el-input>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch(welfare_id)">{{ words.button.search }}</el-button> -->
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-button type="success" @click="handleAdd()">เพิ่ม</bs-button>
+                <!-- <bs-input class="uid mr10" placeholder="输入福利ID" v-model="welfare_id"></bs-input>
+                <bs-button type="primary" @click="handleSearch(welfare_id)">{{ words.button.search }}</bs-button> -->
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="name" label="ชื่อช่องทาง" align="center"></el-table-column>
-                <el-table-column prop="index" label="ดัชนี" align="center"></el-table-column>
-                <el-table-column prop="ip" label="IP" align="center" width=""></el-table-column>
-                <el-table-column prop="url" label="ที่อยู่ XML" align="center" width=""></el-table-column>
-                <el-table-column label="การดำเนินการ" width="160" align="center">
-                    <template v-if="scope.row.authorization !== '管理员'" slot-scope="scope">
-                        <el-button size="mini" @click="handleChange(scope.$index, scope.row)">แก้ไข</el-button>
-                        <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</el-button>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="name" label="ชื่อช่องทาง" align="center"></bs-table-column>
+                <bs-table-column prop="index" label="ดัชนี" align="center"></bs-table-column>
+                <bs-table-column prop="ip" label="IP" align="center" width=""></bs-table-column>
+                <bs-table-column prop="url" label="ที่อยู่ XML" align="center" width=""></bs-table-column>
+                <bs-table-column label="การดำเนินการ" width="160" align="center">
+                    <template v-if="scope.row.authorization !== '管理员'" #default="scope">
+                        <bs-button size="small" @click="handleChange(scope.$index, scope.row)">แก้ไข</bs-button>
+                        <bs-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</bs-button>
                     </template>
-                </el-table-column>
-            </el-table>
+                </bs-table-column>
+            </bs-table>
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="30%" :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" width="30%" :close-on-click-modal="false">
             <div class="del-dialog-cnt" v-if="this.dialogType === 'delete'">{{ dialogInfo }}</div>
-            <el-form ref="form" :model="form" label-width="100px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
-                <el-form-item label="ชื่อช่องทาง">
-                    <el-input v-model="form.name" placeholder="ตัวอย่าง: 混服01[1001-1400]"></el-input>
-                </el-form-item>
-                <el-form-item label="ดัชนี">
-                    <el-input v-model="form.index" placeholder="ตัวอย่าง: hunfu"></el-input>
-                </el-form-item>
-                <el-form-item label="IP">
-                    <el-input v-model="form.ip" placeholder="ตัวอย่าง: 192.168.10.149"></el-input>
-                </el-form-item>
-                <el-form-item label="ที่อยู่ XML">
-                    <el-input v-model="form.url" placeholder="ตัวอย่าง: ./server_list/test.xml"></el-input>
-                </el-form-item>
-            </el-form>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">ยกเลิก</el-button>
-                <el-button type="primary" @click="handleConfirm()">ยืนยัน</el-button>
-            </span>
-        </el-dialog>
+            <bs-form ref="form" :model="form" label-width="100px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
+                <bs-form-item label="ชื่อช่องทาง">
+                    <bs-input v-model="form.name" placeholder="ตัวอย่าง: 混服01[1001-1400]"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ดัชนี">
+                    <bs-input v-model="form.index" placeholder="ตัวอย่าง: hunfu"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="IP">
+                    <bs-input v-model="form.ip" placeholder="ตัวอย่าง: 192.168.10.149"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ที่อยู่ XML">
+                    <bs-input v-model="form.url" placeholder="ตัวอย่าง: ./server_list/test.xml"></bs-input>
+                </bs-form-item>
+            </bs-form>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">ยกเลิก</bs-button>
+                <bs-button type="primary" @click="handleConfirm()">ยืนยัน</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -143,7 +142,7 @@
                         this.$api.post('/api/set/changeChannel', this.form)
                         .then(function (res) {
                             if (res.data[0] === 1) {
-                                ElMessage.success('แก้ไขการตั้งค่าช่องทางสำเร็จ!');
+                                BsMessage.success('แก้ไขการตั้งค่าช่องทางสำเร็จ!');
                                 self.dialogVisible = false;
                                 self.handleSearch();
                             }
@@ -156,7 +155,7 @@
                     this.$api.post('/api/set/deleteChannel',this.form)
                     .then(res => {
                         if (res.data == 1) {
-                            ElMessage.success('ลบสำเร็จ');
+                            BsMessage.success('ลบสำเร็จ');
                             self.dialogVisible = false;
                             self.handleSearch();
                         }
@@ -169,7 +168,7 @@
             isEmpty(obj) {
                 for (var value in obj) {
                     if (!obj[value]) {
-                        ElMessage.error("มีช่องว่างในข้อมูลช่องทาง กรุณากรอกให้ครบถ้วน!");
+                        BsMessage.error("มีช่องว่างในข้อมูลช่องทาง กรุณากรอกให้ครบถ้วน!");
                         return false;
                     }
                 }
@@ -179,11 +178,4 @@
     }
 </script>
 
-<style scoped>
-    .uid {
-        width: 15%;
-    }
-    .handle-box .el-button {
-        margin-bottom: 20px;
-    }
-</style>
+

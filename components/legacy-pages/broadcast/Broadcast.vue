@@ -1,131 +1,130 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-bell"></i>ประกาศข้อความ</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="bell"></i>ประกาศข้อความ</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-button type="success" icon="el-icon-edit" @click="handleAdd">{{ words.button.add }}</el-button>
-                <el-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <el-option key="0" label="all servers" value="0"></el-option>
-                    <el-option 
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-button type="success" @click="handleAdd">{{ words.button.add }}</bs-button>
+                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
+                    <bs-option key="0" label="all servers" value="0"></bs-option>
+                    <bs-option 
                         v-for="item in server_list" 
                         :key="item.$.id" 
                         :label="item.$.name" 
                         :value="item.$.id"
-                    ></el-option>
-                </el-select>
-                <el-select v-model="selceted_user" placeholder="ผู้ส่ง" class="mr10">
-                    <el-option key="all" label="all users" value="all"></el-option>
-                    <el-option 
+                    ></bs-option>
+                </bs-select>
+                <bs-select v-model="selceted_user" placeholder="ผู้ส่ง" class="mr10">
+                    <bs-option key="all" label="all users" value="all"></bs-option>
+                    <bs-option 
                         v-for="item in user_list"
                         :key="item.id" 
                         :label="item.username" 
                         :value="item.username">
-                    </el-option>
-                </el-select>
-                <el-select v-model="selceted_state" placeholder="สถานะ" class="mr10">
-                    <el-option 
+                    </bs-option>
+                </bs-select>
+                <bs-select v-model="selceted_state" placeholder="สถานะ" class="mr10">
+                    <bs-option 
                         v-for="item in state_list"
                         :key="item.id" 
                         :label="item.label" 
                         :value="item.id">
-                    </el-option>
-                </el-select>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch">{{ words.button.search }}</el-button>
+                    </bs-option>
+                </bs-select>
+                <bs-button type="primary" @click="handleSearch">{{ words.button.search }}</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="serverId" label="ServerId" align="center"></el-table-column>
-                <el-table-column prop="title" label="หัวข้อ" align="center"></el-table-column>
-                <el-table-column prop="submitter" label="ผู้ส่ง" align="center"></el-table-column>
-                <el-table-column prop="createdAt" label="เวลาส่ง" align="center"></el-table-column>
-                <el-table-column prop="type" label="ประเภท" align="center"></el-table-column>
-                <el-table-column prop="status" label="สถานะ" align="center"></el-table-column>
-                <el-table-column label="การดำเนินการ" width="150" align="center">
-                    <template slot-scope="scope">
-                        <el-button type="text" @click="handleChange(scope.$index,scope.row)">แก้ไข</el-button>
-                        <el-button type="text" style="color: #f56c6c;" @click="handleDelete(scope.$index,scope.row)">ลบ</el-button>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="serverId" label="ServerId" align="center"></bs-table-column>
+                <bs-table-column prop="title" label="หัวข้อ" align="center"></bs-table-column>
+                <bs-table-column prop="submitter" label="ผู้ส่ง" align="center"></bs-table-column>
+                <bs-table-column prop="createdAt" label="เวลาส่ง" align="center"></bs-table-column>
+                <bs-table-column prop="type" label="ประเภท" align="center"></bs-table-column>
+                <bs-table-column prop="status" label="สถานะ" align="center"></bs-table-column>
+                <bs-table-column label="การดำเนินการ" width="150" align="center">
+                    <template #default="scope">
+                        <bs-button type="text" @click="handleChange(scope.$index,scope.row)">แก้ไข</bs-button>
+                        <bs-button type="text" @click="handleDelete(scope.$index,scope.row)">ลบ</bs-button>
                     </template>
-                </el-table-column>
-            </el-table>
+                </bs-table-column>
+            </bs-table>
             <!-- <div class="pagination">
-                <el-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="1000">
-                </el-pagination>
+                <bs-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="1000">
+                </bs-pagination>
             </div> -->
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="35%" center :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" width="35%" center :close-on-click-modal="false">
             <div class="del-dialog-cnt" v-if="this.dialogType === 'delete'">{{ dialogInfo }}</div>
-            <el-form :model="form" label-width="120px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
-                <el-form-item label="serverId">
-                    <el-select filterable v-model="form.serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                        <el-option key="0" label="all servers" value="0"></el-option>
-                        <el-option 
+            <bs-form :model="form" label-width="120px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
+                <bs-form-item label="serverId">
+                    <bs-select filterable v-model="form.serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
+                        <bs-option key="0" label="all servers" value="0"></bs-option>
+                        <bs-option 
                             v-for="item in server_list" 
                             :key="item.$.id" 
                             :label="item.$.name" 
                             :value="item.$.id"
-                        ></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="หัวข้อ">
-                    <el-input v-model="form.title"></el-input>
-                </el-form-item>
-                <el-form-item label="เนื้อหาประกาศ">
-                    <el-input
+                        ></bs-option>
+                    </bs-select>
+                </bs-form-item>
+                <bs-form-item label="หัวข้อ">
+                    <bs-input v-model="form.title"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="เนื้อหาประกาศ">
+                    <bs-input
                         type="textarea"
                         autosize
                         placeholder="กรอกเนื้อหา"
                         v-model="form.content"
-                    ></el-input>
-                </el-form-item>
-                <el-form-item label="ประเภทประกาศ">
-                    <el-select v-model="form.type" placeholder="กรุณาเลือก">
-                        <el-option key="once" label="ครั้งเดียว" value="once"></el-option>
-                        <el-option key="loop" label="วนซ้ำ" value="loop"></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="เวลาที่กำหนด">
-                    <el-date-picker
+                    ></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ประเภทประกาศ">
+                    <bs-select v-model="form.type" placeholder="กรุณาเลือก">
+                        <bs-option key="once" label="ครั้งเดียว" value="once"></bs-option>
+                        <bs-option key="loop" label="วนซ้ำ" value="loop"></bs-option>
+                    </bs-select>
+                </bs-form-item>
+                <bs-form-item label="เวลาที่กำหนด">
+                    <bs-date-picker
                         v-model="form.startTime"
                         type="datetime"
                         placeholder="เลือกวันที่และเวลา"
                         default-time="12:00:00"
                         value-format="yyyy-MM-dd HH:mm:ss"
-                    ></el-date-picker>
-                </el-form-item>
-                <el-form-item label="เวลาสิ้นสุด">
-                    <el-date-picker
+                    ></bs-date-picker>
+                </bs-form-item>
+                <bs-form-item label="เวลาสิ้นสุด">
+                    <bs-date-picker
                         v-model="form.stopTime"
                         type="datetime"
                         placeholder="เลือกวันที่และเวลา"
                         default-time="12:00:00"
                         value-format="yyyy-MM-dd HH:mm:ss"
                         :disabled="form.type === 'once'"
-                    ></el-date-picker>
-                </el-form-item>
-                <el-form-item label="ช่วงเวลา (นาที)">
-                    <el-input v-model="form.intervalTime" :disabled="form.type === 'once'"></el-input>
-                </el-form-item>
-            </el-form>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">ยกเลิก</el-button>
-                <el-button type="primary" @click="handleConfirm">ยืนยัน</el-button>
-            </span>
-        </el-dialog>
+                    ></bs-date-picker>
+                </bs-form-item>
+                <bs-form-item label="ช่วงเวลา (นาที)">
+                    <bs-input v-model="form.intervalTime" :disabled="form.type === 'once'"></bs-input>
+                </bs-form-item>
+            </bs-form>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">ยกเลิก</bs-button>
+                <bs-button type="primary" @click="handleConfirm">ยืนยัน</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -191,7 +190,7 @@
             // 查询广告广播
             handleSearch () {
                 if (this.selceted_serverId === '' || this.selceted_user === '' || this.selceted_state === '') {
-                    ElMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบ');
+                    BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบ');
                 } else {
                     var params = {
                         serverId: this.selceted_serverId,
@@ -273,11 +272,11 @@
                 if (this.dialogType === 'add') { //添加广告广播
                     let params = this.getParams (this.form.type);
                     if (params === undefined) {
-                        ElMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
+                        BsMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
                     } else {
                         for (var name in params) {
                             if (!params[name]) {
-                                ElMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
+                                BsMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
                                 return
                             }
                         }
@@ -285,11 +284,11 @@
                     this.$api.post('/api/broadcast/add', params)
                     .then((res) => {
                         if (res.data.result === 1) {
-                            ElMessage.success('เพิ่มสำเร็จ');
+                            BsMessage.success('เพิ่มสำเร็จ');
                             this.dialogVisible = false;
                             this.handleSearch();
                         } else {
-                            ElMessage.error('เพิ่มประกาศไม่สำเร็จ');
+                            BsMessage.error('เพิ่มประกาศไม่สำเร็จ');
                         }
                     }).catch(function (err) {
                         console.log('fetch faild:' + err);
@@ -298,11 +297,11 @@
                     let params = this.getParams (this.form.type);
                     params.id = this.form.id;
                     if (params === undefined) {
-                        ElMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
+                        BsMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
                     } else {
                         for (var name in params) {
                             if (!params[name]) {
-                                ElMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
+                                BsMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
                                 return
                             }
                         }
@@ -310,11 +309,11 @@
                     this.$api.post('/api/broadcast/update', params)
                     .then((res) => {
                         if (res.data[0] === 1) {
-                            ElMessage.success(`แก้ไขประกาศสำเร็จ`);
+                            BsMessage.success(`แก้ไขประกาศสำเร็จ`);
                             this.dialogVisible = false;
                             this.handleSearch();
                         } else {
-                            ElMessage.error('แก้ไขประกาศไม่สำเร็จ');
+                            BsMessage.error('แก้ไขประกาศไม่สำเร็จ');
                         }
                     }).catch(function (err) {
                         console.log('fetch faild:' + err);
@@ -326,7 +325,7 @@
                     this.$api.post('/api/broadcast/delete', params)
                     .then((res) => {
                         if (res.data === 1) {
-                            ElMessage.success('ลบสำเร็จ');
+                            BsMessage.success('ลบสำเร็จ');
                             this.dialogVisible = false;
                             this.handleSearch();
                         }
@@ -339,26 +338,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
-    .submitter {
-        width: 100px;
-    }
-    .state {
-        width: 100px;
-    }
-    .time {
-        width: 330px;
-    }
-    .del-dialog-cnt {
-        color: red;
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 16px;
-    }
-    .el-button--text {
-        text-decoration: underline;
-    }
-</style>
+

@@ -2,7 +2,22 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-03-01',
   devServer: { host: '0.0.0.0', port: 8081 },
   devtools: { enabled: true },
-  css: ['element-plus/dist/index.css', '~/assets/css/main.css'],
+  app: {
+    head: {
+      link: [
+        {
+          rel: 'stylesheet',
+          href: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css',
+        },
+      ],
+      script: [
+        {
+          src: 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js',
+          defer: true,
+        },
+      ],
+    },
+  },
   runtimeConfig: {
     dbHost: process.env.DB_HOST || '127.0.0.1',
     dbPort: Number(process.env.DB_PORT || 3306),

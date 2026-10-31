@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import md5 from 'js-md5'
-import { ElButton, ElDialog, ElDropdown, ElDropdownItem, ElDropdownMenu, ElForm, ElFormItem, ElInput, ElMessage } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
 const props = defineProps<{
   username: string
   channel: string
 }>()
-const emit = defineEmits<{ collapse: [] }>()
 const passwordDialogVisible = ref(false)
 const form = reactive({ oldPsw: '', newPsw: '', againPsw: '' })
-async function openPasswordDialog() {
+function openPasswordDialog() {
   form.oldPsw = ''
   form.newPsw = ''
   form.againPsw = ''
@@ -18,15 +17,15 @@ async function openPasswordDialog() {
 
 async function changePassword() {
   if (!form.oldPsw || !form.newPsw || !form.againPsw) {
-    ElMessage.error('กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่')
+    BsMessage.error('กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่')
     return
   }
   if (form.newPsw.length < 6) {
-    ElMessage.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร')
+    BsMessage.error('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร')
     return
   }
   if (form.newPsw !== form.againPsw) {
-    ElMessage.error('รหัสผ่านใหม่ไม่ตรงกัน')
+    BsMessage.error('รหัสผ่านใหม่ไม่ตรงกัน')
     return
   }
 
@@ -40,12 +39,12 @@ async function changePassword() {
       },
     })
     if (result[0] === 1) {
-      ElMessage.success('เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง')
+      BsMessage.success('เปลี่ยนรหัสผ่านสำเร็จ กรุณาเข้าสู่ระบบอีกครั้ง')
       passwordDialogVisible.value = false
       await logout()
     }
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'เปลี่ยนรหัสผ่านไม่สำเร็จ')
+    BsMessage.error(error instanceof Error ? error.message : 'เปลี่ยนรหัสผ่านไม่สำเร็จ')
   }
 }
 
@@ -55,11 +54,6 @@ async function logout() {
   } finally {
     await navigateTo('/login')
   }
-}
-
-async function handleCommand(command: string) {
-  if (command === 'changePsw') await openPasswordDialog()
-  if (command === 'loginout') await logout()
 }
 
 const fullscreen = ref(false)
@@ -88,49 +82,62 @@ onMounted(async () => {
 </script>
 
 <template>
-  <header class="admin-header">
-    <el-button class="collapse-button" text @click="emit('collapse')">☰</el-button>
-    <div class="brand">ระบบจัดการ GM Douluo Continent - {{ channelName }}</div>
-    <div class="header-actions">
-      <el-button text aria-label="เต็มหน้าจอ" @click="toggleFullscreen">
-        {{ fullscreen ? 'ออกจากโหมดเต็มหน้าจอ' : 'เต็มหน้าจอ' }}
-      </el-button>
-      <el-dropdown @command="handleCommand">
-        <button class="user-menu" type="button">{{ username }}⌄</button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="changePsw">เปลี่ยนรหัสผ่าน</el-dropdown-item>
-            <el-dropdown-item divided command="loginout">ออกจากระบบ</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+  <header class="navbar navbar-dark bg-dark shadow-sm sticky-top">
+    <div class="container-fluid gap-2">
+      <div class="navbar-brand mb-0 me-auto text-truncate">
+        ระบบจัดการ GM Douluo Continent <span class="text-white-50">- {{ channelName }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-light btn-sm" type="button" aria-label="เต็มหน้าจอ" @click="toggleFullscreen">
+          {{ fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ' }}
+        </button>
+        <div class="dropdown">
+          <button
+            class="btn btn-outline-light dropdown-toggle"
+            type="button"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+          >
+            {{ username }}
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><button class="dropdown-item" type="button" @click="openPasswordDialog">เปลี่ยนรหัสผ่าน</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item text-danger" type="button" @click="logout">ออกจากระบบ</button></li>
+          </ul>
+        </div>
+      </div>
     </div>
-    <el-dialog v-model="passwordDialogVisible" title="เปลี่ยนรหัสผ่าน" width="420px">
-      <el-form label-width="100px">
-        <el-form-item label="รหัสผ่านเดิม"><el-input v-model="form.oldPsw" type="password" show-password placeholder="กรอกรหัสผ่านเดิม" /></el-form-item>
-        <el-form-item label="รหัสผ่านใหม่"><el-input v-model="form.newPsw" type="password" show-password placeholder="กรอกรหัสผ่านใหม่" /></el-form-item>
-        <el-form-item label="ยืนยันรหัสผ่านใหม่"><el-input v-model="form.againPsw" type="password" show-password placeholder="กรอกรหัสผ่านใหม่อีกครั้ง" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="passwordDialogVisible = false">ยกเลิก</el-button>
-        <el-button type="primary" @click="changePassword">ยืนยัน</el-button>
-      </template>
-    </el-dialog>
+    <div v-if="passwordDialogVisible">
+      <div class="modal-backdrop fade show" @click="passwordDialogVisible = false"></div>
+      <div class="modal d-block" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="password-dialog-title">
+        <div class="modal-dialog modal-dialog-centered">
+          <form class="modal-content" @submit.prevent="changePassword">
+            <div class="modal-header">
+              <h2 id="password-dialog-title" class="modal-title fs-5">เปลี่ยนรหัสผ่าน</h2>
+              <button class="btn-close" type="button" aria-label="ปิด" @click="passwordDialogVisible = false"></button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-3">
+                <label class="form-label" for="old-password">รหัสผ่านเดิม</label>
+                <input id="old-password" v-model="form.oldPsw" class="form-control" type="password" autocomplete="current-password" placeholder="กรอกรหัสผ่านเดิม">
+              </div>
+              <div class="mb-3">
+                <label class="form-label" for="new-password">รหัสผ่านใหม่</label>
+                <input id="new-password" v-model="form.newPsw" class="form-control" type="password" autocomplete="new-password" placeholder="กรอกรหัสผ่านใหม่">
+              </div>
+              <div>
+                <label class="form-label" for="again-password">ยืนยันรหัสผ่านใหม่</label>
+                <input id="again-password" v-model="form.againPsw" class="form-control" type="password" autocomplete="new-password" placeholder="กรอกรหัสผ่านใหม่อีกครั้ง">
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn btn-outline-secondary" type="button" @click="passwordDialogVisible = false">ยกเลิก</button>
+              <button class="btn btn-primary" type="submit">ยืนยัน</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </header>
 </template>
-
-<style scoped>
-.admin-header {
-  display: flex;
-  align-items: center;
-  height: 70px;
-  padding: 0 24px 0 8px;
-  color: #fff;
-  background: #242f3e;
-}
-.collapse-button { color: #fff; font-size: 20px; }
-.brand { flex: 1; padding-left: 14px; font-size: 20px; }
-.header-actions { display: flex; align-items: center; gap: 18px; }
-.header-actions :deep(.el-button) { color: #fff; }
-.user-menu { border: 0; color: #fff; background: transparent; cursor: pointer; font: inherit; }
-</style>

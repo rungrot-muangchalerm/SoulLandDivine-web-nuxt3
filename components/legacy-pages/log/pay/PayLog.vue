@@ -1,23 +1,23 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-date"></i> ค้นหาบันทึก</el-breadcrumb-item>
-                <el-breadcrumb-item>ค้นหาการเติมเงิน</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="date"></i> ค้นหาบันทึก</bs-breadcrumb-item>
+                <bs-breadcrumb-item>ค้นหาการเติมเงิน</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <el-option 
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
+                    <bs-option 
                         v-for="item in server_list" 
                         :key="item.$.id" 
                         :label="item.$.name" 
                         :value="item.$.id"
-                    ></el-option>
-                </el-select>
-                <el-input class="uid mr10" placeholder="กรอก uid" v-model="uid"></el-input>
-                <el-date-picker
+                    ></bs-option>
+                </bs-select>
+                <bs-input class="uid mr10" placeholder="กรอก uid" v-model="uid"></bs-input>
+                <bs-date-picker
                     v-model="selected_time"
                     type="daterange"
                     :picker-options="words.time.pickerInterval"
@@ -27,25 +27,25 @@
                     align="right"
                     class="time"
                     value-format="yyyy-MM-dd"
-                ></el-date-picker>
-                <el-input class="uid mr10" placeholder="กรอกหมายเลขคำสั่งซื้อ" v-model="orderId"></el-input>
-                <el-input class="uid mr10" placeholder="กรอกข้อมูลคำสั่งซื้อ" v-model="orderInfo"></el-input>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch(cur_page,page_size)">ค้นหา</el-button>
+                ></bs-date-picker>
+                <bs-input class="uid mr10" placeholder="กรอกหมายเลขคำสั่งซื้อ" v-model="orderId"></bs-input>
+                <bs-input class="uid mr10" placeholder="กรอกข้อมูลคำสั่งซื้อ" v-model="orderInfo"></bs-input>
+                <bs-button type="primary" @click="handleSearch(cur_page,page_size)">ค้นหา</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="orderId" label="หมายเลขคำสั่งซื้อ" align="center"></el-table-column>
-                <el-table-column prop="orderInfo" label="ข้อมูลคำสั่งซื้อ" align="center"></el-table-column>
-                <el-table-column prop="money" label="จำนวนเงิน" align="center"></el-table-column>
-                <el-table-column prop="time" label="เวลา" align="center"></el-table-column>
-                <el-table-column prop="state" label="สถานะการเติมเงิน" align="center"></el-table-column>
-                <el-table-column prop="getState" label="สถานะการรับรางวัล" align="center"></el-table-column>
-                <el-table-column prop="productId" label="รหัสสินค้า" align="center"></el-table-column>
-                <el-table-column prop="productName" label="ชื่อสินค้า" align="center"></el-table-column>
-                <el-table-column prop="rechargeWay" label="วิธีเติมเงิน" align="center"></el-table-column>
-            </el-table>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="orderId" label="หมายเลขคำสั่งซื้อ" align="center"></bs-table-column>
+                <bs-table-column prop="orderInfo" label="ข้อมูลคำสั่งซื้อ" align="center"></bs-table-column>
+                <bs-table-column prop="money" label="จำนวนเงิน" align="center"></bs-table-column>
+                <bs-table-column prop="time" label="เวลา" align="center"></bs-table-column>
+                <bs-table-column prop="state" label="สถานะการเติมเงิน" align="center"></bs-table-column>
+                <bs-table-column prop="getState" label="สถานะการรับรางวัล" align="center"></bs-table-column>
+                <bs-table-column prop="productId" label="รหัสสินค้า" align="center"></bs-table-column>
+                <bs-table-column prop="productName" label="ชื่อสินค้า" align="center"></bs-table-column>
+                <bs-table-column prop="rechargeWay" label="วิธีเติมเงิน" align="center"></bs-table-column>
+            </bs-table>
             <div class="pagination">
-                <el-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="total_size" :page-size="page_size">
-                </el-pagination>
+                <bs-pagination @current-change="handleCurrentChange" layout="prev, pager, next" :total="total_size" :page-size="page_size">
+                </bs-pagination>
             </div>
         </div>
     </div>
@@ -54,11 +54,10 @@
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -98,7 +97,7 @@
             // 查询充值信息
             handleSearch (page,page_size) {
                 if (this.selceted_serverId === "" || this.uid ==="" || this.selected_time ==="") {
-                    ElMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน');
+                    BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน');
                 } else {
                     var params = {
                         serverId: this.selceted_serverId,
@@ -117,7 +116,7 @@
                             this.total_size = res.data.dataCount;
                         } else {
                             this.tableData = [];
-                            ElMessage.warning('ไม่พบข้อมูล');
+                            BsMessage.warning('ไม่พบข้อมูล');
                         }
                     }).catch(function (err) {
                         console.log('fetch faild:' + err);
@@ -128,13 +127,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
 
-    .uid {
-        width: 15%;
-    }
-
-</style>

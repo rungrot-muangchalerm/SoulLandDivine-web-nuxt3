@@ -1,91 +1,90 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-rank"></i> ข้อมูลผู้เล่น</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="rank"></i> ข้อมูลผู้เล่น</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-				<el-select filterable v-model="selecte_server" :placeholder="words.tips.PleaseSelectServerID" class="submitter mr10" @change="handleServerChange">
-				    <el-option 
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+				<bs-select filterable v-model="selecte_server" :placeholder="words.tips.PleaseSelectServerID" class="submitter mr10" @change="handleServerChange">
+				    <bs-option 
                         v-for="item in server_list" 
                         :key="item.id"
                         :label="item.name"
                         :value="item.id"
-                    ></el-option>
-				</el-select>
+                    ></bs-option>
+				</bs-select>
             </div>
-            <div v-if="loading" class="loading-message">กำลังโหลดข้อมูลผู้เล่น...</div>
-            <el-table :data="tableData" border style="width: 100%;margin-bottom: 14px;">
-                <el-table-column type="expand">
+            <div v-if="loading" class="alert alert-info">กำลังโหลดข้อมูลผู้เล่น...</div>
+            <bs-table :data="tableData" border class="w-100">
+                <bs-table-column type="expand">
                     <template #default="scope">
-                        <el-table :data="scope.row.characters" border>
-                            <el-table-column prop="uid" label="รหัสตัวละคร" align="center"></el-table-column>
-                            <el-table-column prop="name" label="ชื่อตัวละคร" align="center"></el-table-column>
-                            <el-table-column prop="level" label="ระดับ" align="center"></el-table-column>
-                            <el-table-column prop="online" label="สถานะออนไลน์" align="center"></el-table-column>
-                            <el-table-column prop="silenceTime" label="ระงับแชทถึง" align="center"></el-table-column>
-                            <el-table-column label="จัดการแชท" align="center" min-width="180">
+                        <bs-table :data="scope.row.characters" border>
+                            <bs-table-column prop="uid" label="รหัสตัวละคร" align="center"></bs-table-column>
+                            <bs-table-column prop="name" label="ชื่อตัวละคร" align="center"></bs-table-column>
+                            <bs-table-column prop="level" label="ระดับ" align="center"></bs-table-column>
+                            <bs-table-column prop="online" label="สถานะออนไลน์" align="center"></bs-table-column>
+                            <bs-table-column prop="silenceTime" label="ระงับแชทถึง" align="center"></bs-table-column>
+                            <bs-table-column label="จัดการแชท" align="center" min-width="180">
                                 <template #default="characterScope">
-                                    <el-button size="mini" type="danger" @click="handleSilence(characterScope.row)">{{ words.button.silence }}</el-button>
-                                    <el-button size="mini" @click="handleRemoveSilence(characterScope.row)">{{ words.button.removeSilence }}</el-button>
+                                    <bs-button size="small" type="danger" @click="handleSilence(characterScope.row)">{{ words.button.silence }}</bs-button>
+                                    <bs-button size="small" @click="handleRemoveSilence(characterScope.row)">{{ words.button.removeSilence }}</bs-button>
                                 </template>
-                            </el-table-column>
-                            <el-table-column prop="freezeTime" label="ระงับบัญชีถึง" align="center"></el-table-column>
-                            <el-table-column label="จัดการบัญชี" align="center" min-width="180">
+                            </bs-table-column>
+                            <bs-table-column prop="freezeTime" label="ระงับบัญชีถึง" align="center"></bs-table-column>
+                            <bs-table-column label="จัดการบัญชี" align="center" min-width="180">
                                 <template #default="characterScope">
-                                    <el-button size="mini" type="danger" @click="handleFreeze(characterScope.row)">{{ words.button.freeze }}</el-button>
-                                    <el-button size="mini" @click="handleRemoveFreeze(characterScope.row)">{{ words.button.removeFreeze }}</el-button>
+                                    <bs-button size="small" type="danger" @click="handleFreeze(characterScope.row)">{{ words.button.freeze }}</bs-button>
+                                    <bs-button size="small" @click="handleRemoveFreeze(characterScope.row)">{{ words.button.removeFreeze }}</bs-button>
                                 </template>
-                            </el-table-column>
-                            <el-table-column prop="exp" label="ค่าประสบการณ์" align="center"></el-table-column>
-                            <el-table-column prop="gold" label="ทอง" align="center"></el-table-column>
-                            <el-table-column prop="diamond" label="เพชร" align="center"></el-table-column>
-                            <el-table-column prop="accumulateTotal" label="ยอดเติมตัวละคร" align="center"></el-table-column>
-                        </el-table>
+                            </bs-table-column>
+                            <bs-table-column prop="exp" label="ค่าประสบการณ์" align="center"></bs-table-column>
+                            <bs-table-column prop="gold" label="ทอง" align="center"></bs-table-column>
+                            <bs-table-column prop="diamond" label="เพชร" align="center"></bs-table-column>
+                            <bs-table-column prop="accumulateTotal" label="ยอดเติมตัวละคร" align="center"></bs-table-column>
+                        </bs-table>
                     </template>
-                </el-table-column>
-                <el-table-column prop="accountUid" label="UID ผู้เล่น" align="center"></el-table-column>
-                <el-table-column prop="accountId" label="บัญชีผู้เล่น" align="center"></el-table-column>
-                <el-table-column prop="channelName" label="ช่องทาง" align="center"></el-table-column>
-                <el-table-column prop="timeCreated" label="วันที่สมัคร" align="center"></el-table-column>
-                <el-table-column prop="lastLoginTime" label="เข้าเกมล่าสุด" align="center"></el-table-column>
-                <el-table-column prop="characterCount" label="จำนวนตัวละครในเซิร์ฟเวอร์" align="center"></el-table-column>
-                <el-table-column prop="accumulateTotal" label="ยอดเติมสะสมในเซิร์ฟเวอร์" align="center"></el-table-column>
-            </el-table>
-            <el-pagination
+                </bs-table-column>
+                <bs-table-column prop="accountUid" label="UID ผู้เล่น" align="center"></bs-table-column>
+                <bs-table-column prop="accountId" label="บัญชีผู้เล่น" align="center"></bs-table-column>
+                <bs-table-column prop="channelName" label="ช่องทาง" align="center"></bs-table-column>
+                <bs-table-column prop="timeCreated" label="วันที่สมัคร" align="center"></bs-table-column>
+                <bs-table-column prop="lastLoginTime" label="เข้าเกมล่าสุด" align="center"></bs-table-column>
+                <bs-table-column prop="characterCount" label="จำนวนตัวละครในเซิร์ฟเวอร์" align="center"></bs-table-column>
+                <bs-table-column prop="accumulateTotal" label="ยอดเติมสะสมในเซิร์ฟเวอร์" align="center"></bs-table-column>
+            </bs-table>
+            <bs-pagination
                 v-if="total > 0"
                 :current-page="page"
                 :page-size="pageSize"
                 :total="total"
                 layout="prev, pager, next, total"
                 @current-change="handlePageChange"
-            ></el-pagination>
+            ></bs-pagination>
         </div>
         <!-- 提示框 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" center>
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" center>
             <div class="del-dialog-cnt">{{ dialogInfo }}</div>
             <template v-if="dialogType === words.button.silence || dialogType === words.button.freeze">
-                <el-input class="dialog-input" :placeholder="placeholder" v-model="minutes"></el-input>
-                <el-input class="dialog-input" :placeholder="words.tips.PleaseInputReason" v-model="reason"></el-input>
+                <bs-input class="dialog-input" :placeholder="placeholder" v-model="minutes"></bs-input>
+                <bs-input class="dialog-input" :placeholder="words.tips.PleaseInputReason" v-model="reason"></bs-input>
             </template>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">{{ words.button.no }}</el-button>
-                <el-button type="primary" @click="handleConfirm">{{ words.button.yes }}</el-button>
-            </span>
-        </el-dialog>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">{{ words.button.no }}</bs-button>
+                <bs-button type="primary" @click="handleConfirm">{{ words.button.yes }}</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -118,7 +117,7 @@
                 .then((res) => {
                     this.server_list = res.data;
                 }).catch((err) => {
-                    ElMessage.error(err?.data?.statusMessage || 'โหลดรายชื่อเซิร์ฟเวอร์ไม่สำเร็จ');
+                    BsMessage.error(err?.data?.statusMessage || 'โหลดรายชื่อเซิร์ฟเวอร์ไม่สำเร็จ');
                 });
             },
             handleServerChange () {
@@ -146,7 +145,7 @@
                     this.pageSize = res.data.pageSize;
                     this.total = res.data.total;
                 }).catch((err) => {
-                    ElMessage.error(err?.data?.statusMessage || 'โหลดข้อมูลผู้เล่นไม่สำเร็จ');
+                    BsMessage.error(err?.data?.statusMessage || 'โหลดข้อมูลผู้เล่นไม่สำเร็จ');
                 }).finally(() => {
                     this.loading = false;
                 });
@@ -188,7 +187,7 @@
             handleConfirm () {
                 if (this.dialogType === "禁言") {// 禁言
                     if (this.minutes === undefined) {
-                        ElMessage.error('กรุณาระบุจำนวนนาทีที่ระงับการแชท');
+                        BsMessage.error('กรุณาระบุจำนวนนาทีที่ระงับการแชท');
                     } else {
                         var params = {
                             serverId: this.selecte_server,
@@ -201,14 +200,14 @@
                         .then((res)=> {
                             res = res.data;
                             if (res.result === 1) {
-                                ElMessage.success('ระงับการแชทสำเร็จ');
+                                BsMessage.success('ระงับการแชทสำเร็จ');
                                 this.dialogVisible = false;
                                 this.minutes = undefined;
                                 this.reason = undefined;
                                 this.loadPlayers();
                             }
                         }).catch((err) => {
-                            ElMessage.error(err?.data?.statusMessage || 'ระงับการแชทไม่สำเร็จ');
+                            BsMessage.error(err?.data?.statusMessage || 'ระงับการแชทไม่สำเร็จ');
                         })
                     }
                 } else if (this.dialogType === "解除禁言") {// 解除禁言
@@ -221,16 +220,16 @@
                     .then((res)=> {
                         res = res.data;
                         if (res.result === 1) {
-                            ElMessage.success('ยกเลิกการระงับแชทสำเร็จ');
+                            BsMessage.success('ยกเลิกการระงับแชทสำเร็จ');
                             this.dialogVisible = false;
                             this.loadPlayers();
                         }
                     }).catch((err) => {
-                        ElMessage.error(err?.data?.statusMessage || 'ยกเลิกการระงับแชทไม่สำเร็จ');
+                        BsMessage.error(err?.data?.statusMessage || 'ยกเลิกการระงับแชทไม่สำเร็จ');
                     })
                 } else if (this.dialogType === "冻结") {// 冻结
                     if (this.minutes === undefined) {
-                        ElMessage.error('กรุณาระบุจำนวนชั่วโมงที่ระงับบัญชี');
+                        BsMessage.error('กรุณาระบุจำนวนชั่วโมงที่ระงับบัญชี');
                     } else {
                         var params = {
                             serverId: this.selecte_server,
@@ -243,14 +242,14 @@
                         .then((res)=> {
                             res = res.data;
                             if (res.result === 1) {
-                                ElMessage.success('ระงับบัญชีสำเร็จ');
+                                BsMessage.success('ระงับบัญชีสำเร็จ');
                                 this.dialogVisible = false;
                                 this.minutes = undefined;
                                 this.reason = undefined;
                                 this.loadPlayers();
                             }
                         }).catch((err) => {
-                            ElMessage.error(err?.data?.statusMessage || 'ระงับบัญชีไม่สำเร็จ');
+                            BsMessage.error(err?.data?.statusMessage || 'ระงับบัญชีไม่สำเร็จ');
                         })
                     }
                 } else if (this.dialogType === "解除冻结") {// 解除冻结
@@ -263,12 +262,12 @@
                     .then((res)=> {
                         res = res.data;
                         if (res.result === 1) {
-                            ElMessage.success('ยกเลิกการระงับบัญชีสำเร็จ');
+                            BsMessage.success('ยกเลิกการระงับบัญชีสำเร็จ');
                             this.dialogVisible = false;
                             this.loadPlayers();
                         }
                     }).catch((err) => {
-                        ElMessage.error(err?.data?.statusMessage || 'ยกเลิกการระงับบัญชีไม่สำเร็จ');
+                        BsMessage.error(err?.data?.statusMessage || 'ยกเลิกการระงับบัญชีไม่สำเร็จ');
                     })
                 }
             }
@@ -276,21 +275,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
-    .loading-message {
-        margin-bottom: 12px;
-        color: #606266;
-    }
-    .dialog-input {
-        margin-bottom: 15px;
-    }
-    .del-dialog-cnt {
-        color: red;
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 16px;
-    }
-</style>
+

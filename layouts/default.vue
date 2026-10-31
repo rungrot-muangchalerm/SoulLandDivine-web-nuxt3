@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AdminSidebar from '~/components/AdminSidebar.vue'
+
 interface AdminSession {
   username: string
   authorization: string
@@ -10,28 +12,24 @@ if (error.value) {
   await navigateTo('/login')
 }
 
-const collapsed = ref(false)
 </script>
 
 <template>
-  <div v-if="session" class="admin-shell">
+  <div v-if="session" class="container-fluid min-vh-100 bg-body-tertiary">
     <AdminHeader
       :username="session.username"
       :channel="session.channel"
-      @collapse="collapsed = !collapsed"
     />
-    <AdminSidebar :authorization="session.authorization" :collapsed="collapsed" />
-    <main class="admin-content" :class="{ collapsed }">
-      <slot />
-    </main>
+    <div class="row g-3 py-3 align-items-start">
+      <AdminSidebar
+        class="col-12 col-md-3 col-lg-2"
+        :authorization="session.authorization"
+      />
+      <main class="col-12 col-md-9 col-lg-10">
+        <div class="container-fluid px-0 py-2">
+        <slot />
+        </div>
+      </main>
+    </div>
   </div>
 </template>
-
-<style>
-.admin-shell { min-height: 100vh; background: #f3f6fa; }
-.admin-content { min-height: calc(100vh - 70px); margin-left: 250px; padding: 22px; transition: margin-left .2s ease; }
-.admin-content.collapsed { margin-left: 64px; }
-@media (max-width: 760px) {
-  .admin-content { margin-left: 64px; padding: 12px; }
-}
-</style>

@@ -1,83 +1,82 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-present"></i>จัดการของรางวัล</el-breadcrumb-item>
-                <el-breadcrumb-item>จัดการระดับรางวัล</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="present"></i>จัดการของรางวัล</bs-breadcrumb-item>
+                <bs-breadcrumb-item>จัดการระดับรางวัล</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-button type="success" icon="el-icon-edit" @click="handleAdd()">เพิ่ม</el-button>
-                <el-input class="uid mr10" placeholder="กรอกรหัสของรางวัล" v-model="welfare_id"></el-input>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch(welfare_id)">{{ words.button.search }}</el-button>
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-button type="success" @click="handleAdd()">เพิ่ม</bs-button>
+                <bs-input class="uid mr10" placeholder="กรอกรหัสของรางวัล" v-model="welfare_id"></bs-input>
+                <bs-button type="primary" @click="handleSearch(welfare_id)">{{ words.button.search }}</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="id" label="รหัสของรางวัล" align="center" width="60"></el-table-column>
-                <el-table-column prop="name" label="ชื่อของรางวัล" align="center"></el-table-column>
-                <el-table-column prop="firstEmail" label="ของรางวัลครั้งแรก" align="center" width=""></el-table-column>
-                <el-table-column prop="fixedEmail" label="ของรางวัลประจำ" align="center" width=""></el-table-column>
-                <el-table-column prop="type" label="ประเภทรอบของรางวัล" align="center" width=""></el-table-column>
-                <el-table-column prop="day" label="รอบของรางวัล" align="center"></el-table-column>
-                <el-table-column prop="time" label="เวลามอบของรางวัล" align="center"></el-table-column>
-                <el-table-column label="การดำเนินการ" width="160" align="center">
-                    <template v-if="scope.row.authorization !== '管理员'" slot-scope="scope">
-                        <el-button size="mini" @click="handleChange(scope.$index, scope.row)">แก้ไข</el-button>
-                        <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</el-button>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="id" label="รหัสของรางวัล" align="center" width="60"></bs-table-column>
+                <bs-table-column prop="name" label="ชื่อของรางวัล" align="center"></bs-table-column>
+                <bs-table-column prop="firstEmail" label="ของรางวัลครั้งแรก" align="center" width=""></bs-table-column>
+                <bs-table-column prop="fixedEmail" label="ของรางวัลประจำ" align="center" width=""></bs-table-column>
+                <bs-table-column prop="type" label="ประเภทรอบของรางวัล" align="center" width=""></bs-table-column>
+                <bs-table-column prop="day" label="รอบของรางวัล" align="center"></bs-table-column>
+                <bs-table-column prop="time" label="เวลามอบของรางวัล" align="center"></bs-table-column>
+                <bs-table-column label="การดำเนินการ" width="160" align="center">
+                    <template v-if="scope.row.authorization !== '管理员'" #default="scope">
+                        <bs-button size="small" @click="handleChange(scope.$index, scope.row)">แก้ไข</bs-button>
+                        <bs-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</bs-button>
                     </template>
-                </el-table-column>
-            </el-table>
+                </bs-table-column>
+            </bs-table>
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="30%" :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" width="30%" :close-on-click-modal="false">
             <div class="del-dialog-cnt" v-if="this.dialogType === 'delete'">{{ dialogInfo }}</div>
-            <el-form ref="form" :model="form" label-width="100px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
-                <el-form-item label="รหัสของรางวัล">
-                    <el-input v-model="form.welfareId" placeholder="กรอกรหัสของรางวัล โดยต้องไม่ซ้ำกัน!"></el-input>
-                </el-form-item>
-                <el-form-item label="ชื่อของรางวัล">
-                    <el-input v-model="form.welfareName" placeholder="กรอกชื่อของรางวัล"></el-input>
-                </el-form-item>
-                <el-form-item label="ของรางวัลครั้งแรก">
-                    <el-input v-model="form.firstWelfare" placeholder="กรอกเนื้อหาของรางวัลครั้งแรก"></el-input>
-                </el-form-item>
-                <el-form-item label="ของรางวัลประจำ">
-                    <el-input v-model="form.normalWelfare" placeholder="กรอกเนื้อหาของรางวัลประจำ"></el-input>
-                </el-form-item>
-                <el-form-item label="ประเภทรอบ">
-                    <el-select v-model="form.periodType" placeholder="กรุณาเลือก" :disabled="this.dialogType === 'change'" @change="listenPeriodType(form.periodType)">
-                        <el-option
+            <bs-form ref="form" :model="form" label-width="100px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
+                <bs-form-item label="รหัสของรางวัล">
+                    <bs-input v-model="form.welfareId" placeholder="กรอกรหัสของรางวัล โดยต้องไม่ซ้ำกัน!"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ชื่อของรางวัล">
+                    <bs-input v-model="form.welfareName" placeholder="กรอกชื่อของรางวัล"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ของรางวัลครั้งแรก">
+                    <bs-input v-model="form.firstWelfare" placeholder="กรอกเนื้อหาของรางวัลครั้งแรก"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ของรางวัลประจำ">
+                    <bs-input v-model="form.normalWelfare" placeholder="กรอกเนื้อหาของรางวัลประจำ"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="ประเภทรอบ">
+                    <bs-select v-model="form.periodType" placeholder="กรุณาเลือก" :disabled="this.dialogType === 'change'" @change="listenPeriodType(form.periodType)">
+                        <bs-option
                             v-for="type in types"
                             :key="type.value"
                             :label="type.label"
                             :value="type.value"
-                        ></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="รอบ">
-                    <el-input v-model="form.period" :disabled="this.dialogType === 'change' || this.form.periodType === '1'" :placeholder="periodTip" @blur="listenPeriod(form.period)"></el-input>
-                </el-form-item>
-                <el-form-item label="เวลามอบรางวัล">
-                    <el-input v-model="form.sendOclock" :disabled="this.dialogType === 'change'"></el-input>
-                </el-form-item>
-            </el-form>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">ยกเลิก</el-button>
-                <el-button type="primary" @click="handleConfirm()">ยืนยัน</el-button>
-            </span>
-        </el-dialog>
+                        ></bs-option>
+                    </bs-select>
+                </bs-form-item>
+                <bs-form-item label="รอบ">
+                    <bs-input v-model="form.period" :disabled="this.dialogType === 'change' || this.form.periodType === '1'" :placeholder="periodTip" @blur="listenPeriod(form.period)"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="เวลามอบรางวัล">
+                    <bs-input v-model="form.sendOclock" :disabled="this.dialogType === 'change'"></bs-input>
+                </bs-form-item>
+            </bs-form>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">ยกเลิก</bs-button>
+                <bs-button type="primary" @click="handleConfirm()">ยืนยัน</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElSelect, ElTable, ElTableColumn } from 'element-plus'
     import md5 from 'js-md5';
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -128,7 +127,7 @@
                 this.$api.post('/api/welfare/searchGrade', params)
                 .then((res) => {
                     if (res.data.list.length === 0) {
-                        ElMessage.error('ไม่พบของรางวัลนี้');
+                        BsMessage.error('ไม่พบของรางวัลนี้');
                         this.tableData = [];
                     } else {
                         let resArr = res.data.list;
@@ -220,7 +219,7 @@
                             this.$api.post('/api/welfare/changeGrade', this.form)
                             .then(function (res) {
                                 if (res.data.result === 1) {
-                                    ElMessage.success('แก้ไขระดับของรางวัลสำเร็จ!');
+                                    BsMessage.success('แก้ไขระดับของรางวัลสำเร็จ!');
                                     self.dialogVisible = false;
                                     self.handleSearch(0);
                                 }
@@ -234,7 +233,7 @@
                     this.$api.post('/api/welfare/deleteGrade',this.form)
                     .then(res => {
                         if (res.data.result == 1) {
-                            ElMessage.success('ลบสำเร็จ');
+                            BsMessage.success('ลบสำเร็จ');
                             self.dialogVisible = false;
                             self.handleSearch(0);
                         }
@@ -260,26 +259,26 @@
                 if (this.form.periodType === "2") {
                     if (/^[-]?\d+$/.test(period)) {
                         if (period < 1 || period > 7) {
-                            ElMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
+                            BsMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
                             this.form.period = "";
                         }
                     } else {
-                        ElMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
+                        BsMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
                         this.form.period = "";
                     }
                     
                 } else if (this.form.periodType === "3") {
                     if (/^[-]?\d+$/.test(period)) {
                         if (period < 1 || period > 30) {
-                            ElMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
+                            BsMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
                             this.form.period = "";
                         }
                     } else {
-                        ElMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
+                        BsMessage.error("กรุณากรอกจำนวนเต็มในช่วงที่ถูกต้อง!");
                         this.form.period = "";
                     }
                 } else {
-                    ElMessage.error("กรุณาเลือกประเภทรอบ!");
+                    BsMessage.error("กรุณาเลือกประเภทรอบ!");
                     this.form.period = "";
                 }
             },
@@ -287,7 +286,7 @@
             isEmpty(obj) {
                 for (var value in obj) {
                     if (!obj[value]) {
-                        ElMessage.error("มีช่องว่างที่ยังไม่ได้กรอก กรุณากรอกข้อมูลของรางวัลให้ครบ!");
+                        BsMessage.error("มีช่องว่างที่ยังไม่ได้กรอก กรุณากรอกข้อมูลของรางวัลให้ครบ!");
                         return false;
                     }
                 }
@@ -299,7 +298,7 @@
                 if (regOclock.test(opt.sendOclock) == true) {
                     return true;
                 } else {
-                    ElMessage.error("รูปแบบเวลามอบรางวัลไม่ถูกต้อง!");
+                    BsMessage.error("รูปแบบเวลามอบรางวัลไม่ถูกต้อง!");
                     return false;
                 }
             }
@@ -307,11 +306,4 @@
     }
 </script>
 
-<style scoped>
-    .uid {
-        width: 15%;
-    }
-    .handle-box .el-button {
-        margin-bottom: 20px;
-    }
-</style>
+

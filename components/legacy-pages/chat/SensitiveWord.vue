@@ -1,35 +1,34 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-document"></i>คำต้องห้าม</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="document"></i>คำต้องห้าม</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-input class="uid mr10" placeholder="กรอกคำต้องห้าม โดยห้ามเว้นว่างหรือกรอกเฉพาะช่องว่าง!" v-model="sensitiveword"></el-input>
-                <el-button type="success" icon="el-icon-edit" @click="handleAdd">{{ words.button.add }}</el-button>
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-input class="uid mr10" placeholder="กรอกคำต้องห้าม โดยห้ามเว้นว่างหรือกรอกเฉพาะช่องว่าง!" v-model="sensitiveword"></bs-input>
+                <bs-button type="success" @click="handleAdd">{{ words.button.add }}</bs-button>
             </div>
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="30%" center :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" width="30%" center :close-on-click-modal="false">
             <div class="del-dialog-cnt">{{ dialogInfo }}</div>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">ยกเลิก</el-button>
-                <el-button type="primary" @click="handleConfirm">ยืนยัน</el-button>
-            </span>
-        </el-dialog>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">ยกเลิก</bs-button>
+                <bs-button type="primary" @click="handleConfirm">ยืนยัน</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElInput } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElInput },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -48,7 +47,7 @@
             },
             handleConfirm () {
 				if (this.sensitiveword.trim() ===  '') {
-                    ElMessage.error('คำต้องห้ามต้องไม่เว้นว่าง')
+                    BsMessage.error('คำต้องห้ามต้องไม่เว้นว่าง')
                 } else {
                     var params = {
                         content: this.sensitiveword.trim(),
@@ -57,7 +56,7 @@
                     this.$api.post('/api/sensitive/addword', params)
                     .then((res)=> {
                         if (res.data.result === 1) {
-                            ElMessage.success('เพิ่มคำต้องห้ามสำเร็จ');
+                            BsMessage.success('เพิ่มคำต้องห้ามสำเร็จ');
                             this.dialogVisible = false;
                             this.sensitiveword = '';
                         }
@@ -70,16 +69,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
-    .mr10 {
-        width: 30%;
-    }
-    .del-dialog-cnt {
-        color: red;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-</style>
+

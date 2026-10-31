@@ -1,76 +1,75 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-setting"></i> จัดการสิทธิ์</el-breadcrumb-item>
-                <el-breadcrumb-item>จัดการผู้ใช้</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="setting"></i> จัดการสิทธิ์</bs-breadcrumb-item>
+                <bs-breadcrumb-item>จัดการผู้ใช้</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-button type="success" icon="el-icon-edit" @click="handleAdd">เพิ่ม</el-button>
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-button type="success" @click="handleAdd">เพิ่ม</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="id" label="รหัสผู้ใช้" align="center" width="90"></el-table-column>
-                <el-table-column prop="username" label="ชื่อผู้ใช้" align="center" width="100"></el-table-column>
-                <el-table-column prop="authorization" label="สิทธิ์" align="center"></el-table-column>
-                <el-table-column prop="channel" label="ช่องทาง" align="center"></el-table-column>
-                <el-table-column label="การดำเนินการ" width="250" align="center">
-                    <template slot-scope="scope">
-                        <el-button size="mini" @click="handleChange(scope.$index, scope.row)">แก้ไข</el-button>
-                        <el-button @click="handleReset(scope.$index,scope.row)" size="mini" type="warning">รีเซ็ตรหัสผ่าน</el-button>
-                        <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)" v-if="scope.row.authorization !== 'Lv.admin'">ลบ</el-button>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="id" label="รหัสผู้ใช้" align="center" width="90"></bs-table-column>
+                <bs-table-column prop="username" label="ชื่อผู้ใช้" align="center" width="100"></bs-table-column>
+                <bs-table-column prop="authorization" label="สิทธิ์" align="center"></bs-table-column>
+                <bs-table-column prop="channel" label="ช่องทาง" align="center"></bs-table-column>
+                <bs-table-column label="การดำเนินการ" width="250" align="center">
+                    <template #default="scope">
+                        <bs-button size="small" @click="handleChange(scope.$index, scope.row)">แก้ไข</bs-button>
+                        <bs-button @click="handleReset(scope.$index,scope.row)" size="small" type="warning">รีเซ็ตรหัสผ่าน</bs-button>
+                        <bs-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)" v-if="scope.row.authorization !== 'Lv.admin'">ลบ</bs-button>
                     </template>
-                </el-table-column>
-            </el-table>
+                </bs-table-column>
+            </bs-table>
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="30%" :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" width="30%" :close-on-click-modal="false">
             <div class="del-dialog-cnt" v-if="this.dialogType === 'reset' || this.dialogType === 'delete'">{{ dialogInfo }}</div>
-            <el-form ref="form" :model="form" label-width="60px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
-                <el-form-item label="ชื่อผู้ใช้">
-                    <el-input v-model="form.username" placeholder="ห้ามใช้ตัวอักษรจีนในชื่อผู้ใช้" :disabled="this.dialogType === 'change'"></el-input>
-                </el-form-item>
-                <el-form-item label="รหัสผ่าน" v-if="this.dialogType === 'add'">
-                    <el-input v-model="form.password" :disabled="true" type="password"></el-input>
-                </el-form-item>
-                <el-form-item label="สิทธิ์">
-                    <el-select v-model="form.authorization" placeholder="กรุณาเลือก" :disabled="form.authorization === 'Lv.admin'">
-                        <el-option
+            <bs-form ref="form" :model="form" label-width="60px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
+                <bs-form-item label="ชื่อผู้ใช้">
+                    <bs-input v-model="form.username" placeholder="ห้ามใช้ตัวอักษรจีนในชื่อผู้ใช้" :disabled="this.dialogType === 'change'"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="รหัสผ่าน" v-if="this.dialogType === 'add'">
+                    <bs-input v-model="form.password" :disabled="true" type="password"></bs-input>
+                </bs-form-item>
+                <bs-form-item label="สิทธิ์">
+                    <bs-select v-model="form.authorization" placeholder="กรุณาเลือก" :disabled="form.authorization === 'Lv.admin'">
+                        <bs-option
                             v-for="limit in limits"
                             :key="limit"
                             :label="'Lv.' + limit"
                             :value="limit"
-                        ></el-option>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="ช่องทาง">
-                    <el-checkbox v-model="checkAll" @change="(val) => {form.checkedChannels = val ? channelValue : []}">เลือกทั้งหมด</el-checkbox>
-                    <el-checkbox-group v-model="form.checkedChannels" @change="(val) => {checkAll = (val.length === channelValue.length)}">
-                        <el-checkbox
+                        ></bs-option>
+                    </bs-select>
+                </bs-form-item>
+                <bs-form-item label="ช่องทาง">
+                    <bs-checkbox v-model="checkAll" @change="(val) => {form.checkedChannels = val ? channelValue : []}">เลือกทั้งหมด</bs-checkbox>
+                    <bs-checkbox-group v-model="form.checkedChannels" @change="(val) => {checkAll = (val.length === channelValue.length)}">
+                        <bs-checkbox
                             v-for="item in channellist"
                             :label="item.index"
                             :key="item.index"
-                            style="width: 23%"
-                        >{{ item.name }}</el-checkbox>
-                    </el-checkbox-group>
-                </el-form-item>
-            </el-form>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">ยกเลิก</el-button>
-                <el-button type="primary" @click="handleConfirm">ยืนยัน</el-button>
-            </span>
-        </el-dialog>
+                           
+                        >{{ item.name }}</bs-checkbox>
+                    </bs-checkbox-group>
+                </bs-form-item>
+            </bs-form>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">ยกเลิก</bs-button>
+                <bs-button type="primary" @click="handleConfirm">ยืนยัน</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElCheckbox, ElCheckboxGroup, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElSelect, ElTable, ElTableColumn } from 'element-plus'
     import md5 from 'js-md5';
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElCheckbox, ElCheckboxGroup, ElDialog, ElForm, ElFormItem, ElInput, ElOption, ElSelect, ElTable, ElTableColumn },
+        
         data () {
             return {
                 limits: ['server',0,1,2,3,4],
@@ -169,7 +168,7 @@
                 var self = this;
                 if (this.dialogType === 'add') {// 新增用户
                     if (this.form.username === "" || this.form.authorization === "" || this.form.checkedChannels.length === 0) {
-                        ElMessage.error('กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน');
+                        BsMessage.error('กรุณากรอกข้อมูลผู้ใช้ให้ครบถ้วน');
                     } else {
                         var params = {
                             username: this.form.username,
@@ -189,7 +188,7 @@
                     }
                 } else if (this.dialogType === 'change') {// 修改用户
                     if (this.form.checkedChannels.length === 0) {
-                        ElMessage.error('กรุณาเลือกช่องทางอย่างน้อยหนึ่งช่องทาง');
+                        BsMessage.error('กรุณาเลือกช่องทางอย่างน้อยหนึ่งช่องทาง');
                     } else {
                         let params ={
                             id: this.form.id,
@@ -200,11 +199,11 @@
                         this.$api.post('/api/users/change', params)
                         .then(function (res) {
                             if (res.data[0] === 1) {
-                                ElMessage.success('แก้ไขข้อมูลผู้ใช้สำเร็จ!');
+                                BsMessage.success('แก้ไขข้อมูลผู้ใช้สำเร็จ!');
                                 self.dialogVisible = false;
                                 self.searchAll();
                             } else if (res.data[0] === 0) {
-                                ElMessage.info('ไม่มีการเปลี่ยนแปลงใดๆ!');
+                                BsMessage.info('ไม่มีการเปลี่ยนแปลงใดๆ!');
                                 self.dialogVisible = false;
                             }
                         }).catch(function (err) {
@@ -219,7 +218,7 @@
                     this.$api.post('/api/users/resetPass', params)
                     .then(function (res) {
                         if(res.data[0] === 1 || res.data[0] === 0){
-                            ElMessage.success('รีเซ็ตรหัสผ่านสำเร็จ!');
+                            BsMessage.success('รีเซ็ตรหัสผ่านสำเร็จ!');
                             self.dialogVisible = false;
                             self.searchAll();
                         }
@@ -233,7 +232,7 @@
                     this.$api.post('/api/users/delete',params)
                     .then(res => {
                         if (res.data == 1) {
-                            ElMessage.success('ลบสำเร็จ');
+                            BsMessage.success('ลบสำเร็จ');
                             self.dialogVisible = false;
                             self.searchAll();
                         }
@@ -246,8 +245,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box .el-button {
-        margin-bottom: 20px;
-    }
-</style>
+

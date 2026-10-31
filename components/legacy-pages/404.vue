@@ -3,18 +3,17 @@
       <div class="error-code">4<span>0</span>4</div>
       <div class="error-desc">อ๊ะ ไม่พบหน้าที่คุณต้องการ</div>
       <div class="error-handle">
-          <el-button class="error-btn" type="primary" size="large" @click="goBack">กลับไปหน้าก่อนหน้า</el-button>
+          <bs-button class="error-btn" type="primary" size="large" @click="goBack">กลับไปหน้าก่อนหน้า</bs-button>
           <router-link to="/">
-            <el-button type="primary" size="large">กลับหน้าหลัก</el-button>
+            <bs-button type="primary" size="large">กลับหน้าหลัก</bs-button>
           </router-link>
       </div>
   </div>
 </template>
 
 <script>
-    import { ElButton } from 'element-plus'
 export default {
-        components: { ElButton },
+        
   methods: {
       goBack () {
           this.$router.go(-1);
@@ -24,36 +23,4 @@ export default {
 </script>
 
 
-<style scoped>
-    .error-page{
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        background: #f3f3f3;
-        box-sizing: border-box;
-    }
-    .error-code{
-        line-height: 1;
-        font-size: 250px;
-        font-weight: bolder;
-        color: #2d8cf0;
-    }
-    .error-code span{
-        color: #00a854;
-    }
-    .error-desc{
-        font-size: 30px;
-        color: #777;
-    }
-    .error-handle{
-        margin-top: 30px;
-        padding-bottom: 200px;
-    }
-    .error-btn{
-        margin-left: -10px;
-        margin-right: 140px;
-    }
-</style>
+

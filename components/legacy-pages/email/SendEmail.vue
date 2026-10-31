@@ -1,90 +1,90 @@
 <template>
     <div>
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-message"></i>ส่งอีเมล</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="message"></i>ส่งอีเมล</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
             <div class="form-box">
-                <el-form ref="form" :model="form" label-width="100px">
-                    <el-form-item label="ประเภทเทมเพลต">
-                        <el-select v-model="form.emailType" @change="changeEmailType" placeholder="เลือกประเภทเทมเพลต" class="mr10">
-                            <el-option
+                <bs-form ref="form" :model="form" label-width="100px">
+                    <bs-form-item label="ประเภทเทมเพลต">
+                        <bs-select v-model="form.emailType" @change="changeEmailType" placeholder="เลือกประเภทเทมเพลต" class="mr10">
+                            <bs-option
                                 v-for="item in type_list"
                                 :key="item.value"
                                 :label="item.label"
                                 :value="item.value">
-                            </el-option>
-                        </el-select>
-                    </el-form-item>
-                    <el-form-item label="รหัสเทมเพลต">
-                        <el-input v-model="form.mailId"></el-input>
-                    </el-form-item>
-                    <el-form-item label="ServerID">
-                        <el-select filterable v-model="form.selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" :disabled="form.emailType === 'personalemail'" class="mr10">
-                            <el-option key="0" label="ทุกเซิร์ฟเวอร์" value="0" v-if="form.emailType === 'allserver'"></el-option>
-                            <el-option
+                            </bs-option>
+                        </bs-select>
+                    </bs-form-item>
+                    <bs-form-item label="รหัสเทมเพลต">
+                        <bs-input v-model="form.mailId"></bs-input>
+                    </bs-form-item>
+                    <bs-form-item label="ServerID">
+                        <bs-select filterable v-model="form.selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" :disabled="form.emailType === 'personalemail'" class="mr10">
+                            <bs-option key="0" label="ทุกเซิร์ฟเวอร์" value="0" v-if="form.emailType === 'allserver'"></bs-option>
+                            <bs-option
                                 v-for="item in server_list"
                                 :key="item.$.id"
                                 :label="item.$.name"
                                 :value="item.$.id"
-                            ></el-option>
-                        </el-select>
-                    </el-form-item>
-                    <el-form-item label="UID">
-                        <el-input v-model="form.uidList" :disabled="form.emailType === 'allserver'"></el-input>
-                    </el-form-item>
-                    <el-form-item label="ไอเทม 1">
-                        <el-select v-model="form.rewardType1" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
-                            <el-option
+                            ></bs-option>
+                        </bs-select>
+                    </bs-form-item>
+                    <bs-form-item label="UID">
+                        <bs-input v-model="form.uidList" :disabled="form.emailType === 'allserver'"></bs-input>
+                    </bs-form-item>
+                    <bs-form-item label="ไอเทม 1">
+                        <bs-select v-model="form.rewardType1" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
+                            <bs-option
                                 v-for="item in reward_list"
                                 :key="item.value"
                                 :label="item.label"
                                 :value="item.value">
-                            </el-option>
-                        </el-select>
-                        <el-input v-model="form.rewardUid1" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></el-input>
-                        <el-input v-model="form.rewardNum1" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam11" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param11" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam12" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param12" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam13" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param13" class="parameter"></el-input>
-                    </el-form-item>
-                    <el-form-item label="ไอเทม 2">
-                        <el-select v-model="form.rewardType2" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
-                            <el-option
+                            </bs-option>
+                        </bs-select>
+                        <bs-input v-model="form.rewardUid1" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardNum1" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam11" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param11" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam12" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param12" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam13" :disabled="form.emailType === 'allserver'" :placeholder="reward1Params.param13" class="parameter"></bs-input>
+                    </bs-form-item>
+                    <bs-form-item label="ไอเทม 2">
+                        <bs-select v-model="form.rewardType2" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
+                            <bs-option
                                 v-for="item in reward_list"
                                 :key="item.value"
                                 :label="item.label"
                                 :value="item.value">
-                            </el-option>
-                        </el-select>
-                        <el-input v-model="form.rewardUid2" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></el-input>
-                        <el-input v-model="form.rewardNum2" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam21" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param21" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam22" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param22" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam23" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param23" class="parameter"></el-input>
-                    </el-form-item>
-                    <el-form-item label="ไอเทม 3">
-                        <el-select v-model="form.rewardType3" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
-                            <el-option
+                            </bs-option>
+                        </bs-select>
+                        <bs-input v-model="form.rewardUid2" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardNum2" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam21" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param21" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam22" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param22" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam23" :disabled="form.emailType === 'allserver'" :placeholder="reward2Params.param23" class="parameter"></bs-input>
+                    </bs-form-item>
+                    <bs-form-item label="ไอเทม 3">
+                        <bs-select v-model="form.rewardType3" :disabled="form.emailType === 'allserver'" placeholder="ประเภท" class="mr10 parameter" @change="changeRewardType">
+                            <bs-option
                                 v-for="item in reward_list"
                                 :key="item.value"
                                 :label="item.label"
                                 :value="item.value">
-                            </el-option>
-                        </el-select>
-                        <el-input v-model="form.rewardUid3" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></el-input>
-                        <el-input v-model="form.rewardNum3" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam31" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param31" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam32" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param32" class="parameter"></el-input>
-                        <el-input v-model="form.rewardParam33" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param33" class="parameter"></el-input>
-                    </el-form-item>
-                    <el-form-item>
-                        <el-button type="primary" @click="handleSendEmail">ส่งอีเมล</el-button>
-                        <el-button @click="handleCancle">ยกเลิก</el-button>
-                    </el-form-item>
-                </el-form>
+                            </bs-option>
+                        </bs-select>
+                        <bs-input v-model="form.rewardUid3" :disabled="form.emailType === 'allserver'" placeholder="ID" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardNum3" :disabled="form.emailType === 'allserver'" placeholder="จำนวน" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam31" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param31" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam32" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param32" class="parameter"></bs-input>
+                        <bs-input v-model="form.rewardParam33" :disabled="form.emailType === 'allserver'" :placeholder="reward3Params.param33" class="parameter"></bs-input>
+                    </bs-form-item>
+                    <bs-form-item>
+                        <bs-button type="primary" @click="handleSendEmail">ส่งอีเมล</bs-button>
+                        <bs-button @click="handleCancle">ยกเลิก</bs-button>
+                    </bs-form-item>
+                </bs-form>
             </div>
         </div>
     </div>
@@ -93,11 +93,10 @@
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElForm, ElFormItem, ElInput, ElOption, ElSelect } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElForm, ElFormItem, ElInput, ElOption, ElSelect },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -320,7 +319,7 @@
                     this.$api.post('/api/email/send',params).then((res)=> {
                         res = res.data;
                         if(JSON.parse(res).result === 1){
-                            ElMessage.success('ส่งอีเมลแล้ว!')
+                            BsMessage.success('ส่งอีเมลแล้ว!')
                             for (const key in this.form) {
                                 this.form[key] = '';
                             }
@@ -329,7 +328,7 @@
                         console.log('fetch faild:'+err)
                     })
                 } else {
-                    ElMessage.error('กรุณากรอกเนื้อหาอีเมลให้ถูกต้อง');
+                    BsMessage.error('กรุณากรอกเนื้อหาอีเมลให้ถูกต้อง');
                 }
             },
             handleCancle () {
@@ -341,15 +340,4 @@
     }
 </script>
 
-<style scoped>
-    .form-box {
-        width: 80%;
-    }
-    .el-select {
-        display: block;
-    }
-    .parameter {
-        display: inline-block;
-        width: 16%;
-    }
-</style>
+

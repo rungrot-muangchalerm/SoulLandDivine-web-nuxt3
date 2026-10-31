@@ -41,6 +41,11 @@ exported character tables, so it displays as unknown. Mute/unmute and
 freeze/unfreeze actions remain targeted to an individual character and continue
 to use the Game Server protocol.
 
+The item deduction page loads the selected server's inventory automatically,
+50 rows per page, including item stacks, equipment, soul rings/bones, and
+supported collectible items. Currency balances and inventory categories without
+a matching Game Server deduction type are shown read-only.
+
 Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
 Nitro handles login/session validation, channel and user administration,
 operation logs, broadcast scheduling, announcement uploads/downloads, and

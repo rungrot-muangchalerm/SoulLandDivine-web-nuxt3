@@ -7,13 +7,11 @@ const initialWords = {
             navBar: [],
             barList: [
                 {
-                    icon: 'el-icon-rank',
                     index: 'role',
                     title: 'ข้อมูลผู้เล่น',
                     limit: 0
                 },
                 {
-                    icon: 'el-icon-magic-stick',
                     index: '5',
                     title: 'หักทรัพยากร',
                     limit: 4,
@@ -33,49 +31,41 @@ const initialWords = {
                     ]
                 },
                 {
-                    icon: 'el-icon-bell',
                     index: 'boradcast',
                     title: 'ประกาศข้อความ',
                     limit: 2
                 },
                 {
-                    icon: 'el-icon-news',
                     index: 'notice',
                     title: 'ประกาศ',
                     limit: 'admin'
                 },
                 {
-                    icon: 'el-icon-message',
                     index: 'email',
                     title: 'ส่งอีเมล',
                     limit: 3
                 },
                 {
-                    icon: 'el-icon-wallet',
                     index: 'pay',
                     title: 'เติมเงินย้อนหลัง',
                     limit: 3
                 },
                 {
-                    icon: 'el-icon-document',
                     index: 'sensitive',
                     title: 'คำต้องห้าม',
                     limit: 1
                 },
                 {
-                    icon: 'el-icon-cpu',
                     index: 'server',
                     title: 'เปิดเซิร์ฟเวอร์ด่วน',
                     limit: 'server'
                 },
                 {
-                    icon: 'el-icon-service',
                     index: 'report',
                     title: 'จัดการรายงาน',
                     limit: 1
                 },
                 {
-                    icon: 'el-icon-present',
                     index: '2',
                     title: 'จัดการของรางวัล',
                     limit: 3,
@@ -91,7 +81,6 @@ const initialWords = {
                     ]
                 },
                 {
-                    icon: 'el-icon-date',
                     index: '3',
                     title: 'ค้นหาบันทึก',
                     limit: 0,
@@ -123,7 +112,6 @@ const initialWords = {
                     ]
                 },
                 {
-                    icon: 'el-icon-setting',
                     index: 'set',
                     title: 'จัดการการตั้งค่า',
                     limit: 'server',
@@ -147,7 +135,6 @@ const initialWords = {
                     ]
                 },
                 {
-                    icon: 'el-icon-user',
                     index: '1',
                     title: 'จัดการสิทธิ์',
                     limit: 'admin',
@@ -163,12 +150,10 @@ const initialWords = {
                     ]
                 }/* ,
                 {
-                    icon: 'el-icon-error',
                     index: '404',
                     title: 'หน้า 404'
                 },
                 {
-                    icon: 'el-icon-error',
                     index: '403',
                     title: 'หน้า 403'
                 } */

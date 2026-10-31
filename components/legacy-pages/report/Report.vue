@@ -1,75 +1,74 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-service"></i>จัดการรายงาน</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="service"></i>จัดการรายงาน</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-select v-model="type" placeholder="เลือกประเภทรายงาน" class="mr10">
-                    <el-option 
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-select v-model="type" placeholder="เลือกประเภทรายงาน" class="mr10">
+                    <bs-option 
                         v-for="item in type_list" 
                         :key="item.value" 
                         :label="item.label" 
                         :value="item.value"
-                    ></el-option>
-                </el-select>
-                <el-input class="mr10" placeholder="กรอกรหัสเซิร์ฟเวอร์เริ่มต้น" v-model="startServerId"></el-input>
-                <el-input class="mr10" placeholder="กรอกรหัสเซิร์ฟเวอร์สิ้นสุด" v-model="endServerId"></el-input>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch(type,startServerId,endServerId,cur_page,page_size)">{{ words.button.search }}</el-button>
+                    ></bs-option>
+                </bs-select>
+                <bs-input class="mr10" placeholder="กรอกรหัสเซิร์ฟเวอร์เริ่มต้น" v-model="startServerId"></bs-input>
+                <bs-input class="mr10" placeholder="กรอกรหัสเซิร์ฟเวอร์สิ้นสุด" v-model="endServerId"></bs-input>
+                <bs-button type="primary" @click="handleSearch(type,startServerId,endServerId,cur_page,page_size)">{{ words.button.search }}</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="serverId" label="ServerId" align="center"></el-table-column>
-                <el-table-column prop="destUid" label="UID ผู้ถูกรายงาน" align="center"></el-table-column>
-                <el-table-column prop="destName" label="ผู้ถูกรายงาน" align="center"></el-table-column>
-                <el-table-column prop="type" label="ประเภท" align="center"></el-table-column>
-                <el-table-column prop="content" label="เนื้อหารายงาน" align="center"></el-table-column>
-                <el-table-column prop="description" label="เหตุผลในการรายงาน" align="center"></el-table-column>
-                <el-table-column prop="time" label="เวลารายงาน" align="center"></el-table-column>
-                <el-table-column prop="name" label="ผู้รายงาน" align="center"></el-table-column>
-                <el-table-column label="การดำเนินการ" width="150" align="center">
-                    <template slot-scope="scope">
-                        <el-button type="text" @click="handleSilence(scope.$index,scope.row)">ปิดแชต</el-button>
-                        <el-button type="text" @click="handleFreeze(scope.$index,scope.row)">ระงับบัญชี</el-button>
-                        <el-button type="text" style="color: #f56c6c;" @click="handleIgnore(scope.$index,scope.row)">ละเว้น</el-button>
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="serverId" label="ServerId" align="center"></bs-table-column>
+                <bs-table-column prop="destUid" label="UID ผู้ถูกรายงาน" align="center"></bs-table-column>
+                <bs-table-column prop="destName" label="ผู้ถูกรายงาน" align="center"></bs-table-column>
+                <bs-table-column prop="type" label="ประเภท" align="center"></bs-table-column>
+                <bs-table-column prop="content" label="เนื้อหารายงาน" align="center"></bs-table-column>
+                <bs-table-column prop="description" label="เหตุผลในการรายงาน" align="center"></bs-table-column>
+                <bs-table-column prop="time" label="เวลารายงาน" align="center"></bs-table-column>
+                <bs-table-column prop="name" label="ผู้รายงาน" align="center"></bs-table-column>
+                <bs-table-column label="การดำเนินการ" width="150" align="center">
+                    <template #default="scope">
+                        <bs-button type="text" @click="handleSilence(scope.$index,scope.row)">ปิดแชต</bs-button>
+                        <bs-button type="text" @click="handleFreeze(scope.$index,scope.row)">ระงับบัญชี</bs-button>
+                        <bs-button type="text" @click="handleIgnore(scope.$index,scope.row)">ละเว้น</bs-button>
                     </template>
-                </el-table-column>
-            </el-table>
+                </bs-table-column>
+            </bs-table>
             <!-- 分页 -->
             <div class="pagination">
-                <el-pagination 
+                <bs-pagination 
                     @current-change="handleCurrentChange"
-                    :current-page.sync="cur_page" 
+                    v-model:current-page="cur_page" 
                     layout="prev, pager, next, jumper" 
                     :total="total_size" 
                     :page-size="page_size"
-                ></el-pagination>
+                ></bs-pagination>
             </div>
         </div>
         <!-- 弹窗 -->
-        <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" center :close-on-click-modal="false">
+        <bs-dialog :title="dialogTitle" v-model:visible="dialogVisible" center :close-on-click-modal="false">
             <div class="del-dialog-cnt">{{ dialogInfo }}</div>
             <template v-if="dialogType === 'silence' || dialogType === 'freeze'">
-                <el-input class="dialog-input" :placeholder="placeholder" v-model="minutes"></el-input>
-                <el-input class="dialog-input" :placeholder="words.tips.PleaseInputReason" v-model="reason"></el-input>
+                <bs-input class="dialog-input" :placeholder="placeholder" v-model="minutes"></bs-input>
+                <bs-input class="dialog-input" :placeholder="words.tips.PleaseInputReason" v-model="reason"></bs-input>
             </template>
-            <span slot="footer" class="dialog-footer">
-                <el-button @click="dialogVisible = false">{{ words.button.no }}</el-button>
-                <el-button type="primary" @click="handleConfirm">{{ words.button.yes }}</el-button>
-            </span>
-        </el-dialog>
+            <template #footer><div class="d-flex justify-content-end gap-2">
+                <bs-button @click="dialogVisible = false">{{ words.button.no }}</bs-button>
+                <bs-button type="primary" @click="handleConfirm">{{ words.button.yes }}</bs-button>
+            </div></template>
+        </bs-dialog>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDialog, ElInput, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -122,7 +121,7 @@
             // 查询举报
             handleSearch (type,start,end,cur_page,page_size) {
                 if (this.type === '' || this.startServerId === '' || this.endServerId === '') {
-                    ElMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบ');
+                    BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบ');
                 } else {
                     var params = {
                         type: type,
@@ -185,7 +184,7 @@
                 var self = this;
                 if (this.dialogType === 'silence') { //禁言
                     if (this.minutes === undefined) {
-                        ElMessage.error('กรุณาระบุจำนวนนาทีที่ต้องการปิดแชต');
+                        BsMessage.error('กรุณาระบุจำนวนนาทีที่ต้องการปิดแชต');
                     } else {
                         var params = {
                             serverId: this.tableData[this.idx].serverId,
@@ -197,7 +196,7 @@
                         this.$api.post('/api/role/unVoice', params)
                         .then((res)=> {
                             if (res.data.result === 1) {
-                                ElMessage.success('ปิดแชตสำเร็จ');
+                                BsMessage.success('ปิดแชตสำเร็จ');
                                 this.dialogVisible = false;
                                 this.minutes = undefined;
                                 this.reason = undefined;
@@ -209,7 +208,7 @@
                     }
                 } else if (this.dialogType === 'freeze') { //冻结
                     if (this.minutes === undefined) {
-                        ElMessage.error('กรุณาระบุจำนวนชั่วโมงที่ต้องการระงับบัญชี');
+                        BsMessage.error('กรุณาระบุจำนวนชั่วโมงที่ต้องการระงับบัญชี');
                     } else {
                         var params = {
                             serverId: this.tableData[this.idx].serverId,
@@ -221,7 +220,7 @@
                         this.$api.post('/api/role/freeze', params)
                         .then((res)=> {
                             if (res.data.result === 1) {
-                                ElMessage.success('ระงับบัญชีสำเร็จ');
+                                BsMessage.success('ระงับบัญชีสำเร็จ');
                                 this.dialogVisible = false;
                                 this.minutes = undefined;
                                 this.reason = undefined;
@@ -240,7 +239,7 @@
                     this.$api.post('/api/report/ignore', params)
                     .then((res) => {
                         if (res.data.result === 1) {
-                            ElMessage.success('ละเว้นรายงานนี้แล้ว');
+                            BsMessage.success('ละเว้นรายงานนี้แล้ว');
                             this.dialogVisible = false;
                             this.handleSearch (this.type,this.startServerId,this.endServerId,this.cur_page,this.page_size);
                         }
@@ -253,32 +252,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
-    .mr10 {
-        width: 20%;
-    }
-    .submitter {
-        width: 100px;
-    }
-    .state {
-        width: 100px;
-    }
-    .time {
-        width: 330px;
-    }
-    .del-dialog-cnt {
-        color: red;
-        text-align: center;
-        margin-bottom: 20px;
-        font-size: 16px;
-    }
-    .el-button--text {
-        text-decoration: underline;
-    }
-    .dialog-input {
-        margin-bottom: 15px;
-    }
-</style>
+

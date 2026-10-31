@@ -1,49 +1,59 @@
 <template>
-    <div class="login-wrap">
-        <div class="ms-title">{{ words.commonStructure.minstrelManagementSystem }}</div>
-        <div class="ms-login">
-            <el-form :model="ruleForm" :rules="rules" ref="ruleForm" class="demo-ruleForm">
-                <el-form-item prop="channel">
-                    <ClientOnly>
-                        <el-select v-model="ruleForm.channel" placeholder="เลือกช่องทาง" style="width: 100%">
-                            <el-option
-                                v-for="item in channellist"
-                                :key="item.index"
-                                :label="item.name"
-                                :value="item.index"
-                            ></el-option>
-                        </el-select>
-                    </ClientOnly>
-                </el-form-item>
-                <el-form-item prop="username">
-                    <el-input v-model="ruleForm.username" placeholder="ชื่อผู้ใช้"></el-input>
-                </el-form-item>
-                <el-form-item prop="password">
-                    <el-input type="password" placeholder="รหัสผ่าน" v-model="ruleForm.password" show-password @keyup.enter.native="submitForm('ruleForm')"></el-input>
-                </el-form-item>
-                <div class="aboutPsw">
-                    <!-- <el-checkbox v-model="rememberPsw">记住密码</el-checkbox> -->
-                    <span style="font-size:12px;line-height:30px;color:#999;float:right;text-decoration:underline;cursor:pointer;" @click="handleForgotPsw">ลืมรหัสผ่าน</span>
-                </div>
-                <div class="login-btn">
-                    <el-button type="primary" @click="submitForm('ruleForm')">เข้าสู่ระบบ</el-button>
-                </div>
-                <p style="font-size:12px;line-height:30px;color:red;">{{ tips }}</p>
-            </el-form>
-        </div>
+  <main class="min-vh-100 bg-dark d-flex align-items-center justify-content-center p-3">
+    <div class="row justify-content-center w-100">
+      <div class="col-12 col-sm-10 col-md-7 col-lg-4">
+        <section class="card shadow">
+          <div class="card-body p-4">
+            <h1 class="h4 text-center mb-4">{{ words.commonStructure.minstrelManagementSystem }}</h1>
+            <bs-form ref="ruleForm" :model="ruleForm" :rules="rules">
+              <bs-form-item prop="channel">
+                <ClientOnly>
+                  <bs-select v-model="ruleForm.channel" placeholder="เลือกช่องทาง" class="w-100">
+                    <bs-option
+                      v-for="item in channellist"
+                      :key="item.index"
+                      :label="item.name"
+                      :value="item.index"
+                    />
+                  </bs-select>
+                </ClientOnly>
+              </bs-form-item>
+              <bs-form-item prop="username">
+                <bs-input v-model="ruleForm.username" placeholder="ชื่อผู้ใช้" autocomplete="username" />
+              </bs-form-item>
+              <bs-form-item prop="password">
+                <bs-input
+                  v-model="ruleForm.password"
+                  type="password"
+                  placeholder="รหัสผ่าน"
+                  autocomplete="current-password"
+                  @keyup.enter="submitForm('ruleForm')"
+                />
+              </bs-form-item>
+              <div class="text-end mb-3">
+                <button class="btn btn-link p-0 small" type="button" @click="handleForgotPsw">ลืมรหัสผ่าน</button>
+              </div>
+              <div class="d-grid">
+                <bs-button type="primary" @click="submitForm('ruleForm')">เข้าสู่ระบบ</bs-button>
+              </div>
+              <p v-if="tips" class="text-danger small mt-3 mb-0">{{ tips }}</p>
+            </bs-form>
+          </div>
+        </section>
+      </div>
     </div>
+  </main>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
-    import { ElMessage } from 'element-plus'
-    import { ElButton, ElCheckbox, ElForm, ElFormItem, ElInput, ElOption, ElSelect } from 'element-plus'
 
     import md5 from 'js-md5';
+import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
-        components: { ElButton, ElCheckbox, ElForm, ElFormItem, ElInput, ElOption, ElSelect },
+        
         setup () { return { words: createAdminWords() } },
         data () {
             return {
@@ -94,13 +104,13 @@
                                 } else {
                                     this.$router.push('/role');
                                 }
-                                ElMessage.success(res.data.message);
+                                BsMessage.success(res.data.message);
                             } else {
                                 this.tips = res.data.message
                             }
                         }).catch((err) => {
                             this.tips = err?.data?.statusMessage || 'เข้าสู่ระบบไม่สำเร็จ';
-                            ElMessage.error(this.tips);
+                            BsMessage.error(this.tips);
                         });
 
                     } else {
@@ -109,7 +119,7 @@
                 });
             },
             handleForgotPsw () {
-                ElMessage.warning('กรุณาติดต่อผู้ดูแลระบบเพื่อรีเซ็ตรหัสผ่าน');
+                BsMessage.warning('กรุณาติดต่อผู้ดูแลระบบเพื่อรีเซ็ตรหัสผ่าน');
             },
             // 获取渠道列表
             searchChannel () {
@@ -124,39 +134,3 @@
     }
 </script>
 
-<style scoped>
-    .login-wrap{
-        position: relative;
-        width:100%;
-        min-height:100vh;
-        height:100vh;
-        background:#324157;
-    }
-    .ms-title{
-        position: absolute;
-        top:50%;
-        width:100%;
-        margin-top: -230px;
-        text-align: center;
-        font-size:30px;
-        color: #fff;
-    }
-    .ms-login{
-        position: absolute;
-        left:50%;
-        top:50%;
-        width:300px;
-        box-sizing:content-box;
-        margin:-150px 0 0 -190px;
-        padding:40px;
-        border-radius: 5px;
-        background: #fff;
-    }
-    .login-btn{
-        text-align: center;
-    }
-    .login-btn button{
-        width:100%;
-        height:36px;
-    }
-</style>

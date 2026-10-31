@@ -1,18 +1,18 @@
 <template>
     <div class="table">
-        <div class="crumbs">
-            <el-breadcrumb separator="/">
-                <el-breadcrumb-item><i class="el-icon-setting"></i> จัดการสิทธิ์</el-breadcrumb-item>
-                <el-breadcrumb-item>ประวัติการดำเนินการ</el-breadcrumb-item>
-            </el-breadcrumb>
+        <div class="mb-3">
+            <bs-breadcrumb separator="/">
+                <bs-breadcrumb-item><i class="setting"></i> จัดการสิทธิ์</bs-breadcrumb-item>
+                <bs-breadcrumb-item>ประวัติการดำเนินการ</bs-breadcrumb-item>
+            </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="handle-box">
-                <el-select v-model="username" placeholder="ชื่อผู้ใช้" class="submitter mr10">
-                    <el-option key="all" label="all" value="all"></el-option>
-                    <el-option v-for="item in allUsernames" :key="item.username" :label="item.username" :value="item.username"></el-option>
-                </el-select>
-                <el-date-picker
+            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
+                <bs-select v-model="username" placeholder="ชื่อผู้ใช้" class="submitter mr10">
+                    <bs-option key="all" label="all" value="all"></bs-option>
+                    <bs-option v-for="item in allUsernames" :key="item.username" :label="item.username" :value="item.username"></bs-option>
+                </bs-select>
+                <bs-date-picker
                     v-model="time_data"
                     type="datetimerange"
                     :picker-options="words.time.pickerInterval"
@@ -22,38 +22,37 @@
                     align="right"
                     class="time"
                     value-format="yyyy-MM-dd HH:mm:ss"
-                ></el-date-picker>
-                <el-select v-model="selectedType" placeholder="ประเภท" class="state mr10">
-                    <el-option key="all" label="ทั้งหมด" value="all"></el-option>
-                    <el-option v-for="item in words.operation.operationList" :key="item.index" :label="item.label" :value="item.index"></el-option>
-                </el-select>
-                <el-button type="primary" icon="el-icon-search" @click="handleSearch">ค้นหา</el-button>
+                ></bs-date-picker>
+                <bs-select v-model="selectedType" placeholder="ประเภท" class="state mr10">
+                    <bs-option key="all" label="ทั้งหมด" value="all"></bs-option>
+                    <bs-option v-for="item in words.operation.operationList" :key="item.index" :label="item.label" :value="item.index"></bs-option>
+                </bs-select>
+                <bs-button type="primary" @click="handleSearch">ค้นหา</bs-button>
             </div>
-            <el-table :data="tableData" border style="width: 100%" ref="multipleTable">
-                <el-table-column prop="username" label="ชื่อผู้ใช้" align="center"></el-table-column>
-                <el-table-column prop="time" label="เวลา" align="center"></el-table-column>
-                <el-table-column prop="type" label="ประเภท" align="center"></el-table-column>
-                <el-table-column prop="content" label="เนื้อหา" align="center"></el-table-column>
-                <el-table-column prop="ip" label="IP" align="center"></el-table-column>
-            </el-table>
-            <el-pagination
-                style="text-align: center;margin-top: 12px"
+            <bs-table :data="tableData" border ref="multipleTable" class="w-100">
+                <bs-table-column prop="username" label="ชื่อผู้ใช้" align="center"></bs-table-column>
+                <bs-table-column prop="time" label="เวลา" align="center"></bs-table-column>
+                <bs-table-column prop="type" label="ประเภท" align="center"></bs-table-column>
+                <bs-table-column prop="content" label="เนื้อหา" align="center"></bs-table-column>
+                <bs-table-column prop="ip" label="IP" align="center"></bs-table-column>
+            </bs-table>
+            <bs-pagination
+               
                 background
                 layout="prev, pager, next"
                 :total="totalCount"
                 :page-size="pageSize"
-                :current-page.sync="currentPage"
-            ></el-pagination>
+                v-model:current-page="currentPage"
+             class="text-center"></bs-pagination>
         </div>
     </div>
 </template>
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
-    import { ElMessage } from 'element-plus'
-    import { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn } from 'element-plus'
+import { BsMessage } from '~/utils/bootstrap-message'
     export default {
-        components: { ElBreadcrumb, ElBreadcrumbItem, ElButton, ElDatePicker, ElOption, ElPagination, ElSelect, ElTable, ElTableColumn },
+        
         setup () { return { words: createAdminWords() } },
         data() {
             return {
@@ -87,7 +86,7 @@
             // 查询操作日志
             handleSearch(){
                 if (this.username === "" || this.selectedType === "") {
-                    ElMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน')
+                    BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน')
                 } else {
                     var self = this
                     var params = {
@@ -129,20 +128,4 @@
     }
 </script>
 
-<style scoped>
-    .handle-box {
-        margin-bottom: 20px;
-    }
 
-    .submitter {
-        width: 100px;
-    }
-
-    .state {
-        width: 100px;
-    }
-
-    .time {
-        width: 330px;
-    }
-</style>
