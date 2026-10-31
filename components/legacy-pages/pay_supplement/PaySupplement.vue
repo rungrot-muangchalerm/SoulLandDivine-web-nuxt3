@@ -8,16 +8,6 @@
         <div class="container">
             <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
                 <bs-form ref="form" :model="form" label-width="100px">
-                    <bs-form-item label="serverId">
-                        <bs-select filterable v-model="form.serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                            <bs-option 
-                                v-for="item in server_list" 
-                                :key="item.$.id" 
-                                :label="item.$.name" 
-                                :value="item.$.id"
-                            ></bs-option>
-                        </bs-select>
-                    </bs-form-item>
                     <bs-form-item label="รหัสตัวละคร">
                         <bs-input v-model="form.uid"></bs-input>
                     </bs-form-item>
@@ -54,17 +44,15 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
-                server_list: [],
                 tableData: [],
                 dialogVisible: false,
                 dialogTitle: '',
                 dialogType: '',
                 dialogInfo: '',
                 form: {
-                    serverId: '',
                     uid: '',
                     orderId: '',
                     orderInfo: '',
@@ -72,29 +60,19 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             }
         },
-        mounted () {
-            this.getBaseInfo();
-        },
         methods: {
-            getBaseInfo () {
-                let params = {
-                    channel: getCookie('channel')
-                }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
-            },
             handleOrder () {
+                if (!this.selectedServer) {
+                    BsMessage.error('กรุณาเลือกเซิร์ฟเวอร์จากแถบนำทาง');
+                    return
+                }
                 for (var name in this.form) {
                     if (!this.form[name]) {
                         BsMessage.error('มีช่องว่างที่ยังไม่ได้กรอก กรุณาตรวจสอบและกรอกให้ครบ!');
                         return
                     }
                 }
+                this.form.serverId = this.selectedServer;
                 this.form.channel = getCookie('channel')
                 this.dialogTitle = 'ยืนยันเติมเงินย้อนหลัง';
                 this.dialogVisible = true;
@@ -105,9 +83,10 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 .then((res) => {
                     if (res.data.result === 1) {
                         BsMessage.success('เติมเงินย้อนหลังสำเร็จ');
-                        for (const key in this.form) {
-                            this.form[key] = '';
-                        }
+                        this.form.uid = '';
+                        this.form.orderId = '';
+                        this.form.orderInfo = '';
+                        this.form.money = '';
                         this.dialogVisible = false;
                     } else {
                         BsMessage.error('เติมเงินย้อนหลังไม่สำเร็จ');
@@ -119,5 +98,4 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
 

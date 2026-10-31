@@ -6,6 +6,13 @@ const props = defineProps<{
   username: string
   channel: string
 }>()
+interface GameServer {
+  id: number
+  name: string
+}
+
+const servers = ref<GameServer[]>([])
+const selectedServer = useCookie('selectedServer', { default: () => '' })
 const passwordDialogVisible = ref(false)
 const form = reactive({ oldPsw: '', newPsw: '', againPsw: '' })
 function openPasswordDialog() {
@@ -69,23 +76,44 @@ function toggleFullscreen() {
 
 const channelName = ref(props.channel)
 onMounted(async () => {
+  if (props.channel === '*') {
+    try {
+      servers.value = await $fetch<GameServer[]>('/api/characters/servers', { method: 'POST' })
+    } catch (error) {
+      BsMessage.error(error instanceof Error ? error.message : 'โหลดรายชื่อเซิร์ฟเวอร์ไม่สำเร็จ')
+    }
+    return
+  }
+
   try {
     const channels = await $fetch<Array<{ name: string }>>('/api/set/searchChannelOne', {
       method: 'POST',
       body: { channel: props.channel },
     })
     channelName.value = channels[0]?.name || props.channel
-  } catch {
-    channelName.value = props.channel
+  } catch (error) {
+    BsMessage.error(error instanceof Error ? error.message : 'โหลดชื่อ channel ไม่สำเร็จ')
   }
 })
 </script>
 
 <template>
-  <header class="navbar navbar-dark bg-dark shadow-sm sticky-top">
+  <header class="navbar navbar-dark bg-dark shadow-sm">
     <div class="container-fluid gap-2">
+      <select
+        v-if="channel === '*'"
+        v-model="selectedServer"
+        class="form-select form-select-sm w-auto"
+        aria-label="เลือกเซิร์ฟเวอร์"
+      >
+        <option value="">เลือกเซิร์ฟเวอร์</option>
+        <option v-for="server in servers" :key="server.id" :value="String(server.id)">
+          {{ server.name }}
+        </option>
+      </select>
       <div class="navbar-brand mb-0 me-auto text-truncate">
-        ระบบจัดการ GM Douluo Continent <span class="text-white-50">- {{ channelName }}</span>
+        ระบบจัดการ GM Douluo Continent
+        <span v-if="channel !== '*'" class="text-white-50">- {{ channelName }}</span>
       </div>
       <div class="d-flex align-items-center gap-2">
         <button class="btn btn-outline-light btn-sm" type="button" aria-label="เต็มหน้าจอ" @click="toggleFullscreen">

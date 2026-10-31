@@ -133,11 +133,11 @@ export async function getAdminSession(event: H3Event): Promise<AdminSession> {
   )
   const row = (rows as Array<AdminSession & { userRandom: string | null }>)[0]
   const selectedChannel = getCookie(event, 'channel') || ''
+  const allChannels = claims.channel === '*'
   if (
     !row
     || row.userRandom !== claims.jti
-    || !channelAllowed(row.channel, claims.channel)
-    || selectedChannel !== claims.channel
+    || (!allChannels && (!channelAllowed(row.channel, claims.channel) || selectedChannel !== claims.channel))
   ) {
     clearAuthCookies(event)
     throw createError({ statusCode: 401, statusMessage: 'เซสชันหมดอายุหรือถูกยกเลิก กรุณาเข้าสู่ระบบอีกครั้ง' })
@@ -147,11 +147,11 @@ export async function getAdminSession(event: H3Event): Promise<AdminSession> {
     row.authorization = 'admin'
   }
   event.context.adminSession = row
-  event.context.adminChannel = claims.channel
+  event.context.adminChannel = allChannels ? '*' : claims.channel
   return row
 }
 
-export async function createSession(event: H3Event, username: string, channel: string) {
+export async function createSession(event: H3Event, username: string) {
   const secret = getJwtSecret(event)
   const jti = randomUUID()
   await getGameDatabase().execute(
@@ -162,7 +162,7 @@ export async function createSession(event: H3Event, username: string, channel: s
   const payload: AdminTokenPayload = {
     sub: username,
     jti,
-    channel,
+    channel: '*',
     iat: now,
     exp: now + TOKEN_LIFETIME_SECONDS,
   }

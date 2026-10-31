@@ -8,15 +8,7 @@
         <div class="container">
             <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
                 <bs-button type="success" @click="handleAdd">{{ words.button.add }}</bs-button>
-                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <bs-option key="0" label="all servers" value="0"></bs-option>
-                    <bs-option 
-                        v-for="item in server_list" 
-                        :key="item.$.id" 
-                        :label="item.$.name" 
-                        :value="item.$.id"
-                    ></bs-option>
-                </bs-select>
+                <span class="badge text-bg-secondary">{{ selectedServer ? `เซิร์ฟเวอร์ ${selectedServer}` : 'เลือกเซิร์ฟเวอร์ที่ Navbar' }}</span>
                 <bs-select v-model="selceted_user" placeholder="ผู้ส่ง" class="mr10">
                     <bs-option key="all" label="all users" value="all"></bs-option>
                     <bs-option 
@@ -61,12 +53,12 @@
             <bs-form :model="form" label-width="120px" v-if="this.dialogType === 'add' || this.dialogType === 'change'">
                 <bs-form-item label="serverId">
                     <bs-select filterable v-model="form.serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                        <bs-option key="0" label="all servers" value="0"></bs-option>
-                        <bs-option 
-                            v-for="item in server_list" 
-                            :key="item.$.id" 
-                            :label="item.$.name" 
-                            :value="item.$.id"
+                        <bs-option v-if="selectedServer" :value="selectedServer" :label="`เซิร์ฟเวอร์ ${selectedServer}`"></bs-option>
+                        <bs-option key="all" label="all servers" value="0"></bs-option>
+                        <bs-option
+                            v-if="form.serverId && form.serverId !== selectedServer && form.serverId !== '0'"
+                            :value="form.serverId"
+                            :label="`เซิร์ฟเวอร์ ${form.serverId}`"
                         ></bs-option>
                     </bs-select>
                 </bs-form-item>
@@ -125,11 +117,10 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
                 username: getCookie('username'),
-                selceted_serverId: '',
                 selceted_user: '',
                 user_list: [],
                 selceted_state: '',
@@ -146,7 +137,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     id: 'finish',
                     label: 'สิ้นสุดแล้ว'
                 }],
-                server_list: [],
                 tableData: [],
                 dialogVisible: false,
                 dialogTitle: '',
@@ -172,13 +162,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 let params = {
                     channel: getCookie('channel')
                 }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
                 // 查询用户列表
                 this.$api.post('/api/baseinfo/userlist',params)
                 .then((res) => {
@@ -189,11 +172,11 @@ import { BsMessage } from '~/utils/bootstrap-message'
             },
             // 查询广告广播
             handleSearch () {
-                if (this.selceted_serverId === '' || this.selceted_user === '' || this.selceted_state === '') {
+                if (!this.selectedServer || this.selceted_user === '' || this.selceted_state === '') {
                     BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบ');
                 } else {
                     var params = {
-                        serverId: this.selceted_serverId,
+                        serverId: this.selectedServer,
                         submitter: this.selceted_user,
                         state_data: this.selceted_state,
                         channel: getCookie('channel')
@@ -210,6 +193,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
+                this.form.serverId = this.selectedServer;
                 this.dialogTitle = 'เพิ่มประกาศข้อความ';
                 this.dialogType = 'add';
                 this.dialogVisible = true;
@@ -337,5 +321,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
-

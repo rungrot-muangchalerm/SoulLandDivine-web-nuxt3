@@ -8,14 +8,6 @@
         </div>
         <div class="container">
             <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
-                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <bs-option 
-                        v-for="item in server_list" 
-                        :key="item.$.id" 
-                        :label="item.$.name" 
-                        :value="item.$.id"
-                    ></bs-option>
-                </bs-select>
                 <bs-input class="uid mr10" placeholder="กรอก uid" v-model="uid"></bs-input>
                 <bs-date-picker
                     v-model="selected_time"
@@ -58,10 +50,9 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
-                selceted_serverId: '',
                 uid: '',
                 selected_time: '',
                 orderId: '',
@@ -70,37 +61,21 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 total_size: 1,
                 page_size: 20,
                 tableList: [],
-                server_list: [],
                 tableData: []
             }
-        },
-        mounted () {
-            this.getBaseInfo();
         },
         methods: {
             // 分页导航
             handleCurrentChange(val) {
                 this.handleSearch(val,this.page_size);
             },
-            getBaseInfo () {
-                let params = {
-                    channel: getCookie('channel')
-                }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
-            },
             // 查询充值信息
             handleSearch (page,page_size) {
-                if (this.selceted_serverId === "" || this.uid ==="" || this.selected_time ==="") {
+                if (!this.selectedServer || this.uid ==="" || this.selected_time ==="") {
                     BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาให้ครบถ้วน');
                 } else {
                     var params = {
-                        serverId: this.selceted_serverId,
+                        serverId: this.selectedServer,
                         uid: this.uid,
                         time_data: this.selected_time,
                         orderId: this.orderId,
@@ -126,5 +101,4 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
 

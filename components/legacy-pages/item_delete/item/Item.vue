@@ -7,16 +7,6 @@
             </bs-breadcrumb>
         </div>
         <div class="container">
-            <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
-                <bs-select filterable v-model="opt_server" :placeholder="words.tips.PleaseSelectServerID" class="mr10" @change="handleServerChange">
-                    <bs-option 
-                        v-for="item in server_list" 
-                        :key="item.id" 
-                        :label="item.name" 
-                        :value="item.id"
-                    ></bs-option>
-                </bs-select>
-            </div>
             <div v-if="loading" class="alert alert-info">กำลังโหลดรายการไอเทม...</div>
             <div v-else class="small text-body-secondary mb-2">
                 {{ opt_server ? `รายการไอเทมทั้งหมด ${total} รายการ` : 'เลือกเซิร์ฟเวอร์เพื่อแสดงรายการไอเทม' }}
@@ -79,57 +69,57 @@
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
-    import { getCookie } from '~/utils/cookies'
 import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () {
+            return {
+                words: createAdminWords(),
+                opt_server: useCookie('selectedServer', { default: () => '' })
+            }
+        },
         data () {
             return {
-                server_list: [],
-                opt_server: '',
                 opt_params: [],
                 tableData: [],
                 page: 1,
                 pageSize: 50,
                 total: 0,
-                loading: false
+                loading: false,
+                inventoryRequestId: 0
             }
         },
-        mounted () {
-            this.getBaseInfo();
+        watch: {
+            opt_server: {
+                immediate: true,
+                handler () {
+                    this.page = 1;
+                    this.opt_params = [];
+                    this.inventoryRequestId++;
+                    this.loadInventory();
+                }
+            }
         },
         methods: {
-            getBaseInfo () {
-                this.$api.post('/api/characters/servers', { channel: getCookie('channel') })
-                .then((res) => {
-                    this.server_list = res.data;
-                }).catch((err) => {
-                    BsMessage.error(err?.data?.statusMessage || 'โหลดรายชื่อเซิร์ฟเวอร์ไม่สำเร็จ');
-                });
-            },
-            handleServerChange () {
-                this.page = 1;
-                this.opt_params = [];
-                this.loadInventory();
-            },
             handlePageChange (page) {
                 this.page = page;
                 this.loadInventory();
             },
             loadInventory () {
+                const requestId = ++this.inventoryRequestId;
                 if (!this.opt_server) {
                     this.tableData = [];
                     this.total = 0;
+                    this.loading = false;
                     return;
                 }
                 this.loading = true;
                 this.$api.post('/api/itemdelete/listServer', {
                     serverId: this.opt_server,
-                    page: this.page,
-                    channel: getCookie('channel')
+                    page: this.page
                 }).then((res) => {
+                    if (requestId !== this.inventoryRequestId) return;
                     this.tableData = res.data.data.map((item, index) => ({
                         ...item,
                         selectionKey: `${item.UserId}:${item.RewardType}:${item.ItemUid}:${index}`
@@ -138,9 +128,13 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     this.pageSize = res.data.pageSize;
                     this.total = res.data.total;
                 }).catch((err) => {
-                    BsMessage.error(err?.data?.statusMessage || 'โหลดรายการไอเทมไม่สำเร็จ');
+                    if (requestId === this.inventoryRequestId) {
+                        BsMessage.error(err?.data?.statusMessage || 'โหลดรายการไอเทมไม่สำเร็จ');
+                    }
                 }).finally(() => {
-                    this.loading = false;
+                    if (requestId === this.inventoryRequestId) {
+                        this.loading = false;
+                    }
                 });
             },
             handleChoose (index, row) {
@@ -154,19 +148,18 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 this.opt_params.splice(index,1);
             },
             handleDeduct (index,row) {
-                let params = {
-                    ServerId: this.opt_server,
-                    UserId: row.UserId,
-                    RewardType: row.RewardType,
-                    ItemId: row.ItemId,
-                    ItemUid: row.ItemUid,
-                    ItemNum: row.ItemNum,
-                    channel: getCookie('channel')
+                const params = {
+                    serverId: this.opt_server,
+                    userId: row.UserId,
+                    rewardType: row.RewardType,
+                    itemId: row.ItemId,
+                    itemUid: row.ItemUid,
+                    amount: row.ItemNum
                 }
-                this.$api.post('/api/itemdelete/deduct', params)
+                this.$api.post('/api/players/items/deduct', params)
                 .then(res => {
                     if (res.data.result === 1) {
-                        BsMessage.success(`หักไอเทมประเภท ${params.RewardType} รหัส ${params.ItemId} จำนวน ${params.ItemNum} ชิ้น จาก ${params.UserId} สำเร็จ`);
+                        BsMessage.success(`หักไอเทมประเภท ${params.rewardType} รหัส ${params.itemId} จำนวน ${params.amount} ชิ้น จาก ${params.userId} สำเร็จ`);
                         this.opt_params.splice(index,1);
                         this.tableData = this.tableData.filter(item => item.selectionKey !== row.selectionKey);
                         this.total = Math.max(0, this.total - 1);
@@ -182,5 +175,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
-

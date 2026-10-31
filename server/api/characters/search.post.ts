@@ -1,4 +1,3 @@
-import { getCookie } from 'h3'
 import { getAdminSession } from '../../utils/admin-session'
 import { getGameDatabase } from '../../utils/database'
 import { recordOperationLog } from '../../utils/operation-log'
@@ -28,10 +27,6 @@ interface CharacterRow {
 
 export default defineEventHandler(async (event) => {
   const session = await getAdminSession(event)
-  const channel = getCookie(event, 'channel') || ''
-  if (!channel || !session.channel?.includes(channel)) {
-    throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
-  }
 
   const body = await readBody<SearchBody>(event)
   const serverId = Number(body.serverId)
@@ -100,7 +95,7 @@ export default defineEventHandler(async (event) => {
   await recordOperationLog({
     username: session.username,
     ip: event.node.req.socket.remoteAddress || '',
-    content: JSON.stringify({ serverId, uid: uidText || undefined, name: name || undefined, channel }),
+    content: JSON.stringify({ serverId, uid: uidText || undefined, name: name || undefined }),
     type: '/characters/search',
   })
   return characters[0] || null

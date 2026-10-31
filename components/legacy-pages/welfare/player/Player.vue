@@ -9,16 +9,8 @@
         <div class="container">
             <div class="d-flex flex-wrap align-items-end gap-2 mb-3">
                 <bs-button type="success" @click="handleAdd()">{{ words.button.add }}</bs-button>
-                <bs-select filterable v-model="selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                    <bs-option 
-                        v-for="item in server_list" 
-                        :key="item.$.id" 
-                        :label="item.$.name" 
-                        :value="item.$.id"
-                    ></bs-option>
-                </bs-select>
                 <bs-input class="uid mr10" placeholder="กรอก UID" v-model="selceted_uid"></bs-input>
-                <bs-button type="primary" @click="handleSearch(selceted_serverId,selceted_uid)">{{ words.button.search }}</bs-button>
+                <bs-button type="primary" @click="handleSearch(selectedServer,selceted_uid)">{{ words.button.search }}</bs-button>
             </div>
             <bs-table :data="tableData" border ref="multipleTable" class="w-100">
                 <bs-table-column prop="serverId" label="รหัสเซิร์ฟเวอร์" align="center"></bs-table-column>
@@ -68,13 +60,12 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
-                selceted_serverId: '',
                 selceted_uid: '',
-                server_list: [],
                 tableData: [],
+                searchRequestId: 0,
                 dialogVisible: false,
                 dialogTitle: '',
                 dialogType: '',
@@ -90,28 +81,26 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             }
         },
-        mounted () {
-            // this.handleSearch(0,0);
-            this.getBaseInfo();
+        watch: {
+            selectedServer: {
+                immediate: true,
+                handler (server) {
+                    if (server) {
+                        this.handleSearch(server, this.selceted_uid);
+                    } else {
+                        this.searchRequestId++;
+                        this.tableData = [];
+                    }
+                }
+            }
         },
         methods: {
-            getBaseInfo () {
-                let params = {
-                    channel: getCookie('channel')
-                }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
-            },
             // 查询指定条件玩家
             handleSearch (server,id) {
-                if (server === '' && id === '') {
+                if (!server && id === '') {
                     BsMessage.error('กรุณากรอกเงื่อนไขการค้นหาอย่างน้อยหนึ่งรายการ');
                 } else {
+                    const requestId = ++this.searchRequestId;
                     var params = {
                         serverId: server,
                         uid: id,
@@ -119,7 +108,9 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     }
                     this.$api.post('/api/welfare/searchPlayer', params)
                     .then((res) => {
-                        this.tableData = res.data.list;
+                        if (requestId === this.searchRequestId) {
+                            this.tableData = res.data.list;
+                        }
                     }).catch(function (err) {
                         console.log('fetch faild:' + err);
                     })
@@ -238,5 +229,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
-

@@ -69,7 +69,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
                 type: '',
@@ -112,6 +112,17 @@ import { BsMessage } from '~/utils/bootstrap-message'
         },
         mounted () {
             
+        },
+        watch: {
+            selectedServer: {
+                immediate: true,
+                handler (server) {
+                    if (server) {
+                        this.startServerId = server;
+                        this.endServerId = server;
+                    }
+                }
+            }
         },
         methods: {
             // 分页导航
@@ -251,5 +262,4 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
 

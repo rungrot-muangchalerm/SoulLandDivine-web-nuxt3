@@ -8,7 +8,7 @@ defineProps<{
 
 <template>
   <div>
-    <aside class="card bg-dark-subtle d-none d-md-block position-fixed top-0 bottom-0 start-0 col-md-3 col-lg-2 overflow-y-auto" aria-label="เมนูหลัก">
+    <aside class="card bg-dark-subtle d-none d-md-block position-fixed top-0 bottom-0 start-0 col-md-3 col-lg-2 overflow-y-auto z-2" aria-label="เมนูหลัก">
       <AdminSidebarMenu :authorization="authorization" />
     </aside>
     <Teleport to="body">

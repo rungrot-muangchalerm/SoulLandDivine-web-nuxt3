@@ -9,16 +9,6 @@
         <div class="container">
             <div class="form-box">
                 <bs-form ref="form" :model="form" label-width="100px">
-                    <bs-form-item label="รหัสเซิร์ฟเวอร์">
-                        <bs-select filterable v-model="form.ServerId" :placeholder="words.tips.PleaseSelectServerID" class="mr10">
-                            <bs-option 
-                                v-for="item in server_list" 
-                                :key="item.$.id" 
-                                :label="item.$.name" 
-                                :value="item.$.id"
-                            ></bs-option>
-                        </bs-select>
-                    </bs-form-item>
                     <bs-form-item label="UID ผู้ใช้">
                         <bs-input v-model="form.UserId" placeholder="UID ผู้ใช้"></bs-input>
                     </bs-form-item>
@@ -44,37 +34,20 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
-                server_list: [],
                 form: {
-                    ServerId: '',
                     UserId: '',
                     Num: '',
                     Price: ''
                 }
             }
         },
-        mounted () {
-            this.getBaseInfo();
-        },
         methods: {
-            getBaseInfo () {
-                let params = {
-                    channel: getCookie('channel')
-                }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
-            },
             handleDeduct () {
                 let params = {
-                    ServerId: this.form.ServerId,
+                    ServerId: this.selectedServer,
                     ActivityType: '9',
                     UserId: this.form.UserId,
                     Num: this.form.Num,
@@ -102,5 +75,4 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
 

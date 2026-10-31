@@ -74,7 +74,7 @@ async function selectRoute(path: string) {
 </script>
 
 <template>
-  <nav class="nav nav-pills flex-column gap-1 p-2 pt-5 mt-2" aria-label="เมนูหลัก">
+  <nav class="nav nav-pills flex-column gap-1 p-2" aria-label="เมนูหลัก">
     <template v-for="item in visibleMenu" :key="item.title">
       <button
         v-if="item.children"

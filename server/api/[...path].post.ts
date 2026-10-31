@@ -199,9 +199,9 @@ const gameRoutes: Record<string, GameRoute> = {
   },
 }
 
-async function searchBroadcast(body: Body) {
-  const filters = ['channel = ?']
-  const params: SqlValue[] = [sqlValue(body.channel)]
+async function searchBroadcast(body: Body, allChannels: boolean) {
+  const filters = allChannels ? [] : ['channel = ?']
+  const params: SqlValue[] = allChannels ? [] : [sqlValue(body.channel)]
   if (body.serverId !== '0' && body.serverId) {
     filters.push('serverId = ?')
     params.push(sqlValue(body.serverId))
@@ -232,11 +232,28 @@ export default defineEventHandler(async (event) => {
   const route = getRouterParam(event, 'path') || ''
   const body = await readBody<Body>(event)
   const session = await getAdminSession(event)
+  const allChannels = event.context.adminChannel === '*'
   const channel = String(body.channel ?? event.context.adminChannel ?? getCookie(event, 'channel') ?? '')
-  if (!channel || channel !== event.context.adminChannel) {
+  const directDatabaseRoutes = new Set([
+    'baseinfo/serverlist',
+    'baseinfo/userlist',
+    'set/searchChannelOne',
+    'users/searchall',
+    'users/searchOne',
+    'users/findLogs',
+    'users/logTotalCount',
+    'broadcast/search',
+    'welfare/searchPlayer',
+    'welfare/addPlayer',
+    'welfare/deletePlayer',
+  ])
+  if (allChannels && !directDatabaseRoutes.has(route)) {
+    throw createError({ statusCode: 501, statusMessage: 'ฟีเจอร์นี้ยังไม่รองรับการทำงานกับฐานข้อมูลโดยตรง' })
+  }
+  if (!allChannels && (!channel || channel !== event.context.adminChannel)) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
   }
-  body.channel = channel
+  if (!allChannels) body.channel = channel
   if (route.startsWith('users/') && route !== 'users/changePsw' && session.authorization !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์จัดการผู้ใช้หรือประวัติการทำงาน' })
   }
@@ -245,6 +262,63 @@ export default defineEventHandler(async (event) => {
     && !['admin', 'server'].includes(session.authorization)
   ) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์จัดการช่องทาง' })
+  }
+
+  if (['welfare/searchPlayer', 'welfare/addPlayer', 'welfare/deletePlayer'].includes(route)) {
+    const serverId = Number(body.serverId)
+    const uidText = body.uid === undefined || body.uid === null ? '' : String(body.uid).trim()
+    const uid = uidText ? Number(uidText) : undefined
+    const welfareId = Number(body.welfareId)
+    if (
+      !Number.isSafeInteger(serverId)
+      || serverId <= 0
+      || (uidText !== '' && (!/^\d{1,10}$/.test(uidText) || uid === undefined || !Number.isSafeInteger(uid) || uid <= 0))
+      || (route !== 'welfare/searchPlayer' && (!Number.isSafeInteger(welfareId) || welfareId <= 0))
+    ) {
+      throw createError({ statusCode: 400, statusMessage: 'รหัสเซิร์ฟเวอร์, UID หรือรหัสสิทธิประโยชน์ไม่ถูกต้อง' })
+    }
+
+    const [servers] = await getGameDatabase().execute(
+      'SELECT id FROM server_list WHERE id = ? LIMIT 1',
+      [serverId],
+    )
+    if (!(servers as Array<{ id: number }>).length) {
+      throw createError({ statusCode: 404, statusMessage: 'ไม่พบเซิร์ฟเวอร์ที่เลือก' })
+    }
+
+    if (route === 'welfare/searchPlayer') {
+      const filters = ['ServerId = ?']
+      const params: SqlValue[] = [serverId]
+      if (uid !== undefined) {
+        filters.push('Uid = ?')
+        params.push(uid)
+      }
+      const [rows] = await getGameDatabase().execute(
+        `SELECT ServerId AS serverId, Uid AS uid, WelfareId AS id, Name AS name, LastSend AS LastTime FROM welfare_player WHERE ${filters.join(' AND ')} ORDER BY Uid, WelfareId`,
+        params,
+      )
+      return { result: 1, list: rows }
+    }
+
+    if (uid === undefined) {
+      throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุ UID ผู้เล่น' })
+    }
+
+    if (route === 'welfare/addPlayer') {
+      const [result] = await getGameDatabase().execute(
+        'INSERT INTO welfare_player (ServerId, Uid, WelfareId, Name, LastSend) VALUES (?, ?, ?, ?, ?)',
+        [serverId, uid, welfareId, '', 0],
+      )
+      await recordOperation(event, session.username, route, body)
+      return { result: affectedRows(result) }
+    }
+
+    const [result] = await getGameDatabase().execute(
+      'DELETE FROM welfare_player WHERE ServerId = ? AND Uid = ? AND WelfareId = ?',
+      [serverId, uid, welfareId],
+    )
+    await recordOperation(event, session.username, route, body)
+    return { result: affectedRows(result) }
   }
 
   const gameRoute = gameRoutes[route]
@@ -281,12 +355,20 @@ export default defineEventHandler(async (event) => {
     const [rows] = await getDatabase().query(
       'SELECT id, username, channel FROM `user` ORDER BY id',
     )
-    return (rows as Array<{ channel: string }>).filter((row) => row.channel?.includes(channel))
+    return allChannels
+      ? rows
+      : (rows as Array<{ channel: string }>).filter((row) => row.channel?.includes(channel))
   }
   if (route === 'set/searchChannelOne') {
+    if (allChannels && !body.channel) {
+      const [rows] = await getDatabase().query(
+        'SELECT id, name, `index`, ip, url FROM channel_list ORDER BY id',
+      )
+      return rows
+    }
     const [rows] = await getDatabase().execute(
       'SELECT id, name, `index`, ip, url FROM channel_list WHERE `index` = ? LIMIT 1',
-      [channel],
+      [allChannels ? sqlValue(body.channel) : channel],
     )
     return rows
   }
@@ -430,7 +512,7 @@ export default defineEventHandler(async (event) => {
     return { code: 200, totalCount: (rows as Array<{ totalCount: number }>)[0]?.totalCount || 0 }
   }
 
-  if (route === 'broadcast/search') return await searchBroadcast(body)
+  if (route === 'broadcast/search') return await searchBroadcast(body, allChannels)
   if (route === 'broadcast/add') {
     const [result] = await getDatabase().execute(
       'INSERT INTO broadcast (serverId, title, submitter, content, type, startTime, stopTime, intervalTime, triggerTime, channel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',

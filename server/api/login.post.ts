@@ -5,37 +5,30 @@ import { createSession, TOKEN_COOKIE, TOKEN_LIFETIME_SECONDS } from '../utils/ad
 interface LoginBody {
   username?: string
   password?: string
-  channel?: string
 }
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<LoginBody>(event)
   const username = body.username?.trim()
   const password = body.password
-  const channel = body.channel
-  if (!username || !password || !channel) {
+  if (!username || !password) {
     throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกข้อมูลให้ครบถ้วน' })
   }
 
   const [rows] = await getGameDatabase().execute(
-    'SELECT username, password, authorization, channel FROM `admin_user` WHERE username = ? LIMIT 1',
+    'SELECT username, password, authorization FROM `admin_user` WHERE username = ? LIMIT 1',
     [username],
   )
   const user = (rows as Array<{
     username: string
     password: string
     authorization: string
-    channel: string
   }>)[0]
 
   if (!user || user.password !== password) {
     throw createError({ statusCode: 401, statusMessage: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' })
   }
-  if (!user.channel?.includes(channel)) {
-    throw createError({ statusCode: 403, statusMessage: 'ผู้ใช้นี้ไม่มีสิทธิ์ในช่องทางที่เลือก' })
-  }
-
-  const token = await createSession(event, username, channel)
+  const token = await createSession(event, username)
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'lax',
@@ -44,14 +37,9 @@ export default defineEventHandler(async (event) => {
     path: '/',
   } as const
   deleteCookie(event, 'userRandom', { path: '/' })
+  deleteCookie(event, 'channel', { path: '/' })
   setCookie(event, TOKEN_COOKIE, token, cookieOptions)
   setCookie(event, 'username', user.username, {
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: TOKEN_LIFETIME_SECONDS,
-    path: '/',
-  })
-  setCookie(event, 'channel', channel, {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     maxAge: TOKEN_LIFETIME_SECONDS,

@@ -21,9 +21,11 @@
                 <bs-table-column prop="day" label="รอบของรางวัล" align="center"></bs-table-column>
                 <bs-table-column prop="time" label="เวลามอบของรางวัล" align="center"></bs-table-column>
                 <bs-table-column label="การดำเนินการ" width="160" align="center">
-                    <template v-if="scope.row.authorization !== '管理员'" #default="scope">
-                        <bs-button size="small" @click="handleChange(scope.$index, scope.row)">แก้ไข</bs-button>
-                        <bs-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</bs-button>
+                    <template #default="scope">
+                        <template v-if="scope.row.authorization !== '管理员'">
+                            <bs-button size="small" @click="handleChange(scope.$index, scope.row)">แก้ไข</bs-button>
+                            <bs-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">ลบ</bs-button>
+                        </template>
                     </template>
                 </bs-table-column>
             </bs-table>
@@ -305,5 +307,4 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
 

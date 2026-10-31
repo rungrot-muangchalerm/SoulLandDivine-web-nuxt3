@@ -22,15 +22,10 @@
                         <bs-input v-model="form.mailId"></bs-input>
                     </bs-form-item>
                     <bs-form-item label="ServerID">
-                        <bs-select filterable v-model="form.selceted_serverId" :placeholder="words.tips.PleaseSelectServerID" :disabled="form.emailType === 'personalemail'" class="mr10">
-                            <bs-option key="0" label="ทุกเซิร์ฟเวอร์" value="0" v-if="form.emailType === 'allserver'"></bs-option>
-                            <bs-option
-                                v-for="item in server_list"
-                                :key="item.$.id"
-                                :label="item.$.name"
-                                :value="item.$.id"
-                            ></bs-option>
-                        </bs-select>
+                        {{ form.emailType === 'personalemail' ? 'อีเมลส่วนตัว' : (allServers ? 'ทุกเซิร์ฟเวอร์' : (selectedServer || 'เลือกเซิร์ฟเวอร์ที่ Navbar')) }}
+                    </bs-form-item>
+                    <bs-form-item v-if="form.emailType === 'allserver'" label="ขอบเขต">
+                        <bs-switch v-model="allServers" active-text="ทุกเซิร์ฟเวอร์" inactive-text="เซิร์ฟเวอร์ที่เลือก"></bs-switch>
                     </bs-form-item>
                     <bs-form-item label="UID">
                         <bs-input v-model="form.uidList" :disabled="form.emailType === 'allserver'"></bs-input>
@@ -97,11 +92,11 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
     export default {
         
-        setup () { return { words: createAdminWords() } },
+        setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
         data () {
             return {
                 disabled: false,
-                server_list: [],
+                allServers: false,
                 type_list: [{
                     value: 'allserver',
                     label: 'อีเมลถึงทุกเซิร์ฟเวอร์'
@@ -149,7 +144,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 form: {
                     emailType: '',
                     mailId: '',
-                    selceted_serverId: '',
                     uidList: '',
                     rewardType1: '',
                     rewardUid1: '',
@@ -172,23 +166,9 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             }
         },
-        mounted () {
-            this.getBaseInfo();
-        },
         methods: {
-            getBaseInfo () {
-                let params = {
-                    channel: getCookie('channel')
-                }
-                // 查询服务器列表
-                this.$api.post('/api/baseinfo/serverlist',params)
-                .then((res) => {
-                    this.server_list = res.data.idspace.class;
-                }).catch(function (err) {
-                    console.log('fetch faild: ' + err);
-                });
-            },
             changeEmailType () {
+                this.allServers = false;
                 if (this.form.emailType === 'allserver') {
                     for (const key in this.form) {
                         this.form[key] = '';
@@ -196,7 +176,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     this.form.emailType = 'allserver';
                 } else {
                     this.form.mailId = '';
-                    this.form.selceted_serverId = '';
                     this.form.uidList = '';
                 }
             },
@@ -274,11 +253,11 @@ import { BsMessage } from '~/utils/bootstrap-message'
             },
             handleSendEmail () {
                 let params = null;
-                if (this.form.emailType === 'allserver' && this.form.mailId !== "" && this.form.selceted_serverId !== '') {
+                if (this.form.emailType === 'allserver' && this.form.mailId !== "" && (this.selectedServer || this.allServers)) {
                     params = {
                         channel: getCookie('channel'),
                         mailId: this.form.mailId,
-                        serverId: this.form.selceted_serverId
+                        serverId: this.allServers ? '0' : this.selectedServer
                     }
                 } else if (this.form.emailType === 'personalemail' && this.form.mailId !== "" && this.form.uidList !== "") {
                     params = {
@@ -320,6 +299,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                         res = res.data;
                         if(JSON.parse(res).result === 1){
                             BsMessage.success('ส่งอีเมลแล้ว!')
+                            this.allServers = false;
                             for (const key in this.form) {
                                 this.form[key] = '';
                             }
@@ -332,6 +312,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             },
             handleCancle () {
+                this.allServers = false;
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
@@ -339,5 +320,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-
-

@@ -16,10 +16,15 @@ if (error.value) {
 
 <template>
   <div v-if="session" class="container-fluid min-vh-100 bg-body-tertiary">
-    <AdminHeader
-      :username="session.username"
-      :channel="session.channel"
-    />
+    <div class="row g-0 sticky-top z-1">
+      <div class="d-none d-md-block col-md-3 col-lg-2" aria-hidden="true"></div>
+      <div class="col-12 col-md-9 col-lg-10">
+        <AdminHeader
+          :username="session.username"
+          :channel="session.channel"
+        />
+      </div>
+    </div>
     <div class="row g-3 py-3 align-items-start">
       <AdminSidebar
         class="col-12 col-md-3 col-lg-2"
