@@ -47,7 +47,7 @@
 
 <script>
     import { createAdminWords } from '~/utils/admin-state'
-    import { getCookie, setCookie } from '~/utils/cookies'
+    import { setCookie } from '~/utils/cookies'
 
     import md5 from 'js-md5';
 import { BsMessage } from '~/utils/bootstrap-message'
@@ -98,8 +98,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                         this.$api.post('/api/login', params)
                         .then((res)=> {
                             if (res.data.code === 1) {
-                                setCookie('authorization', res.data.authorization);
-                                if (getCookie('authorization') === 'server') {
+                                if (res.data.authorization === 'server') {
                                     this.$router.push('/server');
                                 } else {
                                     this.$router.push('/role');
@@ -133,4 +132,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-

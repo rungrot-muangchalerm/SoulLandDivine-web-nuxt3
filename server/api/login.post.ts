@@ -1,6 +1,6 @@
-import { setCookie } from 'h3'
+import { deleteCookie, setCookie } from 'h3'
 import { getGameDatabase } from '../utils/database'
-import { createSession } from '../utils/admin-session'
+import { createSession, TOKEN_COOKIE, TOKEN_LIFETIME_SECONDS } from '../utils/admin-session'
 
 interface LoginBody {
   username?: string
@@ -35,24 +35,26 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'ผู้ใช้นี้ไม่มีสิทธิ์ในช่องทางที่เลือก' })
   }
 
-  const sessionId = await createSession(username)
-  setCookie(event, 'userRandom', sessionId, {
+  const token = await createSession(event, username, channel)
+  const cookieOptions = {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2,
+    maxAge: TOKEN_LIFETIME_SECONDS,
     path: '/',
-  })
+  } as const
+  deleteCookie(event, 'userRandom', { path: '/' })
+  setCookie(event, TOKEN_COOKIE, token, cookieOptions)
   setCookie(event, 'username', user.username, {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2,
+    maxAge: TOKEN_LIFETIME_SECONDS,
     path: '/',
   })
   setCookie(event, 'channel', channel, {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 2,
+    maxAge: TOKEN_LIFETIME_SECONDS,
     path: '/',
   })
   return {

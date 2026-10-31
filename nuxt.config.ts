@@ -34,6 +34,7 @@ export default defineNuxtConfig({
     serverListDir: process.env.SERVER_LIST_DIR || 'data/server_list',
     announcementServiceUrl: process.env.ANNOUNCEMENT_SERVICE_URL || '',
     announcementServiceToken: process.env.ANNOUNCEMENT_SERVICE_TOKEN || '',
+    adminJwtSecret: process.env.ADMIN_JWT_SECRET || '',
   },
   typescript: {
     strict: true,

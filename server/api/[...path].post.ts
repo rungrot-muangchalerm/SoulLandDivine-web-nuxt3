@@ -232,8 +232,8 @@ export default defineEventHandler(async (event) => {
   const route = getRouterParam(event, 'path') || ''
   const body = await readBody<Body>(event)
   const session = await getAdminSession(event)
-  const channel = String(body.channel ?? getCookie(event, 'channel') ?? '')
-  if (!channel || !session.channel?.includes(channel)) {
+  const channel = String(body.channel ?? event.context.adminChannel ?? getCookie(event, 'channel') ?? '')
+  if (!channel || channel !== event.context.adminChannel) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
   }
   body.channel = channel
