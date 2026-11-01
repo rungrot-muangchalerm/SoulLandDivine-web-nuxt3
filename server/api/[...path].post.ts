@@ -29,6 +29,16 @@ const sqlValues = (...values: unknown[]): SqlValue[] => values.map(sqlValue)
 const affectedRows = (result: unknown) =>
   Number((result as { affectedRows?: number }).affectedRows || 0)
 
+function getEmailRewards(body: Body) {
+  const rewards = Array.isArray(body.rewards)
+    ? body.rewards
+    : [body.reward1, body.reward2, body.reward3]
+  if (rewards.some((reward) => typeof reward !== 'string')) {
+    throw createError({ statusCode: 400, statusMessage: 'รายการไอเทมไม่ถูกต้อง' })
+  }
+  return rewards.filter((reward): reward is string => Boolean(reward))
+}
+
 async function recordOperation(
   event: Parameters<typeof getAdminSession>[0],
   username: string,
@@ -100,7 +110,7 @@ const gameRoutes: Record<string, GameRoute> = {
     protocol: 15003,
     payload: (b) => ({
       mailId: b.mailId, serverIdAndUid: b.uidList,
-      reward: [b.reward1, b.reward2, b.reward3].filter(Boolean).join('|'),
+      reward: getEmailRewards(b).join('|'),
     }),
   },
   'welfare/searchGrade': { protocol: 12004, payload: (b) => ({ id: b.welfareId }) },
@@ -348,23 +358,21 @@ export default defineEventHandler(async (event) => {
     const serverId = typeof body.serverId === 'string' || typeof body.serverId === 'number'
       ? String(body.serverId)
       : ''
-    const rewardValues = [body.reward1, body.reward2, body.reward3]
+    const rewards = getEmailRewards(body)
     if (
       !mailId
       || !/^\d+$/.test(serverId)
       || !Number.isSafeInteger(Number(serverId))
       || Number(serverId) > 2147483647
-      || rewardValues.some((reward) => reward !== undefined && typeof reward !== 'string')
     ) {
       throw createError({ statusCode: 400, statusMessage: 'ข้อมูลอีเมลหรือไอเทมไม่ถูกต้อง' })
     }
 
-    const rewards = rewardValues.filter((reward): reward is string => typeof reward === 'string')
     const result = await sendGamePacket({
       mailId,
       serverId,
       uid: '0',
-      reward: rewards.filter(Boolean).join('|'),
+      reward: rewards.join('|'),
     }, 10020, channel)
     await recordOperation(event, session.username, route, body)
     return result
