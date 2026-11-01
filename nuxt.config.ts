@@ -1,7 +1,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-03-01',
   devServer: { host: '0.0.0.0', port: 8081 },
-  devtools: { enabled: true },
+  devtools: { enabled: false },
   app: {
     head: {
       link: [
@@ -32,8 +32,8 @@ export default defineNuxtConfig({
     gameServerHost: process.env.GAMESERVER_HOST || '172.16.10.10',
     gameServerPort: Number(process.env.GAMESERVER_PORT || 29024),
     serverListDir: process.env.SERVER_LIST_DIR || 'data/server_list',
-    announcementServiceUrl: process.env.ANNOUNCEMENT_SERVICE_URL || '',
-    announcementServiceToken: process.env.ANNOUNCEMENT_SERVICE_TOKEN || '',
+    gameAdminApiUrl: process.env.ADMIN_API_URL || 'http://127.0.0.1:8082',
+    gameAdminApiToken: process.env.ADMIN_API_TOKEN || '',
     adminJwtSecret: process.env.ADMIN_JWT_SECRET || '',
   },
   typescript: {

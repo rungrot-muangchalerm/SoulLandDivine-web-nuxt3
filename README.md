@@ -50,8 +50,11 @@ Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
 Nitro handles login/session validation, channel and user administration,
 operation logs, broadcast scheduling, announcement uploads/downloads, and
 game-server protocol requests. Configure `GAMESERVER_HOST`/`GAMESERVER_PORT`
-and `ANNOUNCEMENT_SERVICE_URL`/`ANNOUNCEMENT_SERVICE_TOKEN` for those
-integrations. The old Express service is not used as a proxy.
+for game-server protocol requests. Announcement files are proxied to the
+Game AdminAPI using `ADMIN_API_URL` and `ADMIN_API_TOKEN`; the token is kept
+server-side and sent in the `token` HTTP header. Never put it in a Vue
+component or commit it to source control. The old Express service is not used
+as a proxy.
 
 Routes that depend on the database, game server, or announcement service need
 those services configured for end-to-end verification. Legacy files remain

@@ -44,8 +44,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
             return {
                 // 上传部分
                 uploadData: {
-                    fileName: '',
-                    token: '7M664F6AR96XYI'
+                    fileName: ''
                 },
                 uploadAction: "/api/notice/upAnnouncement",
                 // 下载部分
@@ -84,12 +83,13 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     this.$refs.upload.clearFiles()
                     this.$nextTick(()=>{
                         this.uploadData = {
-                            fileName:'',
-                            token: '7M664F6AR96XYI'
+                            fileName:''
                         }
                     })
                 }else if(response.code === 403) {
                     BsMessage.error('คุณไม่มีสิทธิ์ดำเนินการนี้')
+                }else {
+                    BsMessage.error(response.message || 'อัปโหลดไฟล์ไม่สำเร็จ')
                 }
             },
             // 下载部分
@@ -107,4 +107,3 @@ import { BsMessage } from '~/utils/bootstrap-message'
         }
     }
 </script>
-

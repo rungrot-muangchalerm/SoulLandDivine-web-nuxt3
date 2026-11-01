@@ -1,9 +1,9 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
-import { deleteCookie, getCookie, type H3Event } from 'h3'
+import { deleteCookie, getCookie, setCookie, type H3Event } from 'h3'
 import { getGameDatabase } from './database'
 
 const TOKEN_COOKIE = 'admin_token'
-const TOKEN_LIFETIME_SECONDS = 60 * 60 * 2
+const TOKEN_LIFETIME_SECONDS = 60 * 60 * 24 * 30
 
 interface AdminTokenPayload {
   sub: string
@@ -127,6 +127,7 @@ export async function getAdminSession(event: H3Event): Promise<AdminSession> {
   }
   const secret = getJwtSecret(event)
   const claims = verifyToken(token, secret)
+  const now = Math.floor(Date.now() / 1000)
   const [rows] = await getGameDatabase().execute(
     'SELECT username, authorization, channel, userRandom FROM `admin_user` WHERE username = ? LIMIT 1',
     [claims.sub],
@@ -141,6 +142,21 @@ export async function getAdminSession(event: H3Event): Promise<AdminSession> {
   ) {
     clearAuthCookies(event)
     throw createError({ statusCode: 401, statusMessage: 'เซสชันหมดอายุหรือถูกยกเลิก กรุณาเข้าสู่ระบบอีกครั้ง' })
+  }
+
+  if (claims.exp - now <= TOKEN_LIFETIME_SECONDS / 2) {
+    const refreshedClaims: AdminTokenPayload = {
+      ...claims,
+      iat: now,
+      exp: now + TOKEN_LIFETIME_SECONDS,
+    }
+    setCookie(event, TOKEN_COOKIE, signToken(refreshedClaims, secret), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: TOKEN_LIFETIME_SECONDS,
+      path: '/',
+    })
   }
 
   if (row.authorization === 'senior') {

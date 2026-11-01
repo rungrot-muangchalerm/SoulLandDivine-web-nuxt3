@@ -234,7 +234,7 @@ export default defineEventHandler(async (event) => {
   const session = await getAdminSession(event)
   const allChannels = event.context.adminChannel === '*'
   const channel = String(body.channel ?? event.context.adminChannel ?? getCookie(event, 'channel') ?? '')
-  const directDatabaseRoutes = new Set([
+  const allChannelRoutes = new Set([
     'baseinfo/serverlist',
     'baseinfo/userlist',
     'set/searchChannelOne',
@@ -243,12 +243,27 @@ export default defineEventHandler(async (event) => {
     'users/findLogs',
     'users/logTotalCount',
     'broadcast/search',
+    'servers/getServers',
+    'email/send',
+    'welfare/searchGrade',
     'welfare/searchPlayer',
     'welfare/addPlayer',
     'welfare/deletePlayer',
   ])
-  if (allChannels && !directDatabaseRoutes.has(route)) {
+  if (allChannels && !allChannelRoutes.has(route)) {
     throw createError({ statusCode: 501, statusMessage: 'ฟีเจอร์นี้ยังไม่รองรับการทำงานกับฐานข้อมูลโดยตรง' })
+  }
+  if (allChannels && route === 'email/send') {
+    if (!channel || channel === '*') {
+      throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุช่องทางเกมสำหรับส่งอีเมล' })
+    }
+    const [channels] = await getDatabase().execute(
+      'SELECT `index` FROM channel_list WHERE `index` = ? LIMIT 1',
+      [channel],
+    )
+    if (!(channels as Array<{ index: string }>).length) {
+      throw createError({ statusCode: 400, statusMessage: 'ไม่พบช่องทางเกมที่เลือก' })
+    }
   }
   if (!allChannels && (!channel || channel !== event.context.adminChannel)) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
@@ -262,6 +277,13 @@ export default defineEventHandler(async (event) => {
     && !['admin', 'server'].includes(session.authorization)
   ) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์จัดการช่องทาง' })
+  }
+
+  if (route === 'email/send') {
+    const mailId = String(body.mailId ?? '').trim()
+    if (!/^[1-9]\d*$/.test(mailId) || Number(mailId) > 2147483647) {
+      throw createError({ statusCode: 400, statusMessage: 'รหัสเทมเพลตต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647' })
+    }
   }
 
   if (['welfare/searchPlayer', 'welfare/addPlayer', 'welfare/deletePlayer'].includes(route)) {
@@ -319,6 +341,33 @@ export default defineEventHandler(async (event) => {
     )
     await recordOperation(event, session.username, route, body)
     return { result: affectedRows(result) }
+  }
+
+  if (route === 'email/send' && body.emailType === 'allserver') {
+    const mailId = typeof body.mailId === 'string' ? body.mailId.trim() : ''
+    const serverId = typeof body.serverId === 'string' || typeof body.serverId === 'number'
+      ? String(body.serverId)
+      : ''
+    const rewardValues = [body.reward1, body.reward2, body.reward3]
+    if (
+      !mailId
+      || !/^\d+$/.test(serverId)
+      || !Number.isSafeInteger(Number(serverId))
+      || Number(serverId) > 2147483647
+      || rewardValues.some((reward) => reward !== undefined && typeof reward !== 'string')
+    ) {
+      throw createError({ statusCode: 400, statusMessage: 'ข้อมูลอีเมลหรือไอเทมไม่ถูกต้อง' })
+    }
+
+    const rewards = rewardValues.filter((reward): reward is string => typeof reward === 'string')
+    const result = await sendGamePacket({
+      mailId,
+      serverId,
+      uid: '0',
+      reward: rewards.filter(Boolean).join('|'),
+    }, 10020, channel)
+    await recordOperation(event, session.username, route, body)
+    return result
   }
 
   const gameRoute = gameRoutes[route]
