@@ -1,12 +1,12 @@
 import net from 'node:net'
-import { getDatabase } from './database'
+import { getGameDatabase } from './database'
 
 export async function sendGamePacket(
   payload: Record<string, unknown>,
   protocolId: number,
   channel: string,
 ) {
-  const [rows] = await getDatabase().execute(
+  const [rows] = await getGameDatabase().execute(
     'SELECT ip FROM `channel_list` WHERE `index` = ? LIMIT 1',
     [channel],
   )

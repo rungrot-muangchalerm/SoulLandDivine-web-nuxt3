@@ -14,7 +14,7 @@ interface CustomEmailJobInput {
   senderName: string
   content: string
   targets: CustomEmailTarget[]
-  rewardBatches: string[][]
+  rewardBatches: Array<{ rewards: string[]; repeatCount: number }>
 }
 
 interface CustomEmailJobState extends CustomEmailJobInput {
@@ -62,36 +62,40 @@ async function processQueue() {
       saveJob(job)
       try {
         for (const recipient of job.targets) {
-          for (let batchIndex = 0; batchIndex < job.rewardBatches.length; batchIndex += 1) {
-            try {
-              const result = await sendGamePacket({
-                serverId: recipient.serverId,
-                uid: recipient.uid,
-                title: job.title,
-                senderName: job.senderName,
-                content: job.content,
-                reward: job.rewardBatches[batchIndex].join('|'),
-              }, 10045, job.channel) as { result?: number; message?: string } | null
+          let batchIndex = 0
+          for (const batch of job.rewardBatches) {
+            for (let repeatIndex = 0; repeatIndex < batch.repeatCount; repeatIndex += 1) {
+              batchIndex += 1
+              try {
+                const result = await sendGamePacket({
+                  serverId: recipient.serverId,
+                  uid: recipient.uid,
+                  title: job.title,
+                  senderName: job.senderName,
+                  content: job.content,
+                  reward: batch.rewards.join('|'),
+                }, 10045, job.channel) as { result?: number; message?: string } | null
 
-              if (result?.result === 1) {
-                job.sent += 1
-              } else {
+                if (result?.result === 1) {
+                  job.sent += 1
+                } else {
+                  recordFailure(
+                    job,
+                    `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex})`,
+                    result?.message || 'Game Server ไม่ยืนยันการส่งอีเมล',
+                  )
+                }
+              } catch (error) {
                 recordFailure(
                   job,
-                  `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
-                  result?.message || 'Game Server ไม่ยืนยันการส่งอีเมล',
+                  `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex})`,
+                  error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ',
                 )
               }
-            } catch (error) {
-              recordFailure(
-                job,
-                `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
-                error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ',
-              )
-            }
 
-            job.processed += 1
-            saveJob(job)
+              job.processed += 1
+              saveJob(job)
+            }
           }
         }
         job.status = 'completed'
@@ -111,7 +115,8 @@ async function processQueue() {
 
 export function enqueueCustomEmail(input: CustomEmailJobInput) {
   const id = randomUUID()
-  const total = input.targets.length * input.rewardBatches.length
+  const batchCount = input.rewardBatches.reduce((total, batch) => total + batch.repeatCount, 0)
+  const total = input.targets.length * batchCount
   const job: CustomEmailJobState = {
     ...input,
     id,
@@ -121,7 +126,7 @@ export function enqueueCustomEmail(input: CustomEmailJobInput) {
     sent: 0,
     failedCount: 0,
     failures: [],
-    batchCount: input.rewardBatches.length,
+    batchCount,
     targetCount: input.targets.length,
   }
 

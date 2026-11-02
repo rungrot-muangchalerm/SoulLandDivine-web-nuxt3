@@ -7,8 +7,8 @@ under `legacy/` as references.
 ## Run
 
 Requires Node.js 20.19 or newer and reachable MySQL/MariaDB databases. `DB_*`
-connects to `dlbackstage` for channels, operation logs, and broadcasts.
-`GAMEDB_*` connects to `gamedb` for game data and admin accounts; if omitted,
+connects to `dlbackstage` for operation logs and broadcasts. `GAMEDB_*`
+connects to `gamedb` for game data, admin accounts, and channels; if omitted,
 its host, port, user, and password fall back to `DB_*`.
 
 ```powershell
@@ -30,8 +30,12 @@ database without reviewing it and taking a backup first.
 Apply `database/migrations/20261031_admin_users_gamedb.sql` once to create the
 `gamedb.admin_user` table and copy existing admin accounts from
 `dlbackstage.user`. Login, sessions, and admin-account management then use
-`gamedb.admin_user`. Channels, operation logs, and broadcasts still use
-`dlbackstage`, so the rest of the web-admin schema has not been consolidated.
+`gamedb.admin_user`. Apply
+`database/migrations/20261103_channel_list_gamedb.sql` once to create
+`gamedb.channel_list` with the existing `dlbackstage.channel_list` structure and
+copy its channel records. The migration leaves the old table in place for
+rollback; the web app reads and updates channels in `gamedb` afterward.
+Operation logs and broadcasts continue to use `dlbackstage`.
 
 The player information page lists accounts with characters in the selected
 server, 50 accounts per page. Expanding an account shows its characters,
@@ -72,6 +76,12 @@ Game AdminAPI using `ADMIN_API_URL` and `ADMIN_API_TOKEN`; the token is kept
 server-side and sent in the `token` HTTP header. Never put it in a Vue
 component or commit it to source control. The old Express service is not used
 as a proxy.
+
+The `/activities` admin page manages verified schedule fields from the
+allowlisted activity XML configs documented in `docs/API_DOCUMENTATION.md`.
+After changing `Game_Server/AdminAPI`, rebuild and restart AdminAPI before the
+new activity endpoints are available; the game server may also need to reload
+its XML configuration.
 
 Routes that depend on the database, game server, or announcement service need
 those services configured for end-to-end verification. Legacy files remain

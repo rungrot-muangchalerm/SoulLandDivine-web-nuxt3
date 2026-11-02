@@ -351,6 +351,48 @@ curl -X POST "http://localhost:8082/api/email/xml?token=<ADMIN_API_TOKEN>" \
 
 ---
 
+## 🗓️ การจัดการตารางเวลากิจกรรม
+
+Game AdminAPI เปิดให้อ่าน XML จาก allowlist และแก้เฉพาะฟิลด์เวลาของแถวเดิม
+ไม่รับ path หรือเนื้อหา XML ทั้งไฟล์จากเว็บ
+
+### อ่าน config กิจกรรม
+
+#### `GET /api/activities/config/{configId}`
+
+ส่งกลับ XML (`application/xml`) โดย `configId` เลือกได้จาก:
+
+| configId | ไฟล์ |
+|---|---|
+| `recharge-tabs` | `Recharge/RechargeGiftTab.xml` |
+| `recharge-time` | `Recharge/RechargeGiftTime.xml` |
+| `direct-purchase-time` | `Recharge/DirectPurchaseTime.xml` |
+| `activity-info` | `Activity/ActivityInfo.xml` |
+| `special-activity` | `Activity/SpecialActivityInfo.xml` |
+| `special-activity-table` | `Activity/SpecialActivityTable.xml` |
+| `overseas-activity` | `Activity/OverSeasActivityTable.xml` |
+| `camp-timers` | `Camp/CampActivityTimer.xml` |
+| `hunting-unlocks` | `Hunting/HuntingActivity.xml` |
+| `integral-boss` | `IntegralBoss/IntegralBossConfig.xml` |
+| `theme-boss-time` | `ThemeBoss/ThemeBossBuffTime.xml` |
+| `wish-pool` | `WishPool/WishPoolItem2.xml` |
+
+### แก้ตารางเวลาของแถว
+
+#### `POST /api/activities/config/{configId}/{rowId}`
+
+ส่ง JSON object ที่มีเฉพาะฟิลด์เวลาซึ่งมีอยู่แล้วบนแถวนั้น เช่น:
+
+```json
+{ "ShowStart": "2026-07-01 00:00:00", "ShowEnd": "2026-07-07 23:59:59" }
+```
+
+ระบบตรวจ config, ID แถว และชื่อฟิลด์กับ allowlist ก่อนเขียนผ่านไฟล์ชั่วคราว
+โดยไม่แก้รางวัลหรือเพิ่ม/ลบแอตทริบิวต์อื่น การเปลี่ยน config อาจต้องให้ Game
+Server โหลด XML ใหม่หรือรีสตาร์ต
+
+---
+
 ## 📋 สรุป Endpoints ทั้งหมด
 
 | Method | Path | คำอธิบาย | ต้องใช้ Token |
@@ -363,6 +405,8 @@ curl -X POST "http://localhost:8082/api/email/xml?token=<ADMIN_API_TOKEN>" \
 | POST | `/api/gacha/time` | เขียน DrawTime.xml | ✅ |
 | GET | `/api/gacha/ratio` | อ่าน DrawHeroRatio.xml | ✅ |
 | POST | `/api/gacha/ratio` | เขียน DrawHeroRatio.xml | ✅ |
+| GET | `/api/activities/config/{configId}` | อ่าน XML กิจกรรมจาก allowlist | ✅ |
+| POST | `/api/activities/config/{configId}/{rowId}` | แก้เฉพาะตารางเวลาของแถวกิจกรรม | ✅ |
 | GET | `/api/email/templates` | รายชื่อ mailId ที่ใช้ได้ (จาก Email.xml) | ✅ |
 | GET | `/api/email/xml` | อ่าน Email.xml ทั้งไฟล์ | ✅ |
 | POST | `/api/email/xml` | เขียน Email.xml ทั้งไฟล์ (เพิ่ม template) | ✅ |

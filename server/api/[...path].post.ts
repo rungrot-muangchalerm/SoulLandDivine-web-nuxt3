@@ -18,8 +18,6 @@ type GameRoute = {
 const value = (body: Body, key: string, fallback?: unknown) =>
   body[key] === undefined ? fallback : body[key]
 
-const MAX_CUSTOM_EMAIL_SENDS = 5000
-
 const sqlValue = (input: unknown): SqlValue => {
   if (input === undefined || input === null) return null
   if (typeof input === 'string' || typeof input === 'number' || typeof input === 'boolean' || input instanceof Date) {
@@ -116,15 +114,13 @@ function getEmailRewardBatches(rewards: string[]) {
 }
 
 function getSoulRingEmailBatches(rewards: string[]) {
-  const batches: string[][] = []
+  const batches: Array<{ rewards: string[]; repeatCount: number }> = []
   for (const reward of rewards) {
     const match = /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.exec(reward)
     if (!match) continue
     const quantity = Number(match[2])
     const singleRingReward = `${match[1]}:3:1@${match[3]}`
-    for (let count = 0; count < quantity; count += 1) {
-      batches.push([singleRingReward])
-    }
+    batches.push({ rewards: [singleRingReward], repeatCount: quantity })
   }
   return batches
 }
@@ -358,7 +354,7 @@ export default defineEventHandler(async (event) => {
     if (!channel || channel === '*') {
       throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุช่องทางเกมสำหรับส่งอีเมล' })
     }
-    const [channels] = await getDatabase().execute(
+    const [channels] = await getGameDatabase().execute(
       'SELECT `index` FROM channel_list WHERE `index` = ? LIMIT 1',
       [channel],
     )
@@ -519,21 +515,18 @@ export default defineEventHandler(async (event) => {
     const nonRingRewardBatches = nonRingRewards.length
       ? getEmailRewardBatches(nonRingRewards)
       : rewards.length === 0 ? [[]] : []
-    const ringEmailCount = rewards.reduce((total, reward) => {
-      const match = /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.exec(reward)
-      return match ? total + Number(match[2]) : total
-    }, 0)
-    const totalEmailCount = (nonRingRewardBatches.length + ringEmailCount) * targets.length
-    if (!Number.isSafeInteger(totalEmailCount) || totalEmailCount > MAX_CUSTOM_EMAIL_SENDS) {
-      throw createError({
-        statusCode: 400,
-        message: `คำขอนี้ต้องส่ง ${totalEmailCount.toLocaleString()} ฉบับ ซึ่งเกินขีดจำกัด ${MAX_CUSTOM_EMAIL_SENDS.toLocaleString()} ฉบับต่อคำขอ`,
-      })
-    }
     const rewardBatches = [
-      ...nonRingRewardBatches,
+      ...nonRingRewardBatches.map((batch) => ({ rewards: batch, repeatCount: 1 })),
       ...getSoulRingEmailBatches(rewards),
     ]
+    const batchCount = rewardBatches.reduce((total, batch) => total + batch.repeatCount, 0)
+    const totalEmailCount = batchCount * targets.length
+    if (!Number.isSafeInteger(totalEmailCount)) {
+      throw createError({
+        statusCode: 400,
+        message: 'จำนวนอีเมลในคำขอเกินขีดจำกัดที่ระบบรองรับ',
+      })
+    }
     const serverIds = [...new Set(targets.map(({ serverId }) => serverId).filter((serverId) => serverId > 0))]
     if (serverIds.length) {
       const placeholders = serverIds.map(() => '?').join(', ')
@@ -566,7 +559,7 @@ export default defineEventHandler(async (event) => {
       queued: true,
       jobId,
       totalEmailCount,
-      batchCount: rewardBatches.length,
+      batchCount,
       targetCount: targets.length,
     }
   }
@@ -611,19 +604,19 @@ export default defineEventHandler(async (event) => {
   }
   if (route === 'set/searchChannelOne') {
     if (allChannels && !body.channel) {
-      const [rows] = await getDatabase().query(
+      const [rows] = await getGameDatabase().query(
         'SELECT id, name, `index`, ip, url FROM channel_list ORDER BY id',
       )
       return rows
     }
-    const [rows] = await getDatabase().execute(
+    const [rows] = await getGameDatabase().execute(
       'SELECT id, name, `index`, ip, url FROM channel_list WHERE `index` = ? LIMIT 1',
       [allChannels ? sqlValue(body.channel) : channel],
     )
     return rows
   }
   if (route === 'set/addChannel') {
-    const [result] = await getDatabase().execute(
+    const [result] = await getGameDatabase().execute(
       'INSERT INTO channel_list (name, `index`, ip, url) VALUES (?, ?, ?, ?)',
       sqlValues(body.name, body.index, body.ip, body.url),
     )
@@ -631,7 +624,7 @@ export default defineEventHandler(async (event) => {
     return { result: (result as { insertId: number }).insertId ? 1 : 0 }
   }
   if (route === 'set/changeChannel') {
-    const [result] = await getDatabase().execute(
+    const [result] = await getGameDatabase().execute(
       'UPDATE channel_list SET name = ?, `index` = ?, ip = ?, url = ? WHERE id = ?',
       sqlValues(body.name, body.index, body.ip, body.url, body.id),
     )
@@ -639,7 +632,7 @@ export default defineEventHandler(async (event) => {
     return [affectedRows(result)]
   }
   if (route === 'set/deleteChannel') {
-    const [result] = await getDatabase().execute(
+    const [result] = await getGameDatabase().execute(
       'DELETE FROM channel_list WHERE id = ?',
       sqlValues(body.id),
     )
