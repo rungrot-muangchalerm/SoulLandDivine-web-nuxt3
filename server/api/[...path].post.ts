@@ -6,6 +6,7 @@ import { getDatabase, getGameDatabase } from '../utils/database'
 import { getAdminSession } from '../utils/admin-session'
 import { sendGamePacket } from '../utils/game-server'
 import { recordOperationLog as writeOperationLog } from '../utils/operation-log'
+import { enqueueCustomEmail } from '../utils/custom-email-queue'
 
 type Body = Record<string, unknown>
 type SqlValue = string | number | boolean | Date | null
@@ -16,6 +17,8 @@ type GameRoute = {
 
 const value = (body: Body, key: string, fallback?: unknown) =>
   body[key] === undefined ? fallback : body[key]
+
+const MAX_CUSTOM_EMAIL_SENDS = 5000
 
 const sqlValue = (input: unknown): SqlValue => {
   if (input === undefined || input === null) return null
@@ -88,6 +91,10 @@ function validEmailReward(value: string) {
   )
 }
 
+function isSoulRingReward(reward: string) {
+  return /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.test(reward)
+}
+
 function getEmailRewardBatches(rewards: string[]) {
   const batches: string[][] = []
   let batch: string[] = []
@@ -104,6 +111,20 @@ function getEmailRewardBatches(rewards: string[]) {
 
   if (batch.length || batches.length === 0) {
     batches.push(batch)
+  }
+  return batches
+}
+
+function getSoulRingEmailBatches(rewards: string[]) {
+  const batches: string[][] = []
+  for (const reward of rewards) {
+    const match = /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.exec(reward)
+    if (!match) continue
+    const quantity = Number(match[2])
+    const singleRingReward = `${match[1]}:3:1@${match[3]}`
+    for (let count = 0; count < quantity; count += 1) {
+      batches.push([singleRingReward])
+    }
   }
   return batches
 }
@@ -475,8 +496,6 @@ export default defineEventHandler(async (event) => {
     if (rewards.some((item) => item.length > 255 || !validEmailReward(item))) {
       throw createError({ statusCode: 400, message: 'ข้อมูลรางวัลไม่ถูกต้อง' })
     }
-    const rewardBatches = getEmailRewardBatches(rewards)
-
     let targets: Array<{ serverId: number; uid: number }>
     if (emailType === 'allserver') {
       const selectedServer = String(body.serverId ?? '').trim()
@@ -496,6 +515,25 @@ export default defineEventHandler(async (event) => {
     if (!targets.length) {
       throw createError({ statusCode: 404, statusMessage: 'ไม่พบเซิร์ฟเวอร์ผู้รับ' })
     }
+    const nonRingRewards = rewards.filter((reward) => !isSoulRingReward(reward))
+    const nonRingRewardBatches = nonRingRewards.length
+      ? getEmailRewardBatches(nonRingRewards)
+      : rewards.length === 0 ? [[]] : []
+    const ringEmailCount = rewards.reduce((total, reward) => {
+      const match = /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.exec(reward)
+      return match ? total + Number(match[2]) : total
+    }, 0)
+    const totalEmailCount = (nonRingRewardBatches.length + ringEmailCount) * targets.length
+    if (!Number.isSafeInteger(totalEmailCount) || totalEmailCount > MAX_CUSTOM_EMAIL_SENDS) {
+      throw createError({
+        statusCode: 400,
+        message: `คำขอนี้ต้องส่ง ${totalEmailCount.toLocaleString()} ฉบับ ซึ่งเกินขีดจำกัด ${MAX_CUSTOM_EMAIL_SENDS.toLocaleString()} ฉบับต่อคำขอ`,
+      })
+    }
+    const rewardBatches = [
+      ...nonRingRewardBatches,
+      ...getSoulRingEmailBatches(rewards),
+    ]
     const serverIds = [...new Set(targets.map(({ serverId }) => serverId).filter((serverId) => serverId > 0))]
     if (serverIds.length) {
       const placeholders = serverIds.map(() => '?').join(', ')
@@ -513,45 +551,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    const failed: Array<{ recipient: string; message: string }> = []
-    let sent = 0
-    const total = targets.length * rewardBatches.length
-    for (const recipient of targets) {
-      for (let batchIndex = 0; batchIndex < rewardBatches.length; batchIndex += 1) {
-        try {
-          const result = await sendGamePacket({
-            serverId: recipient.serverId,
-            uid: recipient.uid,
-            title,
-            senderName,
-            content,
-            reward: rewardBatches[batchIndex].join('|'),
-          }, 10045, channel) as { result?: number; message?: string } | null
-          if (result?.result === 1) {
-            sent += 1
-          } else {
-            failed.push({
-              recipient: `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
-              message: result?.message || 'Game Server ไม่ยืนยันการส่งอีเมล',
-            })
-          }
-        } catch (error) {
-          failed.push({
-            recipient: `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
-            message: error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ',
-          })
-        }
-      }
-    }
-
     await recordOperation(event, session.username, route, body)
+    const jobId = enqueueCustomEmail({
+      channel,
+      username: session.username,
+      title,
+      senderName,
+      content,
+      targets,
+      rewardBatches,
+    })
     return {
-      result: failed.length === 0 ? 1 : 0,
-      sent,
-      total,
+      result: 1,
+      queued: true,
+      jobId,
+      totalEmailCount,
       batchCount: rewardBatches.length,
       targetCount: targets.length,
-      failed,
     }
   }
 

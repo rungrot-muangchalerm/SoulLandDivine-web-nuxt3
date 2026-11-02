@@ -108,7 +108,7 @@
                 <div class="email-section-heading">
                     <div>
                         <h2 class="email-section-title">ของรางวัลแนบ</h2>
-                        <p class="email-help mb-0">เลือกของแนบได้สูงสุด 255 รายการ ระบบจะแบ่งอีเมลเมื่อข้อมูลของแนบรวมเกิน 255 ตัวอักษรต่อฉบับ</p>
+                        <p class="email-help mb-0">วงแหวนจะส่งแยกฉบับละ 1 วงต่อประเภท จำนวนที่กรอกคือจำนวนฉบับ (สูงสุด 5,000 ฉบับต่อคำขอ) ส่วนรางวัลชนิดอื่นจะแบ่งอีเมลเมื่อข้อมูลแนบเกิน 255 ตัวอักษร</p>
                     </div>
                 </div>
                 <div class="email-reward-picker">
@@ -143,6 +143,9 @@
                         <span class="badge text-bg-primary">เลือกแล้ว {{ selectedRewards.length }} รายการ</span>
                     </div>
                 </div>
+                <p v-if="customContent && ringEmailCount" class="email-help mt-2 mb-0">
+                    วงแหวนที่เลือกจะส่ง {{ ringEmailCount.toLocaleString() }} ฉบับต่อผู้รับ (ฉบับละ 1 วงต่อประเภท)
+                </p>
                 <div v-if="customContent" class="email-manual-reward">
                     <label class="email-field">
                         <span>ประเภทไอเทม</span>
@@ -160,7 +163,7 @@
                         <input v-model="manualReward.id" class="form-control" inputmode="numeric" placeholder="กรอก ID">
                     </label>
                     <label class="email-field">
-                        <span>จำนวน</span>
+                        <span>{{ manualReward.rewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
                         <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
                     </label>
                     <button
@@ -169,7 +172,7 @@
                         :disabled="!selectedRewards.length"
                         @click="applyQuantityToSelectedRewards"
                     >
-                        ใช้จำนวนนี้กับรายการที่เลือก
+                        {{ selectedRewardType === '3' ? 'ใช้จำนวนฉบับกับรายการที่เลือก' : 'ใช้จำนวนนี้กับรายการที่เลือก' }}
                     </button>
                     <label
                         v-for="param in rewardParameterFields(manualReward.rewardType)"
@@ -228,7 +231,7 @@
                         </label>
                         <div v-if="selectedReward(item)" class="email-selected-options">
                             <label class="email-field email-quantity-field">
-                                <span>จำนวน</span>
+                                <span>{{ item.rewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
                                 <input
                                     v-model="selectedReward(item).quantity"
                                     class="form-control form-control-sm"
@@ -276,6 +279,9 @@
                     {{ sending ? 'กำลังส่ง...' : 'ส่งอีเมล' }}
                 </bs-button>
                 <bs-button :disabled="sending" @click="handleCancle">ล้างข้อมูล</bs-button>
+            </div>
+            <div v-if="sending && sendProgress" class="email-help mt-2" role="status">
+                {{ sendProgress }}
             </div>
         </div>
     </div>
@@ -363,7 +369,8 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     title: '',
                     senderName: '',
                     content: ''
-                }
+                },
+                sendProgress: ''
             }
         },
         mounted () {
@@ -377,6 +384,13 @@ import { BsMessage } from '~/utils/bootstrap-message'
         computed: {
             selectedEmailTemplate () {
                 return this.emailTemplates.find(template => String(template.id) === this.form.mailId)
+            },
+            ringEmailCount () {
+                return this.selectedRewards.reduce((total, reward) => {
+                    if (reward.rewardType !== '3') return total
+                    const quantity = Number(String(reward.quantity ?? '').trim())
+                    return Number.isSafeInteger(quantity) && quantity > 0 ? total + quantity : total
+                }, 0)
             }
         },
         methods: {
@@ -629,6 +643,18 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     BsMessage.error(`ปีวงแหวนวิญญาณ ID ${incompleteSoulRing.id} ต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
                     return
                 }
+                if (this.customContent && this.ringEmailCount > 0) {
+                    const recipientCount = this.form.emailType === 'personalemail'
+                        ? this.form.uidList.split('|').filter(entry => entry.trim()).length
+                        : 1
+                    const totalRingEmails = this.ringEmailCount * recipientCount
+                    const destination = this.form.emailType === 'allserver'
+                        ? 'ต่อผู้เล่นในเซิร์ฟเวอร์ปลายทาง'
+                        : `${totalRingEmails.toLocaleString()} ฉบับรวมทุกผู้รับ`
+                    if (!window.confirm(`วงแหวนจะถูกส่งแยกฉบับละ 1 วงต่อประเภท จำนวน ${this.ringEmailCount.toLocaleString()} ฉบับต่อผู้รับ (${destination}) ยืนยันส่งหรือไม่?`)) {
+                        return
+                    }
+                }
 
                 const rewards = this.selectedRewards.map(reward => this.buildReward(reward))
                 const params = this.form.emailType === 'allserver'
@@ -669,6 +695,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                         }
 
                 this.sending = true
+                this.sendProgress = 'รับคำขอแล้ว กำลังเข้าคิวส่งอีเมล...'
                 try {
                     const endpoint = this.customContent
                         ? '/api/email/sendCustom'
@@ -677,6 +704,25 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     const result = typeof response.data === 'string'
                         ? JSON.parse(response.data)
                         : response.data
+                    if (this.customContent && result?.queued && typeof result.jobId === 'string') {
+                        const job = await this.waitForEmailJob(result.jobId)
+                        if (job.status === 'failed') {
+                            throw new Error(job.error || 'งานส่งอีเมลหยุดทำงาน')
+                        }
+                        if (job.result === 1) {
+                            BsMessage.success(`ส่งอีเมลสำเร็จ ${job.sent.toLocaleString()}/${job.total.toLocaleString()} ฉบับ`)
+                            this.handleCancle()
+                        } else {
+                            const failedSamples = Array.isArray(job.failures)
+                                ? job.failures.map(item => `${item.recipient}: ${item.message}`).join('\n')
+                                : ''
+                            BsMessage.error([
+                                `ส่งสำเร็จ ${job.sent.toLocaleString()}/${job.total.toLocaleString()} ฉบับ; ล้มเหลว ${job.failedCount.toLocaleString()} ฉบับ`,
+                                failedSamples ? `ตัวอย่างรายการที่ไม่สำเร็จ:\n${failedSamples}` : ''
+                            ].filter(Boolean).join('\n'))
+                        }
+                        return
+                    }
                     if (result?.result === 1) {
                         if (this.customContent && result.batchCount > 1) {
                             BsMessage.success(`ส่งอีเมล ${result.batchCount} ชุดไปยัง ${result.targetCount} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'ผู้เล่น'}สำเร็จ`)
@@ -710,6 +756,23 @@ import { BsMessage } from '~/utils/bootstrap-message'
                         : error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ')
                 } finally {
                     this.sending = false
+                    this.sendProgress = ''
+                }
+            },
+            async waitForEmailJob (jobId) {
+                while (true) {
+                    await new Promise(resolve => window.setTimeout(resolve, 1000))
+                    const response = await this.$api.get(`/api/email/custom-jobs/${encodeURIComponent(jobId)}`)
+                    const job = typeof response.data === 'string'
+                        ? JSON.parse(response.data)
+                        : response.data
+                    if (!job || !['queued', 'processing', 'completed', 'failed'].includes(job.status)) {
+                        throw new Error('ไม่สามารถอ่านสถานะงานส่งอีเมลได้')
+                    }
+                    this.sendProgress = job.status === 'queued'
+                        ? 'อีเมลอยู่ในคิว รอเริ่มส่ง...'
+                        : `กำลังส่งอีเมล ${Number(job.processed || 0).toLocaleString()}/${Number(job.total || 0).toLocaleString()} ฉบับ`
+                    if (job.status === 'completed' || job.status === 'failed') return job
                 }
             },
             handleCancle () {

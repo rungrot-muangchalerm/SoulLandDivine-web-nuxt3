@@ -8,3 +8,4 @@ npm-debug.log*
 .playwright-mcp
 legacy
 /icons_renamed
+/key/

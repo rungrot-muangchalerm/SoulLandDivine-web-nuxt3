@@ -57,6 +57,11 @@ mail can target the selected server or all RelationServers connected to the
 selected channel's GlobalServer. Custom mail uses the existing Game Server
 protocol and requires rebuilding and restarting GlobalServer and RelationServer
 once after updating their code; the other game-server processes are unchanged.
+Custom mail is placed in a sequential in-process queue, with progress retained
+in NodeCache for seven days. The API returns a job ID immediately; the email
+page polls that ID for progress and completion. Because this queue is in memory,
+pending jobs and their status are lost if the Nuxt process restarts, and this
+setup requires a single Nuxt process for queue and status requests.
 
 Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
 Nitro handles login/session validation, channel and user administration,

@@ -9,6 +9,10 @@ export default defineNuxtPlugin(() => {
           })
           return { data }
         },
+        async get<T = unknown>(url: string) {
+          const data = await $fetch<T>(url)
+          return { data }
+        },
       },
     },
   }
