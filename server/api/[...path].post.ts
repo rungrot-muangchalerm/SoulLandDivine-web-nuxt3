@@ -39,6 +39,75 @@ function getEmailRewards(body: Body) {
   return rewards.filter((reward): reward is string => Boolean(reward))
 }
 
+function getCustomEmailRecipients(value: unknown) {
+  if (typeof value !== 'string') {
+    throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุ serverId:UID ของผู้รับ' })
+  }
+
+  const entries = value.split('|').map((entry) => entry.trim())
+  if (!entries.length || entries.length > 50) {
+    throw createError({ statusCode: 400, statusMessage: 'ระบุผู้รับได้ตั้งแต่ 1 ถึง 50 คนต่อครั้ง' })
+  }
+
+  const recipients = entries.map((entry) => {
+    const match = /^([1-9]\d*):([1-9]\d*)$/.exec(entry)
+    if (!match) {
+      throw createError({ statusCode: 400, statusMessage: 'รูปแบบผู้รับไม่ถูกต้อง ใช้ serverId:UID และคั่นหลายคนด้วย |' })
+    }
+
+    const serverId = Number(match[1])
+    const uid = Number(match[2])
+    if (
+      !Number.isSafeInteger(serverId)
+      || serverId > 2147483647
+      || !Number.isSafeInteger(uid)
+      || uid > 2147483647
+    ) {
+      throw createError({ statusCode: 400, statusMessage: 'serverId หรือ UID ต้องไม่เกิน 2147483647' })
+    }
+    return { serverId, uid }
+  })
+
+  if (new Set(recipients.map(({ serverId, uid }) => `${serverId}:${uid}`)).size !== recipients.length) {
+    throw createError({ statusCode: 400, statusMessage: 'มีผู้รับซ้ำในรายการ' })
+  }
+  return recipients
+}
+
+function characterLength(value: string) {
+  return value.length
+}
+
+function validEmailReward(value: string) {
+  const match = /^([1-9]\d*):(1|2|3|4|5|6|7|9|11|13|21):([1-9]\d*)(?:@([0-9:]+))?$/.exec(value)
+  if (!match) return false
+  if (match[2] === '3' && !/^[1-9]\d*$/.test(match[4] || '')) return false
+  const numericValues = [match[1], match[3], ...(match[4] ? match[4].split(':') : [])]
+  return numericValues.every((item) =>
+    Number.isSafeInteger(Number(item)) && Number(item) <= 2147483647,
+  )
+}
+
+function getEmailRewardBatches(rewards: string[]) {
+  const batches: string[][] = []
+  let batch: string[] = []
+
+  for (const reward of rewards) {
+    const nextBatch = [...batch, reward]
+    if (nextBatch.join('|').length > 255) {
+      batches.push(batch)
+      batch = [reward]
+    } else {
+      batch = nextBatch
+    }
+  }
+
+  if (batch.length || batches.length === 0) {
+    batches.push(batch)
+  }
+  return batches
+}
+
 async function recordOperation(
   event: Parameters<typeof getAdminSession>[0],
   username: string,
@@ -255,6 +324,7 @@ export default defineEventHandler(async (event) => {
     'broadcast/search',
     'servers/getServers',
     'email/send',
+    'email/sendCustom',
     'welfare/searchGrade',
     'welfare/searchPlayer',
     'welfare/addPlayer',
@@ -263,7 +333,7 @@ export default defineEventHandler(async (event) => {
   if (allChannels && !allChannelRoutes.has(route)) {
     throw createError({ statusCode: 501, statusMessage: 'ฟีเจอร์นี้ยังไม่รองรับการทำงานกับฐานข้อมูลโดยตรง' })
   }
-  if (allChannels && route === 'email/send') {
+  if (allChannels && ['email/send', 'email/sendCustom'].includes(route)) {
     if (!channel || channel === '*') {
       throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุช่องทางเกมสำหรับส่งอีเมล' })
     }
@@ -376,6 +446,113 @@ export default defineEventHandler(async (event) => {
     }, 10020, channel)
     await recordOperation(event, session.username, route, body)
     return result
+  }
+
+  if (route === 'email/sendCustom') {
+    const emailType = body.emailType
+    const title = typeof body.title === 'string' ? body.title.trim() : ''
+    const senderName = typeof body.senderName === 'string' && body.senderName.trim()
+      ? body.senderName.trim()
+      : session.username
+    const content = typeof body.content === 'string' ? body.content : ''
+    const rewards = getEmailRewards(body)
+
+    if (!title) {
+      throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกหัวข้ออีเมล' })
+    }
+    if (!content.trim()) {
+      throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกเนื้อหาอีเมล' })
+    }
+    if (characterLength(title) > 255 || characterLength(senderName) > 255 || characterLength(content) > 2550) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'หัวข้อ/ชื่อผู้ส่งต้องไม่เกิน 255 ตัวอักษร และเนื้อหาต้องไม่เกิน 2550 ตัวอักษร',
+      })
+    }
+    if (rewards.length > 255) {
+      throw createError({ statusCode: 400, statusMessage: 'แนบของรางวัลได้สูงสุด 255 รายการต่อคำขอ' })
+    }
+    if (rewards.some((item) => item.length > 255 || !validEmailReward(item))) {
+      throw createError({ statusCode: 400, message: 'ข้อมูลรางวัลไม่ถูกต้อง' })
+    }
+    const rewardBatches = getEmailRewardBatches(rewards)
+
+    let targets: Array<{ serverId: number; uid: number }>
+    if (emailType === 'allserver') {
+      const selectedServer = String(body.serverId ?? '').trim()
+      if (selectedServer === '0') {
+        targets = [{ serverId: 0, uid: 0 }]
+      } else if (/^[1-9]\d*$/.test(selectedServer) && Number.isSafeInteger(Number(selectedServer))) {
+        targets = [{ serverId: Number(selectedServer), uid: 0 }]
+      } else {
+        throw createError({ statusCode: 400, statusMessage: 'กรุณาเลือกเซิร์ฟเวอร์ผู้รับให้ถูกต้อง' })
+      }
+    } else if (emailType === 'personalemail') {
+      targets = getCustomEmailRecipients(body.uidList)
+    } else {
+      throw createError({ statusCode: 400, statusMessage: 'ประเภทผู้รับอีเมลไม่ถูกต้อง' })
+    }
+
+    if (!targets.length) {
+      throw createError({ statusCode: 404, statusMessage: 'ไม่พบเซิร์ฟเวอร์ผู้รับ' })
+    }
+    const serverIds = [...new Set(targets.map(({ serverId }) => serverId).filter((serverId) => serverId > 0))]
+    if (serverIds.length) {
+      const placeholders = serverIds.map(() => '?').join(', ')
+      const [serverRows] = await getGameDatabase().execute(
+        `SELECT id FROM server_list WHERE id IN (${placeholders})`,
+        serverIds,
+      )
+      const validServerIds = new Set((serverRows as Array<{ id: number }>).map(({ id }) => Number(id)))
+      if (serverIds.some((serverId) =>
+        !Number.isSafeInteger(serverId)
+        || serverId > 2147483647
+        || !validServerIds.has(serverId),
+      )) {
+        throw createError({ statusCode: 404, statusMessage: 'ไม่พบเซิร์ฟเวอร์ของผู้รับบางราย' })
+      }
+    }
+
+    const failed: Array<{ recipient: string; message: string }> = []
+    let sent = 0
+    const total = targets.length * rewardBatches.length
+    for (const recipient of targets) {
+      for (let batchIndex = 0; batchIndex < rewardBatches.length; batchIndex += 1) {
+        try {
+          const result = await sendGamePacket({
+            serverId: recipient.serverId,
+            uid: recipient.uid,
+            title,
+            senderName,
+            content,
+            reward: rewardBatches[batchIndex].join('|'),
+          }, 10045, channel) as { result?: number; message?: string } | null
+          if (result?.result === 1) {
+            sent += 1
+          } else {
+            failed.push({
+              recipient: `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
+              message: result?.message || 'Game Server ไม่ยืนยันการส่งอีเมล',
+            })
+          }
+        } catch (error) {
+          failed.push({
+            recipient: `${recipient.serverId}:${recipient.uid} (ชุด ${batchIndex + 1})`,
+            message: error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ',
+          })
+        }
+      }
+    }
+
+    await recordOperation(event, session.username, route, body)
+    return {
+      result: failed.length === 0 ? 1 : 0,
+      sent,
+      total,
+      batchCount: rewardBatches.length,
+      targetCount: targets.length,
+      failed,
+    }
   }
 
   const gameRoute = gameRoutes[route]

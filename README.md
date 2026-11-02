@@ -46,6 +46,18 @@ The item deduction page loads the selected server's inventory automatically,
 supported collectible items. Currency balances and inventory categories without
 a matching Game Server deduction type are shown read-only.
 
+The email page separates the recipient type (individual players or a server)
+from the message content (an Email template or custom title, sender, body, and
+item rewards). Custom rewards can be selected from the catalog or entered by
+item ID, type, and quantity, up to 255 items per request. Custom rewards are
+sent in separate emails when their combined reward data would exceed 255
+characters per email. Individual recipients use `serverId:UID`,
+separated by `|` for multiple players (up to 50 per request). Custom server
+mail can target the selected server or all RelationServers connected to the
+selected channel's GlobalServer. Custom mail uses the existing Game Server
+protocol and requires rebuilding and restarting GlobalServer and RelationServer
+once after updating their code; the other game-server processes are unchanged.
+
 Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
 Nitro handles login/session validation, channel and user administration,
 operation logs, broadcast scheduling, announcement uploads/downloads, and

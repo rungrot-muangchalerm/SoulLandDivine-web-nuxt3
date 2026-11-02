@@ -21,7 +21,7 @@
                             ></bs-option>
                         </bs-select>
                     </label>
-                    <label class="email-field">
+                    <label v-if="!customContent" class="email-field">
                         <span>รหัสเทมเพลต</span>
                         <bs-select v-model="form.mailId" :disabled="emailTemplatesLoading || emailTemplates.length === 0">
                             <bs-option value="" label="เลือก Email template"></bs-option>
@@ -53,18 +53,22 @@
                         <span v-else-if="emailChannelError" class="text-danger small">{{ emailChannelError }}</span>
                     </label>
                 </div>
+                <label class="email-custom-toggle">
+                    <input v-model="customContent" class="form-check-input" type="checkbox">
+                    <span>กำหนดหัวข้อ เนื้อหา และของแนบเอง (Custom)</span>
+                </label>
                 <div v-if="form.emailType === 'allserver'" class="email-delivery">
                     <div class="email-delivery-copy">
                         <strong>ผู้รับ</strong>
-                        <span>{{ allServers ? 'ส่งถึงทุกเซิร์ฟเวอร์' : `ส่งถึงเซิร์ฟเวอร์ ${selectedServer || 'ที่เลือกในแถบด้านบน'}` }}</span>
+                        <span>{{ allServers ? 'ส่งถึงผู้เล่นทุกเซิร์ฟเวอร์ในช่องทาง' : `ส่งถึงผู้เล่นทั้งเซิร์ฟเวอร์ ${selectedServer || 'ที่เลือกในแถบด้านบน'}` }}</span>
                     </div>
                     <bs-switch
                         v-model="allServers"
-                        active-text="ทุกเซิร์ฟเวอร์"
+                        active-text="ทุกเซิร์ฟเวอร์ในช่องทาง"
                         inactive-text="เซิร์ฟเวอร์ที่เลือก"
                     ></bs-switch>
                 </div>
-                <div v-if="selectedEmailTemplate" class="email-template-info">
+                <div v-if="!customContent && selectedEmailTemplate" class="email-template-info">
                     <strong>{{ selectedEmailTemplate.title || `Email template #${selectedEmailTemplate.id}` }}</strong>
                     <span v-if="selectedEmailTemplate.reward">
                         มีรางวัลตั้งต้น: {{ selectedEmailTemplate.reward }}
@@ -74,9 +78,29 @@
                         เมื่อเลือกไอเทมด้านล่าง รางวัลที่เลือกจะแทนรางวัลตั้งต้นของ template
                     </span>
                 </div>
+                <div v-if="customContent" class="email-fields">
+                    <label class="email-field">
+                        <span>หัวข้ออีเมล</span>
+                        <bs-input v-model="form.title" maxlength="255" placeholder="กรอกหัวข้ออีเมล"></bs-input>
+                    </label>
+                    <label class="email-field">
+                        <span>ชื่อผู้ส่ง</span>
+                        <bs-input v-model="form.senderName" maxlength="255" placeholder="เช่น GM"></bs-input>
+                    </label>
+                    <label class="email-field email-content-field">
+                        <span>เนื้อหา</span>
+                        <textarea
+                            v-model="form.content"
+                            class="form-control"
+                            rows="5"
+                            maxlength="2550"
+                            placeholder="กรอกเนื้อหาอีเมล"
+                        ></textarea>
+                    </label>
+                </div>
                 <label v-if="form.emailType === 'personalemail'" class="email-field email-uid-field">
-                    <span>UID ผู้เล่น</span>
-                    <bs-input v-model="form.uidList" placeholder="กรอก UID หรือหลาย UID ตามรูปแบบที่ระบบรองรับ"></bs-input>
+                    <span>ผู้เล่น (serverId:UID)</span>
+                    <bs-input v-model="form.uidList" placeholder="เช่น 1001:123456 หรือหลายคนคั่นด้วย |"></bs-input>
                 </label>
             </section>
 
@@ -84,7 +108,7 @@
                 <div class="email-section-heading">
                     <div>
                         <h2 class="email-section-title">ของรางวัลแนบ</h2>
-                        <p class="email-help mb-0">ติ๊กเลือกไอเทมได้หลายรายการ แล้วกำหนดจำนวนแยกแต่ละชิ้น</p>
+                        <p class="email-help mb-0">เลือกของแนบได้สูงสุด 255 รายการ ระบบจะแบ่งอีเมลเมื่อข้อมูลของแนบรวมเกิน 255 ตัวอักษรต่อฉบับ</p>
                     </div>
                 </div>
                 <div class="email-reward-picker">
@@ -119,7 +143,63 @@
                         <span class="badge text-bg-primary">เลือกแล้ว {{ selectedRewards.length }} รายการ</span>
                     </div>
                 </div>
-                <div v-if="!itemCatalogLoading && !itemCatalogError && itemsForType(selectedRewardType).length" class="email-catalog-list">
+                <div v-if="customContent" class="email-manual-reward">
+                    <label class="email-field">
+                        <span>ประเภทไอเทม</span>
+                        <bs-select v-model="manualReward.rewardType">
+                            <bs-option
+                                v-for="item in reward_list"
+                                :key="item.value"
+                                :label="item.label"
+                                :value="item.value"
+                            ></bs-option>
+                        </bs-select>
+                    </label>
+                    <label class="email-field">
+                        <span>ID ไอเทม</span>
+                        <input v-model="manualReward.id" class="form-control" inputmode="numeric" placeholder="กรอก ID">
+                    </label>
+                    <label class="email-field">
+                        <span>จำนวน</span>
+                        <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
+                    </label>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary align-self-end"
+                        :disabled="!selectedRewards.length"
+                        @click="applyQuantityToSelectedRewards"
+                    >
+                        ใช้จำนวนนี้กับรายการที่เลือก
+                    </button>
+                    <label
+                        v-for="param in rewardParameterFields(manualReward.rewardType)"
+                        :key="param.index"
+                        class="email-field"
+                    >
+                        <span>{{ param.label }}</span>
+                        <input
+                            v-model="manualReward.params[param.index]"
+                            class="form-control"
+                            type="number"
+                            min="1"
+                            max="2147483647"
+                            step="1"
+                            inputmode="numeric"
+                            :placeholder="param.label"
+                        >
+                    </label>
+                    <button
+                        type="button"
+                        class="btn btn-outline-primary align-self-end"
+                        @click="addManualReward"
+                    >
+                        เพิ่มไอเทมตาม ID
+                    </button>
+                </div>
+                <p v-if="customContent" class="email-help mt-2 mb-0">
+                    เพิ่มไอเทมด้วย ID ได้ แม้ไม่มีในรายการร้านค้า
+                </p>
+                <div v-if="!itemCatalogLoading && !itemCatalogError && itemsForType(selectedRewardType).length" :key="selectedRewardType" class="email-catalog-list">
                     <div v-for="item in itemsForType(selectedRewardType)" :key="`${item.rewardType}:${item.id}`" class="email-catalog-item">
                         <label class="email-catalog-choice">
                             <input
@@ -128,7 +208,23 @@
                                 :checked="isRewardSelected(item)"
                                 @change="toggleReward(item, $event.target.checked)"
                             >
-                            <span>ID {{ item.id }}</span>
+                            <img
+                                v-if="item.iconUrl"
+                                :src="item.iconUrl"
+                                :alt="`ไอเทม ${item.id}`"
+                                class="email-item-icon"
+                                loading="lazy"
+                                @error="item.iconUrl = null"
+                            >
+                            <span
+                                v-else
+                                class="email-item-icon-placeholder"
+                                :aria-label="`ไม่มีรูปไอเทม ${item.id}`"
+                            >?</span>
+                            <span>
+                                ID {{ item.id }}
+                                <small v-if="item.name" class="email-item-name">{{ item.name }}</small>
+                            </span>
                         </label>
                         <div v-if="selectedReward(item)" class="email-selected-options">
                             <label class="email-field email-quantity-field">
@@ -154,6 +250,10 @@
                                     <input
                                         v-model="selectedReward(item).params[param.index]"
                                         class="form-control form-control-sm"
+                                        type="number"
+                                        min="1"
+                                        max="2147483647"
+                                        step="1"
                                         :placeholder="param.label"
                                     >
                                 </label>
@@ -165,7 +265,7 @@
                     ยังไม่มี ID ประเภทนี้ในรายการร้านค้า
                 </div>
                 <p class="email-help mt-3 mb-0">
-                    รายการ ID มาจากรางวัลร้านค้าในฐานข้อมูล ยังไม่มีชื่อหรือรูปไอเทม
+                    รูปไอเทมอ้างอิง ID จากไอคอนใน Game Client หากไม่มีไฟล์ภาพจะแสดงเครื่องหมาย ?
                 </p>
                 <div v-if="itemCatalogLoading" class="email-help mt-2">กำลังโหลดรายการ ID...</div>
                 <div v-else-if="itemCatalogError" class="alert alert-danger mt-2 mb-0">{{ itemCatalogError }}</div>
@@ -186,6 +286,8 @@
     import { getCookie, setCookie } from '~/utils/cookies'
 import { BsMessage } from '~/utils/bootstrap-message'
 
+    const MAX_SOUL_RING_YEAR = 2147483647
+
     export default {
         
         setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
@@ -194,11 +296,18 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 disabled: false,
                 sending: false,
                 allServers: false,
+                customContent: false,
                 selectedRewardType: '2',
                 selectedRewards: [],
+                manualReward: {
+                    id: '',
+                    rewardType: '2',
+                    quantity: '1',
+                    params: ['', '', '']
+                },
                 type_list: [{
                     value: 'allserver',
-                    label: 'อีเมลถึงทุกเซิร์ฟเวอร์'
+                    label: 'อีเมลถึงผู้เล่นในเซิร์ฟเวอร์'
                 }, {
                     value: 'personalemail',
                     label: 'อีเมลส่วนตัว'
@@ -232,6 +341,9 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     value: '6',
                     label: 'ภารกิจ'
                 }, {
+                    value: '7',
+                    label: 'ตัวละคร'
+                }, {
                     value: '9',
                     label: 'แก่นวิญญาณ'
                 }, {
@@ -247,11 +359,17 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 form: {
                     emailType: '',
                     mailId: '',
-                    uidList: ''
+                    uidList: '',
+                    title: '',
+                    senderName: '',
+                    content: ''
                 }
             }
         },
         mounted () {
+            if (!this.form.senderName.trim()) {
+                this.form.senderName = getCookie('username')
+            }
             this.loadItemCatalog()
             this.loadEmailTemplates()
             this.loadEmailChannels()
@@ -341,6 +459,10 @@ import { BsMessage } from '~/utils/bootstrap-message'
             toggleReward (item, checked) {
                 const key = this.rewardKey(item)
                 if (checked && !this.isRewardSelected(item)) {
+                    if (this.selectedRewards.length >= 255) {
+                        BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
+                        return
+                    }
                     this.selectedRewards.push({
                         key,
                         id: item.id,
@@ -353,43 +475,124 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             },
             setCurrentTypeSelection (checked) {
-                for (const item of this.itemsForType(this.selectedRewardType)) {
-                    this.toggleReward(item, checked)
+                if (!checked) {
+                    this.selectedRewards = this.selectedRewards.filter(
+                        reward => reward.rewardType !== this.selectedRewardType
+                    )
+                    return
                 }
+
+                const availableSlots = 255 - this.selectedRewards.length
+                if (availableSlots <= 0) {
+                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
+                    return
+                }
+
+                const unselectedItems = this.itemsForType(this.selectedRewardType)
+                    .filter(item => !this.isRewardSelected(item))
+                for (const item of unselectedItems.slice(0, availableSlots)) {
+                    this.toggleReward(item, true)
+                }
+                if (unselectedItems.length > availableSlots) {
+                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ เลือกเพิ่มได้เท่าที่เหลือ')
+                }
+            },
+            addManualReward () {
+                const id = String(this.manualReward.id).trim()
+                const quantity = String(this.manualReward.quantity).trim()
+                if (!/^[1-9]\d*$/.test(id) || Number(id) > 2147483647) {
+                    BsMessage.error('ID ไอเทมต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647')
+                    return
+                }
+                if (!/^[1-9]\d*$/.test(quantity) || Number(quantity) > 2147483647) {
+                    BsMessage.error('จำนวนไอเทมต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647')
+                    return
+                }
+                if (this.manualReward.params.some(param => param && !/^\d+$/.test(param))) {
+                    BsMessage.error('พารามิเตอร์ไอเทมต้องเป็นตัวเลข')
+                    return
+                }
+                if (this.manualReward.rewardType === '3'
+                    && (!/^[1-9]\d*$/.test(this.manualReward.params[0])
+                        || Number(this.manualReward.params[0]) > MAX_SOUL_RING_YEAR)) {
+                    BsMessage.error(`ปีวงแหวนวิญญาณต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
+                    return
+                }
+
+                const item = { id, rewardType: this.manualReward.rewardType }
+                if (this.isRewardSelected(item)) {
+                    BsMessage.error('ไอเทมนี้อยู่ในรายการของรางวัลแล้ว')
+                    return
+                }
+                if (this.selectedRewards.length >= 255) {
+                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
+                    return
+                }
+                this.selectedRewards.push({
+                    key: this.rewardKey(item),
+                    id,
+                    rewardType: item.rewardType,
+                    quantity,
+                    params: [...this.manualReward.params]
+                })
+                this.manualReward.id = ''
+                this.manualReward.quantity = '1'
+                this.manualReward.params = ['', '', '']
+            },
+            applyQuantityToSelectedRewards () {
+                const quantity = String(this.manualReward.quantity).trim()
+                if (!/^[1-9]\d*$/.test(quantity) || Number(quantity) > 2147483647) {
+                    BsMessage.error('จำนวนไอเทมต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647')
+                    return
+                }
+                for (const reward of this.selectedRewards) {
+                    reward.quantity = quantity
+                }
+                BsMessage.success(`กำหนดจำนวน ${quantity} ให้ไอเทมที่เลือก ${this.selectedRewards.length} รายการแล้ว`)
             },
             changeEmailType () {
                 this.allServers = false;
-                if (this.form.emailType === 'allserver') {
-                    for (const key in this.form) {
-                        this.form[key] = '';
-                    }
-                    this.selectedRewards = [];
-                    this.form.emailType = 'allserver';
-                } else {
-                    this.form.mailId = '';
-                    this.form.uidList = '';
-                }
+                this.form.mailId = '';
+                this.form.uidList = '';
             },
             buildReward (rewardItem) {
                 const reward = `${rewardItem.id}:${rewardItem.rewardType}:${String(rewardItem.quantity ?? '').trim()}`
                 const params = rewardItem.params;
                 const firstParam = params.findIndex(param => param);
-                return reward + (firstParam === -1
-                    ? ''
-                    : '@' + params.slice(firstParam).map(param => param || '').join(':'));
+                if (firstParam === -1) return reward
+                let lastParam = params.length - 1
+                while (lastParam > firstParam && !params[lastParam]) {
+                    lastParam--
+                }
+                return reward + '@' + params.slice(firstParam, lastParam + 1).map(param => param || '').join(':')
             },
             async handleSendEmail () {
                 if (!this.form.emailType) {
                     BsMessage.error('กรุณาเลือกประเภทอีเมล')
                     return
                 }
-                if (!this.form.mailId.trim()) {
-                    BsMessage.error('กรุณาเลือก Email template')
-                    return
-                }
-                if (!this.emailTemplates.some(template => String(template.id) === this.form.mailId.trim())) {
-                    BsMessage.error('Email template ที่เลือกไม่มีอยู่ กรุณาโหลดรายการใหม่')
-                    return
+                if (this.customContent) {
+                    if (!this.form.title.trim()) {
+                        BsMessage.error('กรุณากรอกหัวข้ออีเมล')
+                        return
+                    }
+                    if (!this.form.content.trim()) {
+                        BsMessage.error('กรุณากรอกเนื้อหาอีเมล')
+                        return
+                    }
+                    if (this.form.title.length > 255 || this.form.senderName.trim().length > 255 || this.form.content.length > 2550) {
+                        BsMessage.error('หัวข้อ/ชื่อผู้ส่งต้องไม่เกิน 255 ตัวอักษร และเนื้อหาต้องไม่เกิน 2550 ตัวอักษร')
+                        return
+                    }
+                } else {
+                    if (!this.form.mailId.trim()) {
+                        BsMessage.error('กรุณาเลือก Email template')
+                        return
+                    }
+                    if (!this.emailTemplates.some(template => String(template.id) === this.form.mailId.trim())) {
+                        BsMessage.error('Email template ที่เลือกไม่มีอยู่ กรุณาโหลดรายการใหม่')
+                        return
+                    }
                 }
                 if (this.form.emailType === 'personalemail' && !this.form.uidList.trim()) {
                     BsMessage.error('กรุณากรอก UID ผู้เล่น')
@@ -408,43 +611,103 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     !/^[1-9]\d*$/.test(String(reward.quantity ?? '').trim())
                     || Number(reward.quantity) > 2147483647,
                 )
+                if (this.selectedRewards.length > 255) {
+                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
+                    return
+                }
                 if (incompleteReward) {
                     BsMessage.error(`จำนวนของไอเทม ID ${incompleteReward.id} ต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647`)
+                    return
+                }
+                const incompleteSoulRing = this.selectedRewards.find(reward =>
+                    reward.rewardType === '3'
+                    && (!/^[1-9]\d*$/.test(reward.params[0] || '')
+                        || Number(reward.params[0]) > MAX_SOUL_RING_YEAR),
+                )
+                if (incompleteSoulRing) {
+                    this.selectedRewardType = '3'
+                    BsMessage.error(`ปีวงแหวนวิญญาณ ID ${incompleteSoulRing.id} ต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
                     return
                 }
 
                 const rewards = this.selectedRewards.map(reward => this.buildReward(reward))
                 const params = this.form.emailType === 'allserver'
-                    ? {
-                        channel: this.selectedEmailChannel,
-                        emailType: this.form.emailType,
-                        mailId: this.form.mailId.trim(),
-                        serverId: this.allServers ? '0' : this.selectedServer,
-                        rewards
-                    }
-                    : {
-                        channel: this.selectedEmailChannel,
-                        emailType: this.form.emailType,
-                        mailId: this.form.mailId.trim(),
-                        serverId: 'list',
-                        uidList: this.form.uidList.trim(),
-                        rewards
-                    }
+                    ? this.customContent
+                        ? {
+                            channel: this.selectedEmailChannel,
+                            emailType: this.form.emailType,
+                            serverId: this.allServers ? '0' : this.selectedServer,
+                            title: this.form.title.trim(),
+                            senderName: this.form.senderName.trim() || getCookie('username'),
+                            content: this.form.content,
+                            rewards
+                        }
+                        : {
+                            channel: this.selectedEmailChannel,
+                            emailType: this.form.emailType,
+                            mailId: this.form.mailId.trim(),
+                            serverId: this.allServers ? '0' : this.selectedServer,
+                            rewards
+                        }
+                    : this.customContent
+                        ? {
+                            channel: this.selectedEmailChannel,
+                            emailType: this.form.emailType,
+                            uidList: this.form.uidList.trim(),
+                            title: this.form.title.trim(),
+                            senderName: this.form.senderName.trim() || getCookie('username'),
+                            content: this.form.content,
+                            rewards
+                        }
+                        : {
+                            channel: this.selectedEmailChannel,
+                            emailType: this.form.emailType,
+                            mailId: this.form.mailId.trim(),
+                            serverId: 'list',
+                            uidList: this.form.uidList.trim(),
+                            rewards
+                        }
 
                 this.sending = true
                 try {
-                    const response = await this.$api.post('/api/email/send', params)
+                    const endpoint = this.customContent
+                        ? '/api/email/sendCustom'
+                        : '/api/email/send'
+                    const response = await this.$api.post(endpoint, params)
                     const result = typeof response.data === 'string'
                         ? JSON.parse(response.data)
                         : response.data
                     if (result?.result === 1) {
-                        BsMessage.success('ส่งอีเมลสำเร็จ')
+                        if (this.customContent && result.batchCount > 1) {
+                            BsMessage.success(`ส่งอีเมล ${result.batchCount} ชุดไปยัง ${result.targetCount} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'ผู้เล่น'}สำเร็จ`)
+                        } else {
+                            BsMessage.success(result.sent < result.total
+                                ? `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
+                                : 'ส่งอีเมลสำเร็จ')
+                        }
                         this.handleCancle()
                     } else {
-                        BsMessage.error(result?.message || 'ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบข้อมูลและลองอีกครั้ง')
+                        const partialMessage = Number.isInteger(result?.sent) && Number.isInteger(result?.total)
+                            ? this.customContent && result.batchCount > 1
+                                ? `ส่งสำเร็จ ${result.sent}/${result.total} ฉบับอีเมล`
+                                : `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
+                            : ''
+                        const failedRecipients = Array.isArray(result?.failed)
+                            ? result.failed.map(item => item.recipient).join(', ')
+                            : ''
+                        BsMessage.error([
+                            partialMessage || result?.message || 'ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบข้อมูลและลองอีกครั้ง',
+                            failedRecipients ? `ส่งไม่สำเร็จ: ${failedRecipients}` : ''
+                        ].filter(Boolean).join('\n'))
                     }
                 } catch (error) {
-                    BsMessage.error(error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ')
+                    const responseMessage = error && typeof error === 'object'
+                        ? error.data?.message || error.response?._data?.message
+                            || error.data?.statusMessage || error.response?._data?.statusMessage
+                        : ''
+                    BsMessage.error(typeof responseMessage === 'string' && responseMessage
+                        ? responseMessage
+                        : error instanceof Error ? error.message : 'ส่งอีเมลไม่สำเร็จ')
                 } finally {
                     this.sending = false
                 }
@@ -452,9 +715,14 @@ import { BsMessage } from '~/utils/bootstrap-message'
             handleCancle () {
                 this.allServers = false;
                 this.selectedRewards = [];
+                this.manualReward.id = '';
+                this.manualReward.rewardType = '2';
+                this.manualReward.quantity = '1';
+                this.manualReward.params = ['', '', ''];
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
+                this.form.senderName = getCookie('username')
             }
         }
     }
@@ -502,6 +770,10 @@ import { BsMessage } from '~/utils/bootstrap-message'
     margin-top: 1rem;
 }
 
+.email-content-field {
+    grid-column: 1 / -1;
+}
+
 .email-reward-picker {
     display: flex;
     flex-wrap: wrap;
@@ -521,6 +793,18 @@ import { BsMessage } from '~/utils/bootstrap-message'
     align-items: center;
     gap: 0.5rem;
     padding-bottom: 0.1rem;
+}
+
+.email-manual-reward {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    align-items: end;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.85rem;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: var(--bs-tertiary-bg);
 }
 
 .email-catalog-list {
@@ -553,6 +837,34 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
 .email-catalog-choice .form-check-input {
     margin: 0;
+}
+
+.email-item-name {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-weight: 400;
+}
+
+.email-item-icon,
+.email-item-icon-placeholder {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.4rem;
+    background: var(--bs-body-bg);
+}
+
+.email-item-icon {
+    object-fit: contain;
+}
+
+.email-item-icon-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bs-secondary-color);
+    font-weight: 600;
 }
 
 .email-selected-options {
@@ -601,6 +913,19 @@ import { BsMessage } from '~/utils/bootstrap-message'
     border-radius: 0.5rem;
     background: var(--bs-tertiary-bg);
     font-size: 0.875rem;
+}
+
+.email-custom-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.email-custom-toggle .form-check-input {
+    margin: 0;
 }
 
 .email-template-info span {
