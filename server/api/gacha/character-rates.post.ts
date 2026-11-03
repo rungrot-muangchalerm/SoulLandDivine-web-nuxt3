@@ -1,3 +1,4 @@
+import { withGachaWriteLock } from '../../utils/gacha-write-lock'
 import { getAdminSession } from '../../utils/admin-session'
 import { recordOperationLog } from '../../utils/operation-log'
 import { fetchGameAdminApi } from '../../utils/game-admin-api'
@@ -15,7 +16,7 @@ interface GameAdminResponse {
   message?: unknown
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => withGachaWriteLock(async () => {
   const session = await getAdminSession(event)
   if (session.authorization !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
@@ -85,6 +86,6 @@ export default defineEventHandler(async (event) => {
   return {
     drawType: body.drawType,
     characters: updated.characters,
-    message: 'บันทึกเรทตัวละครแล้ว',
+    message: 'บันทึกเรทและส่งอัปเดตเข้าเกมแล้ว',
   }
-})
+}))

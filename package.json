@@ -8,6 +8,7 @@
     "preview": "nuxt preview --host 0.0.0.0 --port 8081",
     "postinstall": "nuxt prepare",
     "test": "node --test",
+    "test:gacha": "node --test tests/gacha.test.js",
     "test:sendmail": "node --test test/sendmail.test.js"
   },
   "dependencies": {

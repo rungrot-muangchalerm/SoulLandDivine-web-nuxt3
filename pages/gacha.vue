@@ -24,6 +24,57 @@ interface CharacterRatePanel {
   characters: GachaCharacterRate[]
 }
 
+interface CustomGachaConfig {
+  singlePrice: number
+  continuousPrice: number
+  singleItem: number
+  continuousItem: number
+  blessingMax: number
+  ssrWeight: number
+  srWeight: number
+  rWeight: number
+  nWeight: number
+}
+const customConfig = ref<CustomGachaConfig | null>(null)
+const customConfigOpen = ref(false)
+const customConfigBusy = ref(false)
+const customConfigFields: { key: keyof CustomGachaConfig, label: string, min: number, max: number }[] = [
+  { key: 'singlePrice', label: 'เพชรต่อครั้ง', min: 1, max: 1000000 },
+  { key: 'continuousPrice', label: 'เพชรต่อเจ็ดครั้ง', min: 1, max: 1000000 },
+  { key: 'singleItem', label: 'ID ตั๋วเดี่ยว (0 = ไม่ใช้)', min: 0, max: 100000000 },
+  { key: 'continuousItem', label: 'ID ตั๋วเจ็ดครั้ง (0 = ไม่ใช้)', min: 0, max: 100000000 },
+  { key: 'blessingMax', label: 'จำนวนครั้งการันตี SSR (0 = ปิด)', min: 0, max: 10000 },
+  { key: 'ssrWeight', label: 'น้ำหนัก SSR', min: 0, max: 1000000 },
+  { key: 'srWeight', label: 'น้ำหนัก SR', min: 0, max: 1000000 },
+  { key: 'rWeight', label: 'น้ำหนัก R', min: 0, max: 1000000 },
+  { key: 'nWeight', label: 'น้ำหนัก N', min: 0, max: 1000000 },
+]
+async function toggleCustomConfig() {
+  customConfigOpen.value = !customConfigOpen.value
+  if (!customConfigOpen.value || customConfig.value) return
+  customConfigBusy.value = true
+  try {
+    customConfig.value = await $fetch<CustomGachaConfig>('/api/gacha/custom-config')
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'โหลดกติกาตู้ปรับแต่งไม่สำเร็จ'
+  } finally { customConfigBusy.value = false }
+}
+async function saveCustomConfig() {
+  if (!customConfig.value || customConfigBusy.value) return
+  customConfigBusy.value = true
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    const result = await $fetch<{config: CustomGachaConfig, message: string}>('/api/gacha/custom-config', {
+      method: 'POST', body: customConfig.value,
+    })
+    customConfig.value = result.config
+    successMessage.value = result.message
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'บันทึกกติกาตู้ปรับแต่งไม่สำเร็จ'
+  } finally { customConfigBusy.value = false }
+}
+
 const pools = ref<GachaPool[]>([])
 const endTimes = ref<Record<number, string>>({})
 const savingPoolId = ref<number | null>(null)
@@ -32,6 +83,7 @@ const savingCharacterKey = ref<string | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+let scheduleGeneration = 0
 
 function toInputDateTime(value: string) {
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::\d{1,2})?$/.exec(value)
@@ -48,13 +100,15 @@ function defaultEndTime() {
   return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`
 }
 
-function setPools(value: GachaPool[]) {
+function setPools(value: GachaPool[], preserveDrafts = false) {
   pools.value = value
   endTimes.value = Object.fromEntries(value.map((pool) => {
     const configuredEndTime = toInputDateTime(pool.endTime)
     return [
       pool.id,
-      configuredEndTime && new Date(configuredEndTime) > new Date()
+      preserveDrafts && endTimes.value[pool.id]
+        ? endTimes.value[pool.id]
+        : configuredEndTime && new Date(configuredEndTime) > new Date()
         ? configuredEndTime
         : defaultEndTime(),
     ]
@@ -77,6 +131,7 @@ async function loadSchedule() {
 async function changeSchedule(pool: GachaPool, action: 'open' | 'close') {
   if (action === 'close' && !window.confirm(`ยืนยันปิดตู้ "${pool.name}" (ID ${pool.id}) ทันทีหรือไม่?`)) return false
 
+  scheduleGeneration += 1
   savingPoolId.value = pool.id
   errorMessage.value = ''
   successMessage.value = ''
@@ -196,7 +251,24 @@ async function saveCharacterRate(pool: GachaPool, character: GachaCharacterRate)
   }
 }
 
-onMounted(loadSchedule)
+let scheduleRefresh: ReturnType<typeof setInterval> | undefined
+async function refreshScheduleSilently() {
+  if (loading.value || savingPoolId.value !== null) return
+  const generation = scheduleGeneration
+  try {
+    const updated = await $fetch<GachaPool[]>('/api/gacha/rate-up')
+    if (generation === scheduleGeneration && savingPoolId.value === null) setPools(updated, true)
+  } catch {
+    // Keep the current controls and drafts on a transient connection failure.
+  }
+}
+onMounted(() => {
+  loadSchedule()
+  scheduleRefresh = setInterval(refreshScheduleSilently, 10000)
+})
+onBeforeUnmount(() => {
+  if (scheduleRefresh) clearInterval(scheduleRefresh)
+})
 </script>
 
 <template>
@@ -251,6 +323,28 @@ onMounted(loadSchedule)
               </div>
             </div>
 
+            <div v-if="pool.id === 10000" class="mb-3">
+              <p class="small text-primary">ตู้ปรับแต่งแยก Type 10000 · เรทและการันตีไม่ใช้ร่วมกับถังซาน</p>
+              <button class="btn btn-sm btn-outline-primary" type="button" :disabled="customConfigBusy" @click="toggleCustomConfig">
+                {{ customConfigOpen ? 'ซ่อนกติกาตู้' : 'ตั้งค่าราคา ตั๋ว การันตี และเรทระดับคุณภาพ' }}
+              </button>
+              <div v-if="customConfigOpen" class="mt-3">
+                <p v-if="customConfigBusy" class="small" role="status">กำลังโหลดหรือบันทึก...</p>
+                <div v-if="customConfig" class="row g-2">
+                  <div v-for="field in customConfigFields" :key="field.key" class="col-12 col-md-6">
+                    <label class="form-label small" :for="`custom-${field.key}`">{{ field.label }}</label>
+                    <input :id="`custom-${field.key}`" v-model.number="customConfig[field.key]" class="form-control form-control-sm"
+                      type="number" :min="field.min" :max="field.max" step="1" :disabled="customConfigBusy">
+                  </div>
+                  <p class="small text-body-secondary mb-0">
+                    น้ำหนักระดับคุณภาพหารด้วยผลรวมคือโอกาสสุ่มปกติ ส่วนเรทตัวละครปรับในปุ่มด้านล่าง การันตีแยกจากเรทปกติ
+                    ถ้าเลือก ID ตั๋วเดียวกับตู้อื่น จะใช้จำนวนตั๋วในกระเป๋าร่วมกัน
+                  </p>
+                  <div><button class="btn btn-sm btn-primary" type="button" :disabled="customConfigBusy" @click="saveCustomConfig">บันทึกกติกาตู้ปรับแต่ง</button></div>
+                </div>
+              </div>
+            </div>
+
             <dl class="small mb-3 gacha-pool-schedule">
               <div>
                 <dt>เวลาเริ่ม</dt>
@@ -280,7 +374,7 @@ onMounted(loadSchedule)
                   ตู้ที่ใช้ Type เดียวกันจะใช้เรทชุดเดียวกัน
                 </p>
                 <p class="small text-body-secondary mb-2">
-                  ค่าที่บันทึกจะมีผลเมื่อ Game Server โหลด config ใหม่
+                  บันทึกแล้วระบบจะส่งอัปเดตเรทเข้าเกมโดยอัตโนมัติ
                 </p>
                 <p v-if="getCharacterRatePanel(pool)?.loading" class="small mb-0" role="status">
                   กำลังโหลดเรทตัวละคร...

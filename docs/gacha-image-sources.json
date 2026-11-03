@@ -1,0 +1,62 @@
+{
+  "103": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_sijidushang_1.png",
+    "output": "/gacha/103.webp"
+  },
+  "6": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_T_0602_1.png",
+    "output": "/gacha/6.webp"
+  },
+  "8": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_T_UI_Haishenzhiwei_06029_1.png",
+    "output": "/gacha/8.webp"
+  },
+  "9": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_T_UI_07012_1.png",
+    "output": "/gacha/9.webp"
+  },
+  "10": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_07022_1.png",
+    "output": "/gacha/10.webp"
+  },
+  "13": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_Ui_zhaomujiemian_sanzongzhiji_En.png",
+    "output": "/gacha/13.webp"
+  },
+  "15": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_T_UI_0330_01.png",
+    "output": "/gacha/15.webp"
+  },
+  "18": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_Huodong_18_0510.png",
+    "output": "/gacha/18.webp"
+  },
+  "20": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_20_bg.png",
+    "output": "/gacha/20.webp"
+  },
+  "21": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/wuti/Eff_UI_21_bg.png",
+    "output": "/gacha/21.webp"
+  },
+  "29": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/29_bg.png",
+    "output": "/gacha/29.webp"
+  },
+  "43": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_Banner104.png",
+    "output": "/gacha/43.webp"
+  },
+  "32": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/Eff_UI_Huodong_Zhaomujiemian_lianyulongying.png",
+    "output": "/gacha/32.webp"
+  },
+  "45": {
+    "source": "Assets/Resources_Src/Effect/Eff_Texture/Ui/god_1_bg.png",
+    "output": "/gacha/45.webp"
+  },
+  "10000": {
+    "source": "Assets/Resources/Effect/Eff_Prefab/Eff_Ui/Eff_UI_jiemian_02 (layered sprites)",
+    "output": "/gacha/10000.webp"
+  }
+}

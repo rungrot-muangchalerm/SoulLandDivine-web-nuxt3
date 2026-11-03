@@ -1,3 +1,4 @@
+import { withGachaWriteLock } from '../../utils/gacha-write-lock'
 import { getAdminSession } from '../../utils/admin-session'
 import { recordOperationLog } from '../../utils/operation-log'
 import { fetchGameAdminApi } from '../../utils/game-admin-api'
@@ -20,7 +21,7 @@ interface GameAdminResponse {
   message?: unknown
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event) => withGachaWriteLock(async () => {
   const session = await getAdminSession(event)
   if (session.authorization !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
@@ -54,6 +55,9 @@ export default defineEventHandler(async (event) => {
     endTime = formatLocalDateTime(end)
   } else {
     endTime = formatLocalDateTime(new Date(now.getTime() - 1000))
+    // A missing start date means permanent in the game server's legacy model.
+    // Use a complete past interval even when this pool was never opened before.
+    beginTime = formatLocalDateTime(new Date(now.getTime() - 2000))
   }
 
   const xmlContent = updateGachaPoolSchedule(xml, poolId, beginTime, endTime)
@@ -87,6 +91,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     ...getGachaPool(xmlContent, poolId),
-    message: action === 'open' ? 'เปิดตู้เรทอัพแล้ว' : 'ปิดตู้เรทอัพแล้ว',
+    message: action === 'open' ? 'บันทึกเปิดตู้และส่งอัปเดตเข้าเกมแล้ว' : 'บันทึกปิดตู้และส่งอัปเดตเข้าเกมแล้ว',
   }
-})
+}))

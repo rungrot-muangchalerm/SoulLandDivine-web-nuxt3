@@ -14,23 +14,38 @@ const gachaPoolImages: Record<number, string> = {
   3: '/gacha/3.webp',
   4: '/gacha/4.webp',
   5: '/gacha/5.webp',
+  6: '/gacha/6.webp',
   7: '/gacha/7.webp',
+  8: '/gacha/8.webp',
+  9: '/gacha/9.webp',
+  10: '/gacha/10.webp',
   11: '/gacha/11.webp',
   12: '/gacha/12.webp',
+  13: '/gacha/13.webp',
+  15: '/gacha/15.webp',
   17: '/gacha/17.webp',
+  18: '/gacha/18.webp',
   19: '/gacha/19.webp',
+  20: '/gacha/20.webp',
+  21: '/gacha/21.webp',
   23: '/gacha/23.webp',
   24: '/gacha/24.webp',
   25: '/gacha/25.webp',
   26: '/gacha/26.webp',
   27: '/gacha/27.webp',
   28: '/gacha/28.webp',
+  29: '/gacha/29.webp',
+  32: '/gacha/32.webp',
   40: '/gacha/40.webp',
   41: '/gacha/41.webp',
   42: '/gacha/42.webp',
+  43: '/gacha/43.webp',
   44: '/gacha/44.webp',
+  45: '/gacha/45.webp',
   98: '/gacha/98.webp',
   99: '/gacha/99.webp',
+  103: '/gacha/103.webp',
+  10000: '/gacha/10000.webp',
 }
 
 const gachaPoolNames: Record<number, string> = {
@@ -68,7 +83,7 @@ const gachaPoolNames: Record<number, string> = {
   98: 'รับสมัครธีม — เสียวอู่',
   99: 'รับสมัครธีม — โหลวเกา',
   103: 'พิษสิ้นชีพสงัด',
-  10000: 'อัตรา UP',
+  10000: 'ตู้ปรับแต่ง UP',
 }
 
 const permanentPoolIds = new Set([1, 2])
@@ -86,30 +101,23 @@ function attributes(tag: string) {
   return result
 }
 
+// Game schedules use Thailand time, independent of the Node process/browser timezone.
 export function parseLocalDateTime(value: string) {
   const match = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(value)
   if (!match) return null
-
-  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match
-  const parts = [yearText, monthText, dayText, hourText, minuteText, secondText].map(Number)
+  const parts = match.slice(1).map(Number)
   const [year, month, day, hour, minute, second] = parts
-  const date = new Date(year, month - 1, day, hour, minute, second)
-  if (
-    date.getFullYear() !== year
-    || date.getMonth() !== month - 1
-    || date.getDate() !== day
-    || date.getHours() !== hour
-    || date.getMinutes() !== minute
-    || date.getSeconds() !== second
-  ) {
-    return null
-  }
-  return date
+  const local = new Date(Date.UTC(year, month - 1, day, hour, minute, second))
+  if (local.getUTCFullYear() !== year || local.getUTCMonth() !== month - 1
+    || local.getUTCDate() !== day || local.getUTCHours() !== hour
+    || local.getUTCMinutes() !== minute || local.getUTCSeconds() !== second) return null
+  return new Date(local.getTime() - 7 * 60 * 60 * 1000)
 }
 
 export function formatLocalDateTime(date: Date) {
+  const local = new Date(date.getTime() + 7 * 60 * 60 * 1000)
   const pad = (value: number) => String(value).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())} ${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}:${pad(local.getUTCSeconds())}`
 }
 
 function classTags(xml: string) {
@@ -181,7 +189,12 @@ export function updateGachaPoolSchedule(xml: string, poolId: number, beginTime: 
     throw createError({ statusCode: 400, statusMessage: 'ไม่พบตู้กาชาที่เลือก' })
   }
   const match = matches[0]
-  const updatedTag = setAttribute(setAttribute(match[0], 'BeginTime', beginTime), 'EndTime', endTime)
+  let updatedTag = setAttribute(setAttribute(match[0], 'BeginTime', beginTime), 'EndTime', endTime)
+  updatedTag = setAttribute(updatedTag, 'OpenServerBeginTime', '')
+  updatedTag = setAttribute(updatedTag, 'OpenServerEndTime', '')
+  // Manual GM dates replace every legacy schedule, including week-based windows.
+  updatedTag = setAttribute(updatedTag, 'BeginWeekTime', '')
+  updatedTag = setAttribute(updatedTag, 'EndWeekTime', '')
   return `${xml.slice(0, match.index)}${updatedTag}${xml.slice(match.index! + match[0].length)}`
 }
 
