@@ -6,6 +6,7 @@ node_modules
 !.env.example
 npm-debug.log*
 .playwright-mcp
+.data/
 legacy
 /icons_renamed
 /key/
