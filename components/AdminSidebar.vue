@@ -8,17 +8,18 @@ defineProps<{
 
 <template>
   <div>
-    <aside class="card bg-dark-subtle d-none d-md-block position-fixed top-0 bottom-0 start-0 col-md-3 col-lg-2 overflow-y-auto z-2" aria-label="เมนูหลัก">
+    <aside class="card admin-sidebar d-none d-md-block position-fixed top-0 bottom-0 start-0 col-md-3 col-lg-2 overflow-y-auto z-2" aria-label="เมนูหลัก">
       <AdminSidebarMenu :authorization="authorization" />
     </aside>
     <Teleport to="body">
       <aside
         id="adminSidebar"
-        class="offcanvas offcanvas-start d-md-none bg-dark-subtle"
+        class="offcanvas offcanvas-start d-md-none admin-sidebar-offcanvas"
         tabindex="-1"
         aria-label="เมนูหลัก"
         data-bs-backdrop="true"
         data-bs-scroll="false"
+        data-bs-theme="dark"
       >
         <div class="offcanvas-header">
           <h2 class="offcanvas-title h5">เมนูหลัก</h2>

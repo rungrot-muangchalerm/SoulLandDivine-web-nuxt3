@@ -1,0 +1,337 @@
+.admin-shell {
+  --bs-body-bg: #212326;
+  --bs-body-color: #e8e7e2;
+  --bs-emphasis-color: #fffdf6;
+  --bs-secondary-color: #a7a8a8;
+  --bs-secondary-bg: #2b2e32;
+  --bs-tertiary-bg: #25282b;
+  --bs-border-color: #414449;
+  --bs-primary: #f0bf3d;
+  --bs-primary-rgb: 240, 191, 61;
+  --bs-link-color: #f0bf3d;
+  --bs-link-hover-color: #ffda78;
+  --admin-accent: #f0bf3d;
+  --admin-surface: #292c30;
+  --admin-surface-raised: #303338;
+  --admin-border: #414449;
+  min-height: 100vh;
+  color: var(--bs-body-color);
+  background:
+    radial-gradient(ellipse at 82% 0, rgb(240 191 61 / 4%), transparent 34rem),
+    var(--bs-body-bg);
+}
+
+.admin-shell main {
+  min-width: 0;
+}
+
+.admin-shell .admin-content {
+  max-width: 1800px;
+  min-height: calc(100vh - 4.5rem);
+  margin-inline: auto;
+}
+
+.admin-shell .admin-topbar {
+  min-height: 4.5rem;
+  padding: 0.65rem 1.25rem;
+  border-bottom: 1px solid rgb(240 191 61 / 22%);
+  background: rgb(33 35 38 / 96%) !important;
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 18%);
+  backdrop-filter: blur(12px);
+}
+
+.admin-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--bs-emphasis-color);
+}
+
+.admin-brand-mark {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(240 191 61 / 52%);
+  border-radius: 0.7rem;
+  color: var(--admin-accent);
+  background: rgb(240 191 61 / 9%);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.admin-brand-title,
+.admin-brand-context {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-brand-title {
+  font-size: 0.94rem;
+  font-weight: 650;
+}
+
+.admin-brand-context {
+  margin-top: 0.1rem;
+  color: var(--admin-accent);
+  font-size: 0.75rem;
+}
+
+.admin-toolbar-button {
+  --bs-btn-color: #deddd7;
+  --bs-btn-border-color: #4a4d50;
+  --bs-btn-hover-color: #fffdf6;
+  --bs-btn-hover-bg: #383b3f;
+  --bs-btn-hover-border-color: #6a6b69;
+  --bs-btn-active-bg: #383b3f;
+  --bs-btn-active-border-color: #6a6b69;
+}
+
+.admin-shell .admin-sidebar,
+.admin-shell .admin-sidebar-offcanvas {
+  --admin-accent: #f0bf3d;
+  --admin-border: #414449;
+  color: var(--bs-body-color);
+  border: 0;
+  border-right: 1px solid var(--admin-border);
+  border-radius: 0;
+  background: #1d1f22;
+  box-shadow: 0.5rem 0 1.5rem rgb(0 0 0 / 12%);
+}
+
+.admin-shell .admin-sidebar {
+  border-radius: 0;
+  box-shadow: none !important;
+}
+
+.admin-shell .admin-navigation,
+.admin-sidebar-offcanvas .admin-navigation {
+  gap: 0.3rem !important;
+}
+
+.admin-shell .admin-sidebar-brand,
+.admin-sidebar-offcanvas .admin-sidebar-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.15rem 0.25rem 0.85rem;
+  padding: 0.7rem 0.75rem 1rem;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-sidebar-eyebrow {
+  color: #999b9b;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.admin-sidebar-heading {
+  color: var(--bs-emphasis-color);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.admin-shell .admin-navigation > .nav-link,
+.admin-sidebar-offcanvas .admin-navigation > .nav-link {
+  min-height: 2.55rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  color: #c4c5c2;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+
+.admin-shell .admin-navigation > .nav-link:hover,
+.admin-shell .admin-navigation > .nav-link:focus-visible,
+.admin-sidebar-offcanvas .admin-navigation > .nav-link:hover,
+.admin-sidebar-offcanvas .admin-navigation > .nav-link:focus-visible {
+  color: #fffdf6;
+  background: #2b2e32;
+}
+
+.admin-shell .admin-navigation > .nav-link.active,
+.admin-sidebar-offcanvas .admin-navigation > .nav-link.active {
+  border-color: rgb(240 191 61 / 22%);
+  color: #ffdb7c;
+  background: rgb(240 191 61 / 12%);
+  font-weight: 650;
+}
+
+.admin-shell .admin-navigation > div.ps-3,
+.admin-sidebar-offcanvas .admin-navigation > div.ps-3 {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0.05rem 0 0.35rem 0.55rem;
+  padding-left: 0.65rem !important;
+  border-left: 1px solid #494b4e;
+}
+
+.admin-shell .admin-navigation > div.ps-3 .nav-link,
+.admin-sidebar-offcanvas .admin-navigation > div.ps-3 .nav-link {
+  padding: 0.52rem 0.7rem;
+  border-radius: 0.55rem;
+  color: #aeb0af;
+  line-height: 1.35;
+}
+
+.admin-shell .admin-navigation > div.ps-3 .nav-link:hover,
+.admin-shell .admin-navigation > div.ps-3 .nav-link:focus-visible,
+.admin-sidebar-offcanvas .admin-navigation > div.ps-3 .nav-link:hover,
+.admin-sidebar-offcanvas .admin-navigation > div.ps-3 .nav-link:focus-visible {
+  color: #fffdf6;
+  background: #2b2e32;
+}
+
+.admin-shell .admin-navigation > div.ps-3 .nav-link.active,
+.admin-sidebar-offcanvas .admin-navigation > div.ps-3 .nav-link.active {
+  color: var(--admin-accent);
+  background: rgb(240 191 61 / 9%);
+}
+
+.admin-shell .card,
+.admin-shell .modal-content,
+.admin-shell .dropdown-menu,
+.admin-shell .list-group-item {
+  --bs-card-bg: var(--admin-surface);
+  --bs-card-border-color: var(--admin-border);
+  --bs-modal-bg: var(--admin-surface);
+  --bs-modal-border-color: var(--admin-border);
+  --bs-dropdown-bg: var(--admin-surface-raised);
+  --bs-dropdown-border-color: var(--admin-border);
+  --bs-list-group-bg: var(--admin-surface);
+  --bs-list-group-border-color: var(--admin-border);
+  color: var(--bs-body-color);
+}
+
+.admin-shell .card {
+  border-radius: 0.9rem;
+  box-shadow: 0 0.45rem 1.2rem rgb(0 0 0 / 16%) !important;
+}
+
+.admin-shell .card-header,
+.admin-shell .card-footer {
+  border-color: var(--admin-border);
+  background: rgb(255 255 255 / 2%);
+}
+
+.admin-shell .table {
+  --bs-table-color: var(--bs-body-color);
+  --bs-table-bg: transparent;
+  --bs-table-border-color: var(--admin-border);
+  --bs-table-striped-color: var(--bs-body-color);
+  --bs-table-striped-bg: rgb(255 255 255 / 3%);
+  --bs-table-hover-color: var(--bs-emphasis-color);
+  --bs-table-hover-bg: rgb(240 191 61 / 5%);
+}
+
+.admin-shell .form-control,
+.admin-shell .form-select {
+  border-color: #4a4d50;
+  color: var(--bs-body-color);
+  background-color: #222528;
+}
+
+.admin-shell .form-control::placeholder {
+  color: #898c8e;
+}
+
+.admin-shell .form-control:focus,
+.admin-shell .form-select:focus {
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 0.2rem rgb(240 191 61 / 18%);
+}
+
+.admin-shell .btn-primary,
+.admin-shell .btn-outline-primary:hover,
+.admin-shell .btn-outline-primary:focus-visible {
+  --bs-btn-color: #24211a;
+  --bs-btn-bg: var(--admin-accent);
+  --bs-btn-border-color: var(--admin-accent);
+  --bs-btn-hover-color: #1f1d17;
+  --bs-btn-hover-bg: #ffda78;
+  --bs-btn-hover-border-color: #ffda78;
+  --bs-btn-active-color: #1f1d17;
+  --bs-btn-active-bg: #e2ae2d;
+  --bs-btn-active-border-color: #e2ae2d;
+  font-weight: 650;
+}
+
+.admin-shell .btn-outline-primary {
+  --bs-btn-color: var(--admin-accent);
+  --bs-btn-border-color: rgb(240 191 61 / 65%);
+  --bs-btn-hover-color: #24211a;
+  --bs-btn-hover-bg: var(--admin-accent);
+  --bs-btn-hover-border-color: var(--admin-accent);
+}
+
+.admin-shell .breadcrumb {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-shell .breadcrumb-item,
+.admin-shell .breadcrumb-item.active {
+  color: #aeb0af;
+}
+
+.admin-shell .breadcrumb-item + .breadcrumb-item::before {
+  color: #737678;
+}
+
+.admin-shell .alert-light {
+  --bs-alert-color: #d3d2cb;
+  --bs-alert-bg: #292c30;
+  --bs-alert-border-color: #414449;
+}
+
+.admin-shell .bg-light,
+.admin-shell .bg-body {
+  color: var(--bs-body-color) !important;
+  background-color: var(--admin-surface) !important;
+}
+
+.admin-shell main .container {
+  max-width: none;
+}
+
+.admin-shell .pagination {
+  --bs-pagination-color: var(--bs-body-color);
+  --bs-pagination-bg: var(--admin-surface);
+  --bs-pagination-border-color: var(--admin-border);
+  --bs-pagination-hover-color: var(--admin-accent);
+  --bs-pagination-hover-bg: var(--admin-surface-raised);
+  --bs-pagination-hover-border-color: var(--admin-border);
+  --bs-pagination-focus-color: var(--admin-accent);
+  --bs-pagination-focus-bg: var(--admin-surface-raised);
+  --bs-pagination-active-color: #24211a;
+  --bs-pagination-active-bg: var(--admin-accent);
+  --bs-pagination-active-border-color: var(--admin-accent);
+}
+
+@media (max-width: 767.98px) {
+  .admin-shell .admin-topbar {
+    min-height: 3.8rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .admin-brand-title {
+    font-size: 0.8rem;
+  }
+
+  .admin-brand-context {
+    font-size: 0.7rem;
+  }
+
+  .admin-shell .admin-toolbar-button {
+    padding-inline: 0.55rem;
+    font-size: 0.75rem;
+  }
+}

@@ -98,7 +98,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <header class="navbar navbar-dark bg-dark shadow-sm">
+  <header class="navbar navbar-dark bg-dark admin-topbar">
     <div class="container-fluid gap-2">
       <select
         v-if="channel === '*'"
@@ -111,17 +111,20 @@ onMounted(async () => {
           {{ server.name }}
         </option>
       </select>
-      <div class="navbar-brand mb-0 me-auto text-truncate">
-        ระบบจัดการ GM Douluo Continent
-        <span v-if="channel !== '*'" class="text-white-50">- {{ channelName }}</span>
+      <div class="admin-brand mb-0 me-auto text-truncate">
+        <span class="admin-brand-mark" aria-hidden="true">DS</span>
+        <span class="text-truncate">
+          <span class="admin-brand-title">ระบบจัดการ GM Douluo Continent</span>
+          <span v-if="channel !== '*'" class="admin-brand-context">{{ channelName }}</span>
+        </span>
       </div>
       <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-outline-light btn-sm" type="button" aria-label="เต็มหน้าจอ" @click="toggleFullscreen">
+        <button class="btn btn-outline-light btn-sm admin-toolbar-button" type="button" aria-label="เต็มหน้าจอ" @click="toggleFullscreen">
           {{ fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ' }}
         </button>
         <div class="dropdown">
           <button
-            class="btn btn-outline-light dropdown-toggle"
+            class="btn btn-outline-light dropdown-toggle admin-toolbar-button"
             type="button"
             data-bs-toggle="dropdown"
             aria-expanded="false"

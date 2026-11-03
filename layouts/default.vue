@@ -15,7 +15,7 @@ if (error.value) {
 </script>
 
 <template>
-  <div v-if="session" class="container-fluid min-vh-100 bg-body-tertiary">
+  <div v-if="session" class="admin-shell container-fluid min-vh-100 bg-body-tertiary" data-bs-theme="dark">
     <div class="row g-0 sticky-top z-1">
       <div class="d-none d-md-block col-md-3 col-lg-2" aria-hidden="true"></div>
       <div class="col-12 col-md-9 col-lg-10">
@@ -31,8 +31,8 @@ if (error.value) {
         :authorization="session.authorization"
       />
       <main class="col-12 col-md-9 col-lg-10">
-        <div class="container-fluid px-0 py-2">
-        <slot />
+        <div class="container-fluid admin-content px-3 px-lg-4 py-3 py-lg-4">
+          <slot />
         </div>
       </main>
     </div>

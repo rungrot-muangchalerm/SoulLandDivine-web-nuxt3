@@ -21,10 +21,14 @@
                             ></bs-option>
                         </bs-select>
                     </label>
-                    <label v-if="!customContent" class="email-field">
-                        <span>รหัสเทมเพลต</span>
-                        <bs-select v-model="form.mailId" :disabled="emailTemplatesLoading || emailTemplates.length === 0">
-                            <bs-option value="" label="เลือก Email template"></bs-option>
+                    <label class="email-field">
+                        <span>รูปแบบ / รหัสอีเมล</span>
+                        <bs-select v-model="form.mailId" :disabled="emailTemplatesLoading">
+                            <bs-option value="" label="เลือกวิธีส่งอีเมล"></bs-option>
+                            <bs-option
+                                value="1"
+                                label="#1 — กำหนดหัวข้อ เนื้อหา และของแนบเอง (Custom)"
+                            ></bs-option>
                             <bs-option
                                 v-for="template in emailTemplates"
                                 :key="template.id"
@@ -53,10 +57,6 @@
                         <span v-else-if="emailChannelError" class="text-danger small">{{ emailChannelError }}</span>
                     </label>
                 </div>
-                <label class="email-custom-toggle">
-                    <input v-model="customContent" class="form-check-input" type="checkbox">
-                    <span>กำหนดหัวข้อ เนื้อหา และของแนบเอง (Custom)</span>
-                </label>
                 <div v-if="form.emailType === 'allserver'" class="email-delivery">
                     <div class="email-delivery-copy">
                         <strong>ผู้รับ</strong>
@@ -70,8 +70,8 @@
                 </div>
                 <div v-if="!customContent && selectedEmailTemplate" class="email-template-info">
                     <strong>{{ selectedEmailTemplate.title || `Email template #${selectedEmailTemplate.id}` }}</strong>
-                    <span v-if="selectedEmailTemplate.reward">
-                        มีรางวัลตั้งต้น: {{ selectedEmailTemplate.reward }}
+                    <span v-if="templateRewardItems.length">
+                        รางวัลตั้งต้นของ template แสดงในส่วนของรางวัลแนบด้านล่าง
                     </span>
                     <span v-else>ไม่มีรางวัลตั้งต้น</span>
                     <span v-if="selectedRewards.length">
@@ -81,11 +81,18 @@
                 <div v-if="customContent" class="email-fields">
                     <label class="email-field">
                         <span>หัวข้ออีเมล</span>
-                        <bs-input v-model="form.title" maxlength="255" placeholder="กรอกหัวข้ออีเมล"></bs-input>
+                        <bs-input v-model="form.title" maxlength="255"></bs-input>
                     </label>
                     <label class="email-field">
                         <span>ชื่อผู้ส่ง</span>
-                        <bs-input v-model="form.senderName" maxlength="255" placeholder="เช่น GM"></bs-input>
+                        <input
+                            class="form-control"
+                            :value="form.senderName"
+                            readonly
+                            aria-describedby="email-sender-help"
+                            placeholder="กำลังโหลดชื่อผู้ใช้..."
+                        >
+                        <small id="email-sender-help" class="email-help">ใช้ชื่อผู้ใช้ที่เข้าสู่ระบบและแก้ไขไม่ได้</small>
                     </label>
                     <label class="email-field email-content-field">
                         <span>เนื้อหา</span>
@@ -94,7 +101,6 @@
                             class="form-control"
                             rows="5"
                             maxlength="2550"
-                            placeholder="กรอกเนื้อหาอีเมล"
                         ></textarea>
                     </label>
                 </div>
@@ -140,12 +146,50 @@
                         >
                             ล้างประเภทนี้
                         </button>
-                        <span class="badge text-bg-primary">เลือกแล้ว {{ selectedRewards.length }} รายการ</span>
+                        <span class="badge email-selection-count">เลือกแล้ว {{ selectedRewards.length }} รายการ</span>
                     </div>
                 </div>
                 <p v-if="customContent && ringEmailCount" class="email-help mt-2 mb-0">
                     วงแหวนที่เลือกจะส่ง {{ ringEmailCount.toLocaleString() }} ฉบับต่อผู้รับ (ฉบับละ 1 วงต่อประเภท)
                 </p>
+                <div
+                    v-if="!customContent && selectedEmailTemplate && templateRewardItems.length"
+                    class="email-template-rewards"
+                >
+                    <h3 class="email-template-rewards-title">รางวัลจาก Email template</h3>
+                    <div class="email-catalog-list email-template-reward-list">
+                        <article
+                            v-for="item in templateRewardItems"
+                            :key="item.key"
+                            class="email-catalog-item email-template-reward-card"
+                        >
+                            <div class="email-catalog-choice">
+                                <span class="email-item-media">
+                                    <img
+                                        v-if="item.iconUrl"
+                                        :src="item.iconUrl"
+                                        :alt="item.name"
+                                        class="email-item-icon"
+                                        loading="lazy"
+                                        @error="item.iconUrl = null"
+                                    >
+                                    <span
+                                        v-else
+                                        class="email-item-icon-placeholder"
+                                        aria-label="ไม่มีรูปไอเทม"
+                                    >?</span>
+                                </span>
+                                <span class="email-item-copy">
+                                    <span class="email-item-title">{{ item.name }}</span>
+                                </span>
+                            </div>
+                            <div class="email-template-reward-details">
+                                <span v-if="item.quantity">จำนวน {{ item.quantity }}</span>
+                                <span v-if="item.year">ปี {{ item.year }}</span>
+                            </div>
+                        </article>
+                    </div>
+                </div>
                 <div v-if="customContent" class="email-manual-reward">
                     <label class="email-field">
                         <span>ประเภทไอเทม</span>
@@ -203,7 +247,12 @@
                     เพิ่มไอเทมด้วย ID ได้ แม้ไม่มีในรายการร้านค้า
                 </p>
                 <div v-if="!itemCatalogLoading && !itemCatalogError && itemsForType(selectedRewardType).length" :key="selectedRewardType" class="email-catalog-list">
-                    <div v-for="item in itemsForType(selectedRewardType)" :key="`${item.rewardType}:${item.id}`" class="email-catalog-item">
+                    <div
+                        v-for="item in itemsForType(selectedRewardType)"
+                        :key="`${item.rewardType}:${item.id}`"
+                        class="email-catalog-item"
+                        :class="{ 'is-selected': isRewardSelected(item) }"
+                    >
                         <label class="email-catalog-choice">
                             <input
                                 class="form-check-input"
@@ -211,22 +260,23 @@
                                 :checked="isRewardSelected(item)"
                                 @change="toggleReward(item, $event.target.checked)"
                             >
-                            <img
-                                v-if="item.iconUrl"
-                                :src="item.iconUrl"
-                                :alt="`ไอเทม ${item.id}`"
-                                class="email-item-icon"
-                                loading="lazy"
-                                @error="item.iconUrl = null"
-                            >
-                            <span
-                                v-else
-                                class="email-item-icon-placeholder"
-                                :aria-label="`ไม่มีรูปไอเทม ${item.id}`"
-                            >?</span>
-                            <span>
-                                ID {{ item.id }}
-                                <small v-if="item.name" class="email-item-name">{{ item.name }}</small>
+                            <span class="email-item-media">
+                                <img
+                                    v-if="item.iconUrl"
+                                    :src="item.iconUrl"
+                                    :alt="item.name || `ไอเทม ${item.id}`"
+                                    class="email-item-icon"
+                                    loading="lazy"
+                                    @error="item.iconUrl = null"
+                                >
+                                <span
+                                    v-else
+                                    class="email-item-icon-placeholder"
+                                    :aria-label="`ไม่มีรูปไอเทม ${item.id}`"
+                                >?</span>
+                            </span>
+                            <span class="email-item-copy">
+                                <span class="email-item-title">{{ item.name || `ID ${item.id}` }}</span>
                             </span>
                         </label>
                         <div v-if="selectedReward(item)" class="email-selected-options">
@@ -288,11 +338,14 @@
 </template>
 
 <script>
+    import itemNames from '~/data/item-names-th.json'
     import { createAdminWords } from '~/utils/admin-state'
     import { getCookie, setCookie } from '~/utils/cookies'
 import { BsMessage } from '~/utils/bootstrap-message'
 
     const MAX_SOUL_RING_YEAR = 2147483647
+const DEFAULT_EMAIL_TITLE = 'แจ้งชดเชยปัญหาการเข้าเกม'
+const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่สะดวก ทีมงานได้ส่งของชดเชยมาให้ กรุณาตรวจสอบของรางวัลแนบ'
 
     export default {
         
@@ -302,7 +355,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 disabled: false,
                 sending: false,
                 allServers: false,
-                customContent: false,
                 selectedRewardType: '2',
                 selectedRewards: [],
                 manualReward: {
@@ -364,26 +416,57 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }],
                 form: {
                     emailType: '',
-                    mailId: '',
+                    mailId: '1',
                     uidList: '',
-                    title: '',
+                    title: DEFAULT_EMAIL_TITLE,
                     senderName: '',
-                    content: ''
+                    content: DEFAULT_EMAIL_CONTENT
                 },
                 sendProgress: ''
             }
         },
         mounted () {
-            if (!this.form.senderName.trim()) {
-                this.form.senderName = getCookie('username')
-            }
+            this.loadSenderName()
             this.loadItemCatalog()
             this.loadEmailTemplates()
             this.loadEmailChannels()
         },
         computed: {
+            customContent () {
+                return this.form.mailId === '1'
+            },
             selectedEmailTemplate () {
                 return this.emailTemplates.find(template => String(template.id) === this.form.mailId)
+            },
+            templateRewardItems () {
+                if (!this.selectedEmailTemplate?.reward) return []
+
+                return this.selectedEmailTemplate.reward.split('|').map((entry, index) => {
+                    const [itemPart, parameterPart] = entry.trim().split('@', 2)
+                    const match = /^(\d+):(\d+):(\d+)$/.exec(itemPart.trim())
+                    if (!match) {
+                        return {
+                            key: `template:${index}:${entry}`,
+                            name: entry.trim(),
+                            iconUrl: null,
+                            quantity: '',
+                            year: ''
+                        }
+                    }
+
+                    const [, id, rewardType, quantity] = match
+                    const item = this.itemCatalog.find(candidate =>
+                        candidate.id === id && candidate.rewardType === rewardType
+                    )
+                    const parameters = (parameterPart || '').split(':')
+                    return {
+                        key: `template:${rewardType}:${id}:${index}`,
+                        name: item?.name || itemNames[id] || `ID ${id}`,
+                        iconUrl: item?.iconUrl || null,
+                        quantity,
+                        year: rewardType === '3' ? parameters[0] || '' : ''
+                    }
+                })
             },
             ringEmailCount () {
                 return this.selectedRewards.reduce((total, reward) => {
@@ -394,6 +477,14 @@ import { BsMessage } from '~/utils/bootstrap-message'
             }
         },
         methods: {
+            async loadSenderName () {
+                try {
+                    const response = await this.$api.get('/api/session')
+                    this.form.senderName = response.data.username
+                } catch (error) {
+                    BsMessage.error(error instanceof Error ? error.message : 'โหลดชื่อผู้ใช้ไม่สำเร็จ')
+                }
+            },
             rewardParameterFields (rewardType) {
                 if (rewardType === '3') {
                     return [{ index: 0, label: 'ปี' }]
@@ -426,7 +517,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 this.emailTemplatesError = ''
                 try {
                     const response = await this.$api.post('/api/email/templates')
-                    this.emailTemplates = response.data
+                    this.emailTemplates = response.data.filter(template => Number(template.id) !== 1)
                 } catch (error) {
                     this.emailTemplatesError = error instanceof Error
                         ? error.message
@@ -566,7 +657,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
             },
             changeEmailType () {
                 this.allServers = false;
-                this.form.mailId = '';
+                this.form.mailId = '1';
                 this.form.uidList = '';
             },
             buildReward (rewardItem) {
@@ -664,7 +755,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                             emailType: this.form.emailType,
                             serverId: this.allServers ? '0' : this.selectedServer,
                             title: this.form.title.trim(),
-                            senderName: this.form.senderName.trim() || getCookie('username'),
+                            senderName: this.form.senderName.trim(),
                             content: this.form.content,
                             rewards
                         }
@@ -681,7 +772,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                             emailType: this.form.emailType,
                             uidList: this.form.uidList.trim(),
                             title: this.form.title.trim(),
-                            senderName: this.form.senderName.trim() || getCookie('username'),
+                            senderName: this.form.senderName.trim(),
                             content: this.form.content,
                             rewards
                         }
@@ -776,6 +867,9 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 }
             },
             handleCancle () {
+                const emailType = this.form.emailType;
+                const mailId = this.form.mailId;
+                const senderName = this.form.senderName;
                 this.allServers = false;
                 this.selectedRewards = [];
                 this.manualReward.id = '';
@@ -785,7 +879,11 @@ import { BsMessage } from '~/utils/bootstrap-message'
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
-                this.form.senderName = getCookie('username')
+                this.form.emailType = emailType;
+                this.form.mailId = mailId;
+                this.form.title = DEFAULT_EMAIL_TITLE
+                this.form.content = DEFAULT_EMAIL_CONTENT
+                this.form.senderName = senderName
             }
         }
     }
@@ -858,6 +956,42 @@ import { BsMessage } from '~/utils/bootstrap-message'
     padding-bottom: 0.1rem;
 }
 
+.email-template-rewards {
+    margin-top: 1rem;
+}
+
+.email-template-rewards-title {
+    margin: 0;
+    color: var(--bs-secondary-color);
+    font-size: 0.85rem;
+    font-weight: 650;
+}
+
+.email-template-reward-list {
+    max-height: 260px;
+    margin-top: 0.65rem;
+}
+
+.email-template-reward-card {
+    min-height: 0;
+    cursor: default;
+}
+
+.email-template-reward-details {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem 0.75rem;
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+}
+
+.email-selection-count {
+    color: #e2e3e5;
+    background-color: #55595f;
+    font-weight: 600;
+}
+
 .email-manual-reward {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -872,54 +1006,96 @@ import { BsMessage } from '~/utils/bootstrap-message'
 
 .email-catalog-list {
     display: grid;
-    gap: 0.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: 0.75rem;
     max-height: 420px;
     overflow-y: auto;
     margin-top: 1rem;
-    padding-right: 0.35rem;
+    padding: 0.1rem 0.35rem 0.25rem 0.1rem;
 }
 
 .email-catalog-item {
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(150px, 0.45fr) minmax(0, 1fr);
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem;
+    align-content: start;
+    gap: 0.7rem;
+    min-width: 0;
+    min-height: 196px;
+    padding: 1rem 0.85rem 0.85rem;
     border: 1px solid var(--bs-border-color);
-    border-radius: 0.5rem;
-    background: var(--bs-tertiary-bg);
+    border-radius: 0.75rem;
+    background: var(--admin-surface, var(--bs-tertiary-bg));
+    transition: border-color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.email-catalog-item:hover {
+    border-color: color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 55%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 5%, var(--admin-surface, var(--bs-tertiary-bg)));
+}
+
+.email-catalog-item.is-selected {
+    border-color: var(--admin-accent, var(--bs-primary));
+    background: color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 9%, var(--admin-surface, var(--bs-tertiary-bg)));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 25%, transparent);
 }
 
 .email-catalog-choice {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-weight: 600;
+    display: grid;
+    justify-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0.15rem 0 0.1rem;
+    text-align: center;
     cursor: pointer;
 }
 
 .email-catalog-choice .form-check-input {
+    position: absolute;
+    top: 0.7rem;
+    right: 0.7rem;
+    z-index: 1;
+    width: 1rem;
+    height: 1rem;
     margin: 0;
 }
 
-.email-item-name {
-    display: block;
-    color: var(--bs-secondary-color);
-    font-weight: 400;
+.email-item-media {
+    display: grid;
+    width: 88px;
+    height: 88px;
+    place-items: center;
+}
+
+.email-item-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.15rem;
+    align-content: start;
+    justify-items: center;
+}
+
+.email-item-title {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-weight: 650;
+    line-height: 1.35;
 }
 
 .email-item-icon,
 .email-item-icon-placeholder {
-    width: 40px;
-    height: 40px;
-    flex: 0 0 40px;
-    border: 1px solid var(--bs-border-color);
-    border-radius: 0.4rem;
-    background: var(--bs-body-bg);
+    width: 80px;
+    height: 80px;
+    border: 1px solid color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 22%, var(--bs-border-color));
+    border-radius: 0.75rem;
+    background: color-mix(in srgb, var(--admin-accent, var(--bs-primary)) 7%, var(--bs-body-bg));
 }
 
 .email-item-icon {
+    border: 0;
+    background: transparent;
     object-fit: contain;
+    padding: 0.3rem;
 }
 
 .email-item-icon-placeholder {
@@ -931,24 +1107,25 @@ import { BsMessage } from '~/utils/bootstrap-message'
 }
 
 .email-selected-options {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    align-items: end;
+    gap: 0.55rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--bs-border-color);
 }
 
 .email-selected-options > .email-field {
-    width: 120px;
+    width: auto;
+    font-size: 0.8rem;
 }
 
 .email-advanced-fields {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
+    display: contents;
 }
 
 .email-advanced-fields .email-field {
-    width: 130px;
+    width: auto;
 }
 
 .email-field {
@@ -976,19 +1153,6 @@ import { BsMessage } from '~/utils/bootstrap-message'
     border-radius: 0.5rem;
     background: var(--bs-tertiary-bg);
     font-size: 0.875rem;
-}
-
-.email-custom-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-top: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.email-custom-toggle .form-check-input {
-    margin: 0;
 }
 
 .email-template-info span {
@@ -1055,9 +1219,8 @@ import { BsMessage } from '~/utils/bootstrap-message'
         align-items: flex-start;
     }
 
-    .email-catalog-item {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
+    .email-catalog-list {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
     }
 }
 </style>

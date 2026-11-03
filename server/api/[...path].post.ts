@@ -468,9 +468,7 @@ export default defineEventHandler(async (event) => {
   if (route === 'email/sendCustom') {
     const emailType = body.emailType
     const title = typeof body.title === 'string' ? body.title.trim() : ''
-    const senderName = typeof body.senderName === 'string' && body.senderName.trim()
-      ? body.senderName.trim()
-      : session.username
+    const senderName = session.username
     const content = typeof body.content === 'string' ? body.content : ''
     const rewards = getEmailRewards(body)
 
@@ -544,7 +542,7 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    await recordOperation(event, session.username, route, body)
+    await recordOperation(event, session.username, route, { ...body, senderName })
     const jobId = enqueueCustomEmail({
       channel,
       username: session.username,

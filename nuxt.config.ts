@@ -2,6 +2,7 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-03-01',
   devServer: { host: '0.0.0.0', port: 8081 },
   devtools: { enabled: false },
+  css: ['~/assets/css/admin-theme.css'],
   app: {
     head: {
       link: [

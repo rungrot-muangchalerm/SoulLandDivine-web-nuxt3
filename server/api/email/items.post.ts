@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import rewardCatalog from '../../../data/email-reward-catalog.json'
+import itemNames from '../../../data/item-names-th.json'
+import soulRingNames from '../../../data/soul-ring-names-th.json'
 import { getAdminSession } from '../../utils/admin-session'
 import { getGameDatabase } from '../../utils/database'
 
@@ -68,6 +70,8 @@ export default defineEventHandler(async (event) => {
         id: match[1],
         rewardType: match[2],
         iconUrl: iconUrls.get(match[1]) || null,
+        name: soulRingNames[match[1] as keyof typeof soulRingNames]
+          || itemNames[match[1] as keyof typeof itemNames],
       })
     }
   }
@@ -76,6 +80,11 @@ export default defineEventHandler(async (event) => {
     items.set(`${reward.rewardType}:${reward.id}`, {
       ...reward,
       iconUrl: iconUrls.get(reward.id) || null,
+      name: reward.rewardType === '3'
+        ? soulRingNames[reward.id as keyof typeof soulRingNames]
+          || reward.name
+          || itemNames[reward.id as keyof typeof itemNames]
+        : reward.name || itemNames[reward.id as keyof typeof itemNames],
     })
   }
 
