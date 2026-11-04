@@ -42,7 +42,7 @@ def custom_preview(client):
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('--client-root',type=Path,default=ROOT.parent/'Game_Client')
+    parser.add_argument('--client-root',type=Path,default=ROOT.parent/'SoulLandDivine-client')
     parser.add_argument('--custom-only',action='store_true')
     args=parser.parse_args()
     sources=json.loads((ROOT/'docs/gacha-image-sources.json').read_text(encoding='utf-8'))

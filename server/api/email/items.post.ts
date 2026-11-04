@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import equipmentIcons from '../../../data/email-equipment-icons.json'
+import clientItemNames from '../../../data/email-item-names.json'
 import rewardCatalog from '../../../data/email-reward-catalog.json'
 import itemNames from '../../../data/item-names-th.json'
 import soulRingNames from '../../../data/soul-ring-names-th.json'
@@ -18,6 +20,8 @@ interface EmailItem {
   name?: string
 }
 
+const clientItemNamesByType: Record<string, Record<string, string>> = clientItemNames
+
 const rewardTypes: Record<string, string> = {
   '1': 'สกุลเงิน',
   '2': 'ไอเทมทั่วไป',
@@ -29,6 +33,25 @@ const rewardTypes: Record<string, string> = {
   '13': 'อาวุธลับ',
   '21': 'ไข่สัตว์เลี้ยง',
   '7': 'ตัวละคร',
+}
+
+const equipmentIconById = new Map(Object.entries(equipmentIcons))
+
+function getThaiName(value: unknown): string | undefined {
+  return typeof value === 'string' && /[\u0E00-\u0E7F]/.test(value)
+    ? value
+    : undefined
+}
+
+function getClientItemName(id: string, rewardType: string) {
+  return clientItemNamesByType[rewardType]?.[id]
+    || clientItemNamesByType['2']?.[id]
+}
+
+function getItemName(id: string, rewardType: string) {
+  return getClientItemName(id, rewardType)
+    || getThaiName(soulRingNames[id as keyof typeof soulRingNames])
+    || getThaiName(itemNames[id as keyof typeof itemNames])
 }
 
 export default defineEventHandler(async (event) => {
@@ -43,7 +66,13 @@ export default defineEventHandler(async (event) => {
   if (!iconDirectory) {
     throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_renamed สำหรับโหลดรูปไอเทม' })
   }
+  const equipmentIconDirectory = resolve(iconDirectory, '..', 'icons_equipment')
+  if (!existsSync(equipmentIconDirectory)) {
+    throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_equipment สำหรับโหลดรูปอุปกรณ์' })
+  }
+
   const iconFiles = await readdir(iconDirectory)
+  const equipmentIconFiles = new Set(await readdir(equipmentIconDirectory))
   const iconUrls = new Map<string, string>()
   for (const filename of iconFiles) {
     const match = /^(\d+)_.*\.png$/i.exec(filename)
@@ -53,6 +82,17 @@ export default defineEventHandler(async (event) => {
     )) {
       iconUrls.set(match[1], `/icons_renamed/${encodeURIComponent(filename)}`)
     }
+  }
+
+  const getIconUrl = (id: string) => {
+    const numericIconUrl = iconUrls.get(id)
+    if (numericIconUrl) return numericIconUrl
+
+    const equipmentIcon = equipmentIconById.get(id)
+    const filename = equipmentIcon && `${equipmentIcon}.png`
+    return filename && equipmentIconFiles.has(filename)
+      ? `/icons_equipment/${encodeURIComponent(filename)}`
+      : null
   }
 
   const [rows] = await getGameDatabase().query(
@@ -69,9 +109,8 @@ export default defineEventHandler(async (event) => {
       items.set(key, {
         id: match[1],
         rewardType: match[2],
-        iconUrl: iconUrls.get(match[1]) || null,
-        name: soulRingNames[match[1] as keyof typeof soulRingNames]
-          || itemNames[match[1] as keyof typeof itemNames],
+        iconUrl: getIconUrl(match[1]),
+        name: getItemName(match[1], match[2]),
       })
     }
   }
@@ -79,12 +118,11 @@ export default defineEventHandler(async (event) => {
   for (const reward of rewardCatalog) {
     items.set(`${reward.rewardType}:${reward.id}`, {
       ...reward,
-      iconUrl: iconUrls.get(reward.id) || null,
-      name: reward.rewardType === '3'
-        ? soulRingNames[reward.id as keyof typeof soulRingNames]
-          || reward.name
-          || itemNames[reward.id as keyof typeof itemNames]
-        : reward.name || itemNames[reward.id as keyof typeof itemNames],
+      iconUrl: getIconUrl(reward.id),
+      name: getClientItemName(reward.id, reward.rewardType)
+        || getThaiName(reward.name)
+        || getThaiName(soulRingNames[reward.id as keyof typeof soulRingNames])
+        || getThaiName(itemNames[reward.id as keyof typeof itemNames]),
     })
   }
 

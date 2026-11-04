@@ -347,6 +347,11 @@ import { BsMessage } from '~/utils/bootstrap-message'
 const DEFAULT_EMAIL_TITLE = 'แจ้งชดเชยปัญหาการเข้าเกม'
 const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่สะดวก ทีมงานได้ส่งของชดเชยมาให้ กรุณาตรวจสอบของรางวัลแนบ'
 
+    function getThaiItemName(id) {
+        const name = itemNames[id]
+        return typeof name === 'string' && /[\u0E00-\u0E7F]/.test(name) ? name : undefined
+    }
+
     export default {
         
         setup () { return { words: createAdminWords(), selectedServer: useCookie('selectedServer', { default: () => '' }) } },
@@ -461,7 +466,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     const parameters = (parameterPart || '').split(':')
                     return {
                         key: `template:${rewardType}:${id}:${index}`,
-                        name: item?.name || itemNames[id] || `ID ${id}`,
+                        name: item?.name || getThaiItemName(id) || `ID ${id}`,
                         iconUrl: item?.iconUrl || null,
                         quantity,
                         year: rewardType === '3' ? parameters[0] || '' : ''
