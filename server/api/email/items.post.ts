@@ -3,6 +3,7 @@ import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import equipmentIcons from '../../../data/email-equipment-icons.json'
 import clientItemNames from '../../../data/email-item-names.json'
+import petEggIcons from '../../../data/email-pet-egg-icons.json'
 import rewardCatalog from '../../../data/email-reward-catalog.json'
 import itemNames from '../../../data/item-names-th.json'
 import soulRingNames from '../../../data/soul-ring-names-th.json'
@@ -36,6 +37,7 @@ const rewardTypes: Record<string, string> = {
 }
 
 const equipmentIconById = new Map(Object.entries(equipmentIcons))
+const petEggIconById = new Map(Object.entries(petEggIcons))
 
 function getThaiName(value: unknown): string | undefined {
   return typeof value === 'string' && /[\u0E00-\u0E7F]/.test(value)
@@ -70,9 +72,14 @@ export default defineEventHandler(async (event) => {
   if (!existsSync(equipmentIconDirectory)) {
     throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_equipment สำหรับโหลดรูปอุปกรณ์' })
   }
+  const petEggIconDirectory = resolve(iconDirectory, '..', 'icons_pet_eggs')
+  if (!existsSync(petEggIconDirectory)) {
+    throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_pet_eggs สำหรับโหลดรูปไข่สัตว์เลี้ยง' })
+  }
 
   const iconFiles = await readdir(iconDirectory)
   const equipmentIconFiles = new Set(await readdir(equipmentIconDirectory))
+  const petEggIconFiles = new Set(await readdir(petEggIconDirectory))
   const iconUrls = new Map<string, string>()
   for (const filename of iconFiles) {
     const match = /^(\d+)_.*\.png$/i.exec(filename)
@@ -84,15 +91,25 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const getIconUrl = (id: string) => {
+  const getIconUrl = (id: string, rewardType: string) => {
+    if (rewardType === '21') {
+      const petEggIcon = petEggIconById.get(id)
+      const petEggFilename = petEggIcon && `${petEggIcon}.png`
+      if (petEggFilename && petEggIconFiles.has(petEggFilename)) {
+        return `/icons_pet_eggs/${encodeURIComponent(petEggFilename)}`
+      }
+    }
+
     const numericIconUrl = iconUrls.get(id)
     if (numericIconUrl) return numericIconUrl
 
     const equipmentIcon = equipmentIconById.get(id)
     const filename = equipmentIcon && `${equipmentIcon}.png`
-    return filename && equipmentIconFiles.has(filename)
-      ? `/icons_equipment/${encodeURIComponent(filename)}`
-      : null
+    if (filename && equipmentIconFiles.has(filename)) {
+      return `/icons_equipment/${encodeURIComponent(filename)}`
+    }
+
+    return null
   }
 
   const [rows] = await getGameDatabase().query(
@@ -109,7 +126,7 @@ export default defineEventHandler(async (event) => {
       items.set(key, {
         id: match[1],
         rewardType: match[2],
-        iconUrl: getIconUrl(match[1]),
+        iconUrl: getIconUrl(match[1], match[2]),
         name: getItemName(match[1], match[2]),
       })
     }
@@ -118,7 +135,7 @@ export default defineEventHandler(async (event) => {
   for (const reward of rewardCatalog) {
     items.set(`${reward.rewardType}:${reward.id}`, {
       ...reward,
-      iconUrl: getIconUrl(reward.id),
+      iconUrl: getIconUrl(reward.id, reward.rewardType),
       name: getClientItemName(reward.id, reward.rewardType)
         || getThaiName(reward.name)
         || getThaiName(soulRingNames[reward.id as keyof typeof soulRingNames])
@@ -133,7 +150,7 @@ export default defineEventHandler(async (event) => {
       items.set(`${rewardType}:${id}`, {
         id,
         rewardType,
-        iconUrl: getIconUrl(id),
+        iconUrl: getIconUrl(id, rewardType),
         name,
       })
     }

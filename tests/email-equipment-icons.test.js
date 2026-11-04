@@ -133,3 +133,19 @@ test('email catalog includes every localized item type and all equipment images'
     )
   }
 })
+
+test('email pet eggs use their Game Client icons', async () => {
+  const petEggIcons = JSON.parse(readFileSync(resolve(root, 'data/email-pet-egg-icons.json'), 'utf8'))
+  const filenames = new Set(readdirSync(resolve(root, 'public/icons_pet_eggs')))
+  const items = await loadItemsHandler([])({})
+  const petEggs = items.filter((item) => item.rewardType === '21')
+
+  assert.equal(Object.keys(petEggIcons).length, 47)
+  assert.equal(petEggs.length, Object.keys(petEggIcons).length)
+  for (const [id, icon] of Object.entries(petEggIcons)) {
+    const item = petEggs.find((petEgg) => petEgg.id === id)
+    assert.ok(item, `Pet egg ${id} is missing from the email catalog`)
+    assert.equal(item.iconUrl, `/icons_pet_eggs/${icon}.png`)
+    assert.ok(filenames.has(`${icon}.png`), `Missing Game Client pet egg icon ${icon}.png`)
+  }
+})
