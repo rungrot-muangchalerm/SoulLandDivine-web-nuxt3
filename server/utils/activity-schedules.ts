@@ -20,6 +20,91 @@ export interface ActivityScheduleRow {
   configId: string
   configTitle: string
   fields: Record<string, string>
+  imageUrl: string
+  canOpenImmediately: boolean
+}
+
+const activityGiftTypeBanners: Record<number, number> = {
+  1: 1,
+  2: 4,
+  3: 4,
+  5: 11,
+  8: 7,
+  9: 3,
+  11: 9,
+  12: 2,
+  13: 1,
+  14: 15,
+  15: 11,
+  17: 55,
+  18: 7,
+  19: 5,
+  20: 4,
+  21: 3,
+  22: 12,
+  23: 14,
+  24: 14,
+  25: 15,
+  26: 16,
+  27: 31,
+  28: 28,
+  29: 4,
+  30: 22,
+  31: 28,
+  32: 86,
+  33: 12,
+  34: 16,
+  35: 53,
+  36: 36,
+  37: 52,
+  38: 5,
+  39: 7,
+  40: 55,
+  41: 41,
+  42: 54,
+  43: 81,
+  44: 86,
+  45: 42,
+  46: 93,
+  47: 16,
+}
+
+const activityTypeBanners: Record<number, number> = {
+  101: 12,
+  102: 7,
+  103: 3,
+  104: 3,
+  105: 11,
+  107: 12,
+  110: 5,
+  111: 7,
+  113: 2,
+  115: 7,
+}
+
+const activityFallbackBanners: Record<string, number> = {
+  'recharge-tabs': 4,
+  'recharge-time': 4,
+  'direct-purchase-time': 4,
+  'activity-info': 3,
+  'special-activity': 7,
+  'special-activity-table': 7,
+  'overseas-activity': 4,
+  'camp-timers': 16,
+  'integral-boss': 9,
+  'theme-boss-time': 9,
+  'hunting-unlocks': 9,
+  'wish-pool': 54,
+}
+
+function activityBannerId(configId: string, values: Record<string, string>) {
+  const giftType = Number(values.GiftType)
+  if (giftType && activityGiftTypeBanners[giftType]) return activityGiftTypeBanners[giftType]
+
+  const activityType = Number(values.Type || values.SpecialType)
+  if (activityType && activityTypeBanners[activityType]) return activityTypeBanners[activityType]
+
+  return activityFallbackBanners[configId] || 4
 }
 
 export const activityScheduleConfigs: ActivityScheduleConfig[] = [
@@ -324,6 +409,11 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     name: rowName(config.id, values),
     configId: config.id,
     configTitle: config.title,
+    imageUrl: `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+    canOpenImmediately: config.id === 'recharge-tabs'
+      && Number(values.GiftType) === 9
+      && Object.hasOwn(values, 'ShowStart')
+      && Object.hasOwn(values, 'ShowEnd'),
     fields: Object.fromEntries(config.fields
       .filter((field) => Object.hasOwn(values, field.key))
       .map((field) => [field.key, values[field.key]])),

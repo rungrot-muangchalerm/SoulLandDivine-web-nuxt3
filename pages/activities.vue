@@ -20,12 +20,16 @@ interface ScheduleRow {
   configId: string
   configTitle: string
   fields: Record<string, string>
+  imageUrl?: string
+  canOpenImmediately: boolean
 }
 
+const allConfigsId = 'all'
 const configs = ref<ScheduleConfig[]>([])
 const activities = ref<ScheduleRow[]>([])
 const drafts = ref<Record<string, Record<string, string>>>({})
-const selectedConfigId = ref('')
+const quickOpenEndTimes = ref<Record<string, string>>({})
+const selectedConfigId = ref(allConfigsId)
 const search = ref('')
 const page = ref(1)
 const pageSize = 25
@@ -36,7 +40,7 @@ const successMessage = ref('')
 
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
 const configRows = computed(() => activities.value
-  .filter((activity) => activity.configId === selectedConfigId.value)
+  .filter((activity) => selectedConfigId.value === allConfigsId || activity.configId === selectedConfigId.value)
   .filter((activity) => {
     const query = search.value.trim().toLocaleLowerCase()
     return !query || `${activity.id} ${activity.name} ${Object.values(activity.fields).join(' ')}`
@@ -58,13 +62,16 @@ async function loadSchedules() {
     const result = await $fetch<{ configs: ScheduleConfig[]; activities: ScheduleRow[] }>('/api/activities')
     configs.value = result.configs
     activities.value = result.activities
-    if (!selectedConfigId.value || !configs.value.some((config) => config.id === selectedConfigId.value)) {
-      selectedConfigId.value = configs.value[0]?.id || ''
+    if (selectedConfigId.value !== allConfigsId && !configs.value.some((config) => config.id === selectedConfigId.value)) {
+      selectedConfigId.value = allConfigsId
     }
     drafts.value = Object.fromEntries(result.activities.map((item) => [
       `${item.configId}:${item.id}`,
       { ...item.fields },
     ]))
+    quickOpenEndTimes.value = Object.fromEntries(result.activities
+      .filter((item) => item.canOpenImmediately)
+      .map((item) => [`${item.configId}:${item.id}`, defaultQuickOpenEndTime()]))
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'โหลดตารางเวลากิจกรรมไม่สำเร็จ'
   } finally {
@@ -74,6 +81,93 @@ async function loadSchedules() {
 
 function rowKey(activity: ScheduleRow) {
   return `${activity.configId}:${activity.id}`
+}
+
+function defaultQuickOpenEndTime() {
+  const end = new Date()
+  end.setDate(end.getDate() + 1)
+  end.setMinutes(0, 0, 0)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`
+}
+
+function formatScheduleDateTime(date: Date) {
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+function formatInputDateTime(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  return match ? `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:00` : ''
+}
+
+async function setThemePassActive(activity: ScheduleRow, active: boolean, event: Event) {
+  const checkbox = event.target
+  if (!(checkbox instanceof HTMLInputElement)) return
+
+  const key = rowKey(activity)
+  if (isDirty(activity) || savingKey.value) {
+    errorMessage.value = 'กรุณาบันทึกตารางเวลาที่แก้ไขค้างไว้ก่อนเปิดทันที'
+    checkbox.checked = isThemePassActive(activity)
+    return
+  }
+
+  const now = new Date()
+  const nowText = formatScheduleDateTime(now)
+  let fields: Record<string, string> = {
+    ShowEnd: nowText,
+  }
+  if (active) {
+    const endTime = formatInputDateTime(quickOpenEndTimes.value[key] || '')
+    const endDate = endTime ? parseScheduleDate(endTime) : null
+    if (!endDate || endDate <= now) {
+      errorMessage.value = 'กรุณากำหนดเวลาปิดให้เป็นอนาคต'
+      checkbox.checked = false
+      return
+    }
+    fields = {
+      ShowStart: nowText,
+      ShowEnd: endTime,
+    }
+    if ('OpenStart' in activity.fields) fields.OpenStart = '-1'
+    if ('ShowWeekStart' in activity.fields) fields.ShowWeekStart = ''
+    if ('ShowWeekEnd' in activity.fields) fields.ShowWeekEnd = ''
+    if ('TabShowEnd' in activity.fields) fields.TabShowEnd = endTime
+  } else {
+    if (!window.confirm(`ยืนยันปิดกิจกรรม "${activity.name}" ทันทีหรือไม่?`)) {
+      checkbox.checked = true
+      return
+    }
+    if ('TabShowEnd' in activity.fields) fields.TabShowEnd = nowText
+  }
+
+  savingKey.value = key
+  errorMessage.value = ''
+  successMessage.value = ''
+  try {
+    await $fetch('/api/activities/schedule', {
+      method: 'POST',
+      body: { configId: activity.configId, id: activity.id, fields },
+    })
+    activity.fields = { ...activity.fields, ...fields }
+    drafts.value[key] = { ...activity.fields }
+    successMessage.value = active
+      ? `${activity.name}: เปิดทันทีและจะปิด ${fields.ShowEnd}`
+      : `${activity.name}: ปิดกิจกรรมแล้ว`
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'เปิดกิจกรรมทันทีไม่สำเร็จ'
+    checkbox.checked = isThemePassActive(activity)
+  } finally {
+    savingKey.value = ''
+  }
+}
+
+function isThemePassActive(activity: ScheduleRow) {
+  if (!activity.canOpenImmediately) return false
+  const start = parseScheduleDate(activity.fields.ShowStart || '')
+  const end = parseScheduleDate(activity.fields.ShowEnd || '')
+  const now = new Date()
+  return Boolean(start && end && now > start && now < end)
 }
 
 function isDirty(activity: ScheduleRow) {
@@ -196,6 +290,7 @@ onMounted(loadSchedules)
       <div class="col-12 col-md-5">
         <label class="form-label" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
         <select id="activity-config" v-model="selectedConfigId" class="form-select" :disabled="loading">
+          <option :value="allConfigsId">ทั้งหมด</option>
           <option v-for="config in configs" :key="config.id" :value="config.id">
             {{ config.title }}
           </option>
@@ -225,16 +320,58 @@ onMounted(loadSchedules)
 
     <div v-if="loading" class="alert alert-info">กำลังโหลดตารางเวลากิจกรรม...</div>
     <div v-else-if="!configRows.length" class="alert alert-secondary">ไม่พบกิจกรรมในหมวดนี้ หรือไม่ตรงกับคำค้นหา</div>
-    <div v-else class="d-flex flex-column gap-2">
-      <article v-for="activity in visibleRows" :key="rowKey(activity)" class="card">
-        <details class="activity-details">
-          <summary class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <span class="fw-semibold">{{ activity.name }}</span>
-            <span class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>
-          </summary>
+    <div v-else class="row g-3">
+      <div v-for="activity in visibleRows" :key="rowKey(activity)" class="col-12 col-xl-6">
+        <article class="card h-100">
+          <img
+            v-if="activity.imageUrl"
+            :src="activity.imageUrl"
+            :alt="`ภาพกิจกรรม ${activity.name}`"
+            class="card-img-top activity-card-image"
+            loading="lazy"
+          >
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div>
+              <h2 class="h6 mb-1">{{ activity.name }}</h2>
+              <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}</div>
+            </div>
+            <div v-if="activity.canOpenImmediately" class="form-check form-switch mb-0">
+              <input
+                :id="`activity-active-${rowKey(activity)}`"
+                class="form-check-input"
+                type="checkbox"
+                role="switch"
+                :checked="isThemePassActive(activity)"
+                :disabled="savingKey !== ''"
+                @change="setThemePassActive(activity, ($event.target as HTMLInputElement).checked, $event)"
+              >
+              <label class="form-check-label" :for="`activity-active-${rowKey(activity)}`">
+                {{ isThemePassActive(activity) ? 'เปิดอยู่' : 'เปิดทันที' }}
+              </label>
+            </div>
+            <span v-else class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>
+          </div>
           <div class="card-body">
+            <div v-if="activity.canOpenImmediately && !isThemePassActive(activity)" class="row align-items-end g-2 mb-3">
+              <div class="col">
+                <label class="form-label small" :for="`activity-open-end-${rowKey(activity)}`">กำหนดเวลาปิดหลังเปิดทันที</label>
+                <input
+                  :id="`activity-open-end-${rowKey(activity)}`"
+                  v-model="quickOpenEndTimes[rowKey(activity)]"
+                  class="form-control form-control-sm"
+                  type="datetime-local"
+                  :disabled="savingKey !== ''"
+                  required
+                >
+              </div>
+              <div class="form-text">เปิดสวิตช์เพื่อเริ่มบัตรธีมทันที และยกเลิกเงื่อนไขวัน/สัปดาห์เดิมของรายการนี้</div>
+            </div>
             <div class="row g-2">
-              <div v-for="field in selectedConfig?.fields.filter((item) => item.key in activity.fields)" :key="field.key" class="col-12 col-lg-6">
+              <div
+                v-for="field in configs.find((config) => config.id === activity.configId)?.fields.filter((item) => item.key in activity.fields)"
+                :key="field.key"
+                class="col-12"
+              >
                 <label class="form-label small mb-1" :for="`activity-${activity.configId}-${activity.id}-${field.key}`">
                   {{ field.label }}
                 </label>
@@ -261,19 +398,16 @@ onMounted(loadSchedules)
               </button>
             </div>
           </div>
-        </details>
-      </article>
+        </article>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
-.activity-details > summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.activity-details > summary::-webkit-details-marker {
-  display: none;
+.activity-card-image {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background-color: var(--bs-tertiary-bg);
 }
 </style>
