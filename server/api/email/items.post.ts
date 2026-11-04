@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import equipmentIcons from '../../../data/email-equipment-icons.json'
+import heroFragmentIcons from '../../../data/email-hero-fragment-icons.json'
+import itemIconFallbacks from '../../../data/email-item-icon-fallbacks.json'
 import hiddenWeaponIcons from '../../../data/email-hidden-weapon-icons.json'
 import clientItemNames from '../../../data/email-item-names.json'
 import petEggIcons from '../../../data/email-pet-egg-icons.json'
@@ -38,6 +40,8 @@ const rewardTypes: Record<string, string> = {
 }
 
 const equipmentIconById = new Map(Object.entries(equipmentIcons))
+const heroFragmentIconById = new Map(Object.entries(heroFragmentIcons))
+const itemIconFallbackById = new Map(Object.entries(itemIconFallbacks))
 const hiddenWeaponIconById = new Map(Object.entries(hiddenWeaponIcons))
 const petEggIconById = new Map(Object.entries(petEggIcons))
 
@@ -82,11 +86,16 @@ export default defineEventHandler(async (event) => {
   if (!existsSync(hiddenWeaponIconDirectory)) {
     throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_hidden_weapons สำหรับโหลดรูปอาวุธลับ' })
   }
+  const heroFragmentIconDirectory = resolve(iconDirectory, '..', 'icons_hero_fragments')
+  if (!existsSync(heroFragmentIconDirectory)) {
+    throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_hero_fragments สำหรับโหลดรูปเศษวิญญาณและตราวิญญาณเทพ' })
+  }
 
   const iconFiles = await readdir(iconDirectory)
   const equipmentIconFiles = new Set(await readdir(equipmentIconDirectory))
   const hiddenWeaponIconFiles = new Set(await readdir(hiddenWeaponIconDirectory))
   const petEggIconFiles = new Set(await readdir(petEggIconDirectory))
+  const heroFragmentIconFiles = new Set(await readdir(heroFragmentIconDirectory))
   const iconUrls = new Map<string, string>()
   for (const filename of iconFiles) {
     const match = /^(\d+)_.*\.png$/i.exec(filename)
@@ -117,6 +126,30 @@ export default defineEventHandler(async (event) => {
 
     const numericIconUrl = iconUrls.get(id)
     if (numericIconUrl) return numericIconUrl
+
+    if (rewardType === '2') {
+      const heroFragmentIcon = heroFragmentIconById.get(id)
+      if (heroFragmentIcon && heroFragmentIconFiles.has(heroFragmentIcon)) {
+        return `/icons_hero_fragments/${encodeURIComponent(heroFragmentIcon)}`
+      }
+
+      const numericId = Number(id)
+      const heroId = (
+        (numericId >= 9021 && numericId <= 9092)
+        || numericId === 9191
+        || numericId === 9192
+      )
+        ? String(numericId - 9000)
+        : numericId >= 19021 && numericId <= 19089
+          ? String(numericId - 19000)
+          : undefined
+      const heroIconUrl = heroId && iconUrls.get(heroId)
+      if (heroIconUrl) return heroIconUrl
+
+      const fallbackId = itemIconFallbackById.get(id)
+      const fallbackIconUrl = fallbackId && iconUrls.get(fallbackId)
+      if (fallbackIconUrl) return fallbackIconUrl
+    }
 
     const equipmentIcon = equipmentIconById.get(id)
     const filename = equipmentIcon && `${equipmentIcon}.png`

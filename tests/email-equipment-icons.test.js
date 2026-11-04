@@ -105,6 +105,43 @@ test('email soul-bone catalog includes every localized item with its image', asy
   }
 })
 
+test('email general item catalog includes every localized item with its image', async () => {
+  const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
+  const heroFragmentIcons = JSON.parse(readFileSync(resolve(root, 'data/email-hero-fragment-icons.json'), 'utf8'))
+  const numericIconFiles = new Set(readdirSync(resolve(root, 'public/icons_renamed')))
+  const heroFragmentIconFiles = new Set(readdirSync(resolve(root, 'public/icons_hero_fragments')))
+  const items = await loadItemsHandler([])({})
+  const generalItems = items.filter((item) => item.rewardType === '2')
+
+  assert.equal(generalItems.length, Object.keys(namesByType['2']).length)
+  assert.equal(Object.keys(heroFragmentIcons).length, 23)
+  for (const [id, name] of Object.entries(namesByType['2'])) {
+    const item = generalItems.find((candidate) => candidate.id === id)
+    assert.ok(item, `General item ${id} is missing from the email catalog`)
+    assert.equal(item.name, name)
+    assert.ok(item.iconUrl, `General item ${id} is missing its image`)
+
+    const filename = decodeURIComponent(item.iconUrl.split('/').pop())
+    const filenames = item.iconUrl.startsWith('/icons_hero_fragments/')
+      ? heroFragmentIconFiles
+      : numericIconFiles
+    assert.ok(filenames.has(filename), `General item ${id} image ${filename} is missing`)
+  }
+
+  for (const [id, filename] of Object.entries(heroFragmentIcons)) {
+    assert.ok(heroFragmentIconFiles.has(filename), `Hero fragment image ${filename} is missing`)
+    assert.equal(
+      generalItems.find((item) => item.id === id)?.iconUrl,
+      `/icons_hero_fragments/${filename}`,
+    )
+  }
+
+  assert.equal(
+    generalItems.find((item) => item.id === '9996')?.iconUrl,
+    '/icons_renamed/9968_gameclient_item1_box9.png',
+  )
+})
+
 test('email catalog includes every localized item type and all equipment images', async () => {
   const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
   const equipmentIcons = JSON.parse(readFileSync(resolve(root, 'data/email-equipment-icons.json'), 'utf8'))
