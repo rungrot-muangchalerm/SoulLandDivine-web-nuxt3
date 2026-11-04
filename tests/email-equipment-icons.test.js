@@ -85,3 +85,51 @@ test('email equipment icon mappings resolve to shipped images', async () => {
   assert.ok(Object.values(namesByType).flatMap(Object.values).every((name) => /[\u0E00-\u0E7F]/.test(name)))
   assert.ok(items.every((item) => !item.name || /[\u0E00-\u0E7F]/.test(item.name)))
 })
+
+test('email soul-bone catalog includes every localized item with its image', async () => {
+  const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
+  const filenames = new Set(readdirSync(resolve(root, 'public/icons_renamed')))
+  const items = await loadItemsHandler([])({})
+  const soulBones = items.filter((item) => item.rewardType === '4')
+  const soulBoneIds = Object.keys(namesByType['4'])
+
+  assert.equal(soulBoneIds.length, 319)
+  assert.equal(soulBones.length, soulBoneIds.length)
+
+  for (const id of soulBoneIds) {
+    const item = soulBones.find((soulBone) => soulBone.id === id)
+    assert.ok(item, `Soul bone ${id} is missing from the email catalog`)
+    assert.equal(item.name, namesByType['4'][id])
+    assert.ok(item.iconUrl, `Soul bone ${id} is missing its image`)
+    assert.ok(filenames.has(decodeURIComponent(item.iconUrl.split('/').pop())))
+  }
+})
+
+test('email catalog includes every localized item type and all equipment images', async () => {
+  const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
+  const equipmentIcons = JSON.parse(readFileSync(resolve(root, 'data/email-equipment-icons.json'), 'utf8'))
+  const equipmentFiles = new Set(readdirSync(resolve(root, 'public/icons_equipment')))
+  const numericIconFiles = new Set(readdirSync(resolve(root, 'public/icons_renamed')))
+  const items = await loadItemsHandler([])({})
+
+  for (const [rewardType, names] of Object.entries(namesByType)) {
+    const typeItems = items.filter((item) => item.rewardType === rewardType)
+    assert.equal(typeItems.length, Object.keys(names).length, `Incomplete reward type ${rewardType}`)
+    for (const [id, name] of Object.entries(names)) {
+      const item = typeItems.find((candidate) => candidate.id === id)
+      assert.ok(item, `Item ${id} is missing from reward type ${rewardType}`)
+      assert.equal(item.name, name)
+    }
+  }
+
+  const equipmentItems = items.filter((item) => item.rewardType === '5')
+  assert.equal(equipmentItems.length, Object.keys(equipmentIcons).length)
+  for (const item of equipmentItems) {
+    assert.ok(item.iconUrl, `Equipment ${item.id} is missing its image`)
+    const filename = decodeURIComponent(item.iconUrl.split('/').pop())
+    assert.ok(
+      equipmentFiles.has(filename) || numericIconFiles.has(filename),
+      `Equipment ${item.id} image ${filename} is missing`,
+    )
+  }
+})

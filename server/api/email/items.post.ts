@@ -126,6 +126,19 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  for (const [rewardType, names] of Object.entries(clientItemNamesByType)) {
+    if (!rewardTypes[rewardType]) continue
+
+    for (const [id, name] of Object.entries(names)) {
+      items.set(`${rewardType}:${id}`, {
+        id,
+        rewardType,
+        iconUrl: getIconUrl(id),
+        name,
+      })
+    }
+  }
+
   return [...items.values()].sort((first, second) =>
     Number(first.rewardType) - Number(second.rewardType)
     || Number(first.id) - Number(second.id),
