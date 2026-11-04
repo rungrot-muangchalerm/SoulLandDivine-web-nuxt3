@@ -11,5 +11,9 @@ legacy
 /icons_renamed
 /key/
 
+# Generated game configuration data; review selected tables before tracking seed data.
+/database/game-config-seed.sql
+/database/game-config-localization-*.sql
+
 # Local test scripts
 /test/

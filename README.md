@@ -1,97 +1,115 @@
 # Soul Land GM Admin
 
-The active application is being migrated to Nuxt 3, with Nitro server routes, at
-the repository root. Previous Express, Vue 2, and Vue 3/Vite projects are kept
-under `legacy/` as references.
+แอปพลิเคชันหลักกำลังทยอยย้ายมาใช้ Nuxt 3 และ Nitro server routes ที่โฟลเดอร์
+รากของโปรเจกต์ ส่วนโปรเจกต์ Express, Vue 2 และ Vue 3/Vite รุ่นก่อนหน้าเก็บไว้ใน
+`legacy/` เพื่อใช้อ้างอิงเท่านั้น
 
-## Run
+## วิธีใช้งาน
 
-Requires Node.js 20.19 or newer and reachable MySQL/MariaDB databases. `DB_*`
-connects to `dlbackstage` for operation logs and broadcasts. `GAMEDB_*`
-connects to `gamedb` for game data, admin accounts, and channels; if omitted,
-its host, port, user, and password fall back to `DB_*`.
+ต้องใช้ Node.js เวอร์ชัน 20.19 ขึ้นไป และเชื่อมต่อฐานข้อมูล MySQL/MariaDB ได้
+`GAMEDB_*` ใช้กำหนดการเชื่อมต่อเดียวกับฐาน `gamedb` ซึ่งใช้ร่วมกันทั้งข้อมูลเกม
+และข้อมูลของเว็บแอดมิน ตัวแปรเดิม `DB_HOST`, `DB_PORT`, `DB_USER` และ
+`DB_PASSWORD` จะถูกใช้เป็นค่าสำรองเฉพาะเมื่อไม่ได้กำหนดตัวแปร `GAMEDB_*`
+ที่ตรงกัน ส่วน `DB_NAME` จะไม่ถูกนำมาใช้ โดยเว็บจะใช้ฐาน `gamedb` หากไม่ได้
+กำหนด `GAMEDB_NAME`
 
 ```powershell
 Copy-Item .env.example .env
-# Set DB_* and GAMEDB_* in .env for the two databases
+# กำหนด GAMEDB_* ใน .env ให้เชื่อมต่อฐานข้อมูลที่ใช้ร่วมกัน
 npm install
 npm run dev
 ```
 
-The development and preview servers use `http://localhost:8081` by default
-and listen on IPv4 so VS Code/browser port forwarding can connect. For the
-production Nitro server, set `HOST=0.0.0.0` and `PORT=8081` (or
-`NITRO_HOST=0.0.0.0` and `NITRO_PORT=8081`).
+เซิร์ฟเวอร์สำหรับพัฒนาและ preview ใช้ `http://localhost:8081` เป็นค่าเริ่มต้น
+และรับการเชื่อมต่อผ่าน IPv4 เพื่อให้ VS Code หรือเบราว์เซอร์เชื่อมต่อผ่าน port
+forwarding ได้ ส่วน Nitro server สำหรับ production ให้กำหนด `HOST=0.0.0.0`
+และ `PORT=8081` (หรือใช้ `NITRO_HOST=0.0.0.0` และ `NITRO_PORT=8081`)
 
-The checked-in `database/gamedb_export.sql` is a database dump containing
-`DROP TABLE` and `CREATE TABLE` statements. Do not import it into a live
-database without reviewing it and taking a backup first.
+ไฟล์ `database/gamedb_export.sql` ที่อยู่ใน repository เป็น database dump ซึ่งมี
+คำสั่ง `DROP TABLE` และ `CREATE TABLE` อย่านำเข้าไฟล์นี้ในฐานข้อมูลที่ใช้งานจริง
+โดยยังไม่ได้ตรวจสอบและสำรองข้อมูลก่อน
 
-Apply `database/migrations/20261031_admin_users_gamedb.sql` once to create the
-`gamedb.admin_user` table and copy existing admin accounts from
-`dlbackstage.user`. Login, sessions, and admin-account management then use
-`gamedb.admin_user`. Apply
-`database/migrations/20261103_channel_list_gamedb.sql` once to create
-`gamedb.channel_list` with the existing `dlbackstage.channel_list` structure and
-copy its channel records. The migration leaves the old table in place for
-rollback; the web app reads and updates channels in `gamedb` afterward.
-Operation logs and broadcasts continue to use `dlbackstage`.
+ไฟล์ `database/game-config-schema.sql` ใช้สร้างตารางเว็บแอดมินที่ใช้ฐานร่วมกัน
+(`admin_user`, `channel_list`, `operationlog` และ `broadcast`), ตาราง
+configuration ของเกม และตารางเก็บเวอร์ชัน schema ไฟล์นี้เป็น schema ฉบับร่าง
+สำหรับพิจารณาว่าจะย้ายชุดข้อมูลใดจาก XML เข้า database ต่อไปยังต้องเลือกตาราง
+ที่ต้องการก่อนนำไปใช้จริง ข้อมูล NPC, ตำแหน่งวาง/จุดเกิด และ configuration
+แผนที่/ด่านยังคงอ่านจาก XML ตามเดิม Schema นี้ยังไม่สามารถใช้แทน
+`database/gamedb_export.sql` สำหรับตาราง runtime เดิมที่ game server ใช้อยู่ได้
 
-The player information page lists accounts with characters in the selected
-server, 50 accounts per page. Expanding an account shows its characters,
-resources, and recharge totals. Player totals are aggregated from that
-account's characters on the selected server. Online state is not stored in the
-exported character tables, so it displays as unknown. Mute/unmute and
-freeze/unfreeze actions remain targeted to an individual character and continue
-to use the Game Server protocol.
+ไฟล์ข้อมูลตั้งต้น `database/game-config-seed.sql` และ
+`database/game-config-localization-th.sql` เป็นไฟล์ที่สร้างจากข้อมูลเกม จึงถูก
+ตั้งค่า ignore ไว้และจะไม่รวมใน Git ระหว่างเลือกขอบเขตตาราง ข้อความ localization
+หากนำมาใช้ภายหลังจะต้องเก็บแยกจากค่าที่ควบคุมการทำงานของเกม และโค้ดที่อ่าน
+configuration ต้องรองรับการเลือกข้อความตามภาษาด้วย
 
-The item deduction page loads the selected server's inventory automatically,
-50 rows per page, including item stacks, equipment, soul rings/bones, and
-supported collectible items. Currency balances and inventory categories without
-a matching Game Server deduction type are shown read-only.
+หากกำลังย้ายระบบเดิม ให้รัน migration
+`database/migrations/20261031_admin_users_gamedb.sql` หนึ่งครั้งเพื่อคัดลอกบัญชี
+แอดมินจาก `dlbackstage.user` หลังจากนั้นระบบ login, session และการจัดการบัญชี
+แอดมินจะใช้ `gamedb.admin_user` จากนั้นรัน
+`database/migrations/20261103_channel_list_gamedb.sql` หนึ่งครั้งเพื่อคัดลอก
+channel จาก `dlbackstage.channel_list` โดย migration จะเก็บตารางเดิมไว้เพื่อใช้
+ย้อนกลับ ส่วนเว็บจะอ่านและแก้ไข channel ใน `gamedb`
 
-The email page separates the recipient type (individual players or a server)
-from the message content (an Email template or custom title, sender, body, and
-item rewards). Custom rewards can be selected from the catalog or entered by
-item ID, type, and quantity, up to 255 items per request. Custom rewards are
-sent in separate emails when their combined reward data would exceed 255
-characters per email. Individual recipients use `serverId:UID`,
-separated by `|` for multiple players (up to 50 per request). Custom server
-mail can target the selected server or all RelationServers connected to the
-selected channel's GlobalServer. Custom mail uses the existing Game Server
-protocol and requires rebuilding and restarting GlobalServer and RelationServer
-once after updating their code; the other game-server processes are unchanged.
-Custom mail is placed in a sequential in-process queue, with progress retained
-in NodeCache for seven days. The API returns a job ID immediately; the email
-page polls that ID for progress and completion. Because this queue is in memory,
-pending jobs and their status are lost if the Nuxt process restarts, and this
-setup requires a single Nuxt process for queue and status requests.
+ก่อนเปลี่ยนเว็บให้ใช้ฐานใหม่ ให้รัน
+`database/migrations/20261104_admin_operations_gamedb.sql` เพื่อสร้างตาราง
+`gamedb.operationlog` และ `gamedb.broadcast` พร้อมคัดลอกข้อมูลเดิมจาก
+`dlbackstage` ควรพักการเขียนข้อมูลจากหน้าแอดมินระหว่าง migration ทำงาน แล้วจึง
+เริ่มเว็บเวอร์ชันใหม่ migration นี้เพิ่มข้อมูลโดยใช้ `INSERT IGNORE` จึงรันซ้ำ
+เพื่อคัดลอกแถวที่ยังไม่มี ID ซ้ำใน `gamedb` ได้ แต่จะไม่เขียนทับแถวที่มีอยู่แล้ว
+ควรเก็บฐานเดิมไว้จนกว่าจะตรวจสอบข้อมูลที่ย้ายเสร็จ หลังจาก migration แล้ว ทั้ง
+game server และการทำงานของเว็บแอดมินจะใช้ `gamedb`
 
-Nuxt serves all 28 former admin screens and the Nitro API on the same origin.
-Nitro handles login/session validation, channel and user administration,
-operation logs, broadcast scheduling, announcement uploads/downloads, and
-game-server protocol requests. Configure `GAMESERVER_HOST`/`GAMESERVER_PORT`
-for game-server protocol requests. Announcement files are proxied to the
-Game AdminAPI using `ADMIN_API_URL` and `ADMIN_API_TOKEN`; the token is kept
-server-side and sent in the `token` HTTP header. Never put it in a Vue
-component or commit it to source control. The old Express service is not used
-as a proxy.
+หน้าแสดงข้อมูลผู้เล่นจะแสดงบัญชีที่มีตัวละครอยู่ใน server ที่เลือก ครั้งละ 50
+บัญชี เมื่อขยายบัญชีจะแสดงตัวละคร ทรัพยากร และยอดเติมเงิน ยอดรวมของผู้เล่นคำนวณ
+จากตัวละครของบัญชีนั้นใน server ที่เลือก ตารางตัวละครที่ export มาไม่มีข้อมูล
+สถานะออนไลน์ จึงแสดงสถานะเป็นไม่ทราบ การปิด/เปิด mute และ freeze ยังคงทำกับ
+ตัวละครที่เลือกเป็นรายตัว และส่งคำสั่งผ่าน Game Server protocol
 
-The `/activities` admin page manages verified schedule fields from the
-allowlisted activity XML configs documented in `docs/API_DOCUMENTATION.md`.
-After changing `Game_Server/AdminAPI`, rebuild and restart AdminAPI before the
-new activity endpoints are available; the game server may also need to reload
-its XML configuration.
+หน้าหักไอเทมจะโหลด inventory ของ server ที่เลือกโดยอัตโนมัติ ครั้งละ 50 แถว
+รวมถึงไอเทมแบบ stack, อุปกรณ์, วงแหวน/กระดูกวิญญาณ และไอเทมสะสมประเภทที่รองรับ
+ยอดเงินและหมวด inventory ที่ไม่มี Game Server deduction type รองรับจะแสดงเพื่อ
+ดูเท่านั้น
 
-Routes that depend on the database, game server, or announcement service need
-those services configured for end-to-end verification. Legacy files remain
-under `legacy/` as reference, not as the running application.
+หน้าอีเมลแยกประเภทผู้รับ (ผู้เล่นรายบุคคลหรือทั้ง server) ออกจากเนื้อหาอีเมล
+(เทมเพลต Email หรือกำหนดหัวข้อ ผู้ส่ง เนื้อหา และรางวัลเอง) รางวัลที่กำหนดเอง
+เลือกจากรายการหรือกรอก item ID, type และจำนวนได้ โดยส่งได้ไม่เกิน 255 ไอเทมต่อ
+คำขอ หากข้อมูลรางวัลรวมยาวเกิน 255 ตัวอักษร ระบบจะแยกส่งเป็นหลายอีเมล ผู้รับ
+รายบุคคลระบุด้วยรูปแบบ `serverId:UID` และคั่นผู้เล่นหลายคนด้วย `|` (ไม่เกิน 50
+คนต่อคำขอ) อีเมลที่กำหนดเองสำหรับ server ส่งได้ทั้ง server ที่เลือก หรือทุก
+RelationServer ที่เชื่อมกับ GlobalServer ของ channel ที่เลือก
 
-## Migration references
+อีเมลที่กำหนดเองใช้ Game Server protocol เดิม หลังแก้โค้ดต้อง build และ restart
+GlobalServer กับ RelationServer หนึ่งครั้ง ส่วน process เกมอื่นไม่เปลี่ยนแปลง
+ระบบส่งอีเมลเข้าคิวตามลำดับใน process และเก็บสถานะความคืบหน้าไว้ใน NodeCache
+เป็นเวลาเจ็ดวัน API จะส่ง job ID กลับทันที จากนั้นหน้าอีเมลจะตรวจสอบ job ID เพื่อ
+ดูความคืบหน้าและผลลัพธ์ เนื่องจากคิวอยู่ในหน่วยความจำ งานที่ยังไม่เสร็จและสถานะ
+จะหายไปเมื่อ Nuxt process restart และระบบนี้ต้องใช้ Nuxt process เดียวสำหรับ
+จัดการคิวและตรวจสอบสถานะ
 
-- `legacy/express/` — former Express API, DB models, and game-server integration
-- `legacy/vue2/` — former Vue 2 admin interface
-- `legacy/vue3/` — former Vue 3/Vite prototype
+Nuxt ให้บริการหน้าแอดมินเดิมทั้ง 28 หน้าและ Nitro API จาก origin เดียวกัน Nitro
+จัดการ login และตรวจสอบ session, การจัดการ channel และผู้ใช้, operation log,
+การตั้งเวลาส่ง broadcast, การอัปโหลด/ดาวน์โหลดประกาศ และคำขอผ่าน Game Server
+protocol ให้กำหนด `GAMESERVER_HOST`/`GAMESERVER_PORT` สำหรับการเชื่อมต่อ
+Game Server ไฟล์ประกาศจะส่งต่อไปยัง Game AdminAPI โดยใช้ `ADMIN_API_URL` และ
+`ADMIN_API_TOKEN` โดย token จะถูกเก็บและส่งจากฝั่ง server ผ่าน HTTP header ชื่อ
+`token` ห้ามใส่ token ใน Vue component หรือ commit ลง source control ระบบ
+Express รุ่นเก่าไม่ได้ทำหน้าที่เป็น proxy
 
-Database configuration is supplied through environment variables; never commit
-the local `.env` file.
+หน้าแอดมิน `/activities` ใช้จัดการเฉพาะ field ตารางเวลาที่ตรวจสอบแล้วจาก
+activity XML config ที่อนุญาตไว้ ซึ่งระบุใน `docs/API_DOCUMENTATION.md` หลัง
+แก้ไข `Game_Server/AdminAPI` ต้อง build และ restart AdminAPI ก่อน endpoint
+กิจกรรมใหม่จึงจะใช้งานได้ และ game server อาจต้อง reload XML configuration ด้วย
+
+การตรวจสอบการทำงานครบวงจรของ route ที่พึ่งพาฐานข้อมูล game server หรือบริการ
+ประกาศ จำเป็นต้องตั้งค่าบริการเหล่านั้นให้พร้อม ไฟล์ระบบเก่ายังคงอยู่ใน
+`legacy/` เพื่อใช้อ้างอิง ไม่ใช่แอปพลิเคชันที่กำลังทำงาน
+
+## ไฟล์อ้างอิงสำหรับการย้ายระบบ
+
+- `legacy/express/` — Express API, DB models และส่วนเชื่อมต่อ game server รุ่นเดิม
+- `legacy/vue2/` — หน้าแอดมิน Vue 2 รุ่นเดิม
+- `legacy/vue3/` — ต้นแบบ Vue 3/Vite รุ่นเดิม
+
+การตั้งค่าฐานข้อมูลกำหนดผ่าน environment variables ห้าม commit ไฟล์ `.env`
+ที่ใช้ในเครื่องลง source control
