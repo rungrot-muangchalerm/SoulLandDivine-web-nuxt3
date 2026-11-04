@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import equipmentIcons from '../../../data/email-equipment-icons.json'
+import hiddenWeaponIcons from '../../../data/email-hidden-weapon-icons.json'
 import clientItemNames from '../../../data/email-item-names.json'
 import petEggIcons from '../../../data/email-pet-egg-icons.json'
 import rewardCatalog from '../../../data/email-reward-catalog.json'
@@ -37,6 +38,7 @@ const rewardTypes: Record<string, string> = {
 }
 
 const equipmentIconById = new Map(Object.entries(equipmentIcons))
+const hiddenWeaponIconById = new Map(Object.entries(hiddenWeaponIcons))
 const petEggIconById = new Map(Object.entries(petEggIcons))
 
 function getThaiName(value: unknown): string | undefined {
@@ -76,9 +78,14 @@ export default defineEventHandler(async (event) => {
   if (!existsSync(petEggIconDirectory)) {
     throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_pet_eggs สำหรับโหลดรูปไข่สัตว์เลี้ยง' })
   }
+  const hiddenWeaponIconDirectory = resolve(iconDirectory, '..', 'icons_hidden_weapons')
+  if (!existsSync(hiddenWeaponIconDirectory)) {
+    throw createError({ statusCode: 500, statusMessage: 'ไม่พบโฟลเดอร์ public/icons_hidden_weapons สำหรับโหลดรูปอาวุธลับ' })
+  }
 
   const iconFiles = await readdir(iconDirectory)
   const equipmentIconFiles = new Set(await readdir(equipmentIconDirectory))
+  const hiddenWeaponIconFiles = new Set(await readdir(hiddenWeaponIconDirectory))
   const petEggIconFiles = new Set(await readdir(petEggIconDirectory))
   const iconUrls = new Map<string, string>()
   for (const filename of iconFiles) {
@@ -92,6 +99,14 @@ export default defineEventHandler(async (event) => {
   }
 
   const getIconUrl = (id: string, rewardType: string) => {
+    if (rewardType === '13') {
+      const hiddenWeaponIcon = hiddenWeaponIconById.get(id)
+      const hiddenWeaponFilename = hiddenWeaponIcon && `${hiddenWeaponIcon}.png`
+      if (hiddenWeaponFilename && hiddenWeaponIconFiles.has(hiddenWeaponFilename)) {
+        return `/icons_hidden_weapons/${encodeURIComponent(hiddenWeaponFilename)}`
+      }
+    }
+
     if (rewardType === '21') {
       const petEggIcon = petEggIconById.get(id)
       const petEggFilename = petEggIcon && `${petEggIcon}.png`

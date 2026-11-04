@@ -129,6 +129,19 @@
                             ></bs-option>
                         </bs-select>
                     </label>
+                    <label v-if="customContent" class="email-field email-picker-quantity">
+                        <span>{{ selectedRewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
+                        <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
+                    </label>
+                    <button
+                        v-if="customContent"
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary align-self-end"
+                        :disabled="!selectedRewards.length"
+                        @click="applyQuantityToSelectedRewards"
+                    >
+                        ใช้จำนวนกับรายการที่เลือก
+                    </button>
                     <div class="email-reward-picker-actions">
                         <button
                             type="button"
@@ -151,6 +164,9 @@
                 </div>
                 <p v-if="customContent && ringEmailCount" class="email-help mt-2 mb-0">
                     วงแหวนที่เลือกจะส่ง {{ ringEmailCount.toLocaleString() }} ฉบับต่อผู้รับ (ฉบับละ 1 วงต่อประเภท)
+                </p>
+                <p v-if="customContent" class="email-help mt-2 mb-0">
+                    เลือกไอเทมจากรายการด้านล่าง แล้วกำหนดจำนวนได้จากช่องด้านบน
                 </p>
                 <div
                     v-if="!customContent && selectedEmailTemplate && templateRewardItems.length"
@@ -190,62 +206,6 @@
                         </article>
                     </div>
                 </div>
-                <div v-if="customContent" class="email-manual-reward">
-                    <label class="email-field">
-                        <span>ประเภทไอเทม</span>
-                        <bs-select v-model="manualReward.rewardType">
-                            <bs-option
-                                v-for="item in reward_list"
-                                :key="item.value"
-                                :label="item.label"
-                                :value="item.value"
-                            ></bs-option>
-                        </bs-select>
-                    </label>
-                    <label class="email-field">
-                        <span>ID ไอเทม</span>
-                        <input v-model="manualReward.id" class="form-control" inputmode="numeric" placeholder="กรอก ID">
-                    </label>
-                    <label class="email-field">
-                        <span>{{ manualReward.rewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
-                        <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
-                    </label>
-                    <button
-                        type="button"
-                        class="btn btn-outline-secondary align-self-end"
-                        :disabled="!selectedRewards.length"
-                        @click="applyQuantityToSelectedRewards"
-                    >
-                        {{ selectedRewardType === '3' ? 'ใช้จำนวนฉบับกับรายการที่เลือก' : 'ใช้จำนวนนี้กับรายการที่เลือก' }}
-                    </button>
-                    <label
-                        v-for="param in rewardParameterFields(manualReward.rewardType)"
-                        :key="param.index"
-                        class="email-field"
-                    >
-                        <span>{{ param.label }}</span>
-                        <input
-                            v-model="manualReward.params[param.index]"
-                            class="form-control"
-                            type="number"
-                            min="1"
-                            max="2147483647"
-                            step="1"
-                            inputmode="numeric"
-                            :placeholder="param.label"
-                        >
-                    </label>
-                    <button
-                        type="button"
-                        class="btn btn-outline-primary align-self-end"
-                        @click="addManualReward"
-                    >
-                        เพิ่มไอเทมตาม ID
-                    </button>
-                </div>
-                <p v-if="customContent" class="email-help mt-2 mb-0">
-                    เพิ่มไอเทมด้วย ID ได้ แม้ไม่มีในรายการร้านค้า
-                </p>
                 <div v-if="!itemCatalogLoading && !itemCatalogError && itemsForType(selectedRewardType).length" :key="selectedRewardType" class="email-catalog-list">
                     <div
                         v-for="item in itemsForType(selectedRewardType)"
@@ -363,10 +323,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 selectedRewardType: '2',
                 selectedRewards: [],
                 manualReward: {
-                    id: '',
-                    rewardType: '2',
-                    quantity: '1',
-                    params: ['', '', '']
+                    quantity: '1'
                 },
                 type_list: [{
                     value: 'allserver',
@@ -400,9 +357,6 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 }, {
                     value: '5',
                     label: 'อุปกรณ์'
-                }, {
-                    value: '6',
-                    label: 'ภารกิจ'
                 }, {
                     value: '7',
                     label: 'ตัวละคร'
@@ -606,48 +560,6 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 if (unselectedItems.length > availableSlots) {
                     BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ เลือกเพิ่มได้เท่าที่เหลือ')
                 }
-            },
-            addManualReward () {
-                const id = String(this.manualReward.id).trim()
-                const quantity = String(this.manualReward.quantity).trim()
-                if (!/^[1-9]\d*$/.test(id) || Number(id) > 2147483647) {
-                    BsMessage.error('ID ไอเทมต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647')
-                    return
-                }
-                if (!/^[1-9]\d*$/.test(quantity) || Number(quantity) > 2147483647) {
-                    BsMessage.error('จำนวนไอเทมต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647')
-                    return
-                }
-                if (this.manualReward.params.some(param => param && !/^\d+$/.test(param))) {
-                    BsMessage.error('พารามิเตอร์ไอเทมต้องเป็นตัวเลข')
-                    return
-                }
-                if (this.manualReward.rewardType === '3'
-                    && (!/^[1-9]\d*$/.test(this.manualReward.params[0])
-                        || Number(this.manualReward.params[0]) > MAX_SOUL_RING_YEAR)) {
-                    BsMessage.error(`ปีวงแหวนวิญญาณต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
-                    return
-                }
-
-                const item = { id, rewardType: this.manualReward.rewardType }
-                if (this.isRewardSelected(item)) {
-                    BsMessage.error('ไอเทมนี้อยู่ในรายการของรางวัลแล้ว')
-                    return
-                }
-                if (this.selectedRewards.length >= 255) {
-                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
-                    return
-                }
-                this.selectedRewards.push({
-                    key: this.rewardKey(item),
-                    id,
-                    rewardType: item.rewardType,
-                    quantity,
-                    params: [...this.manualReward.params]
-                })
-                this.manualReward.id = ''
-                this.manualReward.quantity = '1'
-                this.manualReward.params = ['', '', '']
             },
             applyQuantityToSelectedRewards () {
                 const quantity = String(this.manualReward.quantity).trim()
@@ -877,10 +789,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 const senderName = this.form.senderName;
                 this.allServers = false;
                 this.selectedRewards = [];
-                this.manualReward.id = '';
-                this.manualReward.rewardType = '2';
                 this.manualReward.quantity = '1';
-                this.manualReward.params = ['', '', ''];
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
@@ -951,6 +860,10 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
 .email-reward-type {
     flex: 1 1 240px;
     max-width: 420px;
+}
+
+.email-picker-quantity {
+    flex: 0 1 110px;
 }
 
 .email-reward-picker-actions {

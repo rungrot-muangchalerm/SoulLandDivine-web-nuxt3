@@ -149,3 +149,24 @@ test('email pet eggs use their Game Client icons', async () => {
     assert.ok(filenames.has(`${icon}.png`), `Missing Game Client pet egg icon ${icon}.png`)
   }
 })
+
+test('email hidden weapons use their Game Client icons', async () => {
+  const hiddenWeaponIcons = JSON.parse(readFileSync(resolve(root, 'data/email-hidden-weapon-icons.json'), 'utf8'))
+  const filenames = new Set(readdirSync(resolve(root, 'public/icons_hidden_weapons')))
+  const items = await loadItemsHandler([])({})
+  const hiddenWeapons = items.filter((item) => item.rewardType === '13')
+
+  assert.equal(Object.keys(hiddenWeaponIcons).length, 22)
+  assert.equal(hiddenWeapons.length, Object.keys(hiddenWeaponIcons).length)
+  for (const [id, icon] of Object.entries(hiddenWeaponIcons)) {
+    const item = hiddenWeapons.find((hiddenWeapon) => hiddenWeapon.id === id)
+    assert.ok(item, `Hidden weapon ${id} is missing from the email catalog`)
+    assert.equal(item.iconUrl, `/icons_hidden_weapons/${icon}.png`)
+    assert.ok(filenames.has(`${icon}.png`), `Missing Game Client hidden weapon icon ${icon}.png`)
+  }
+})
+
+test('email item picker excludes task rewards, which are not inventory items', () => {
+  const emailPage = readFileSync(resolve(root, 'components/legacy-pages/email/SendEmail.vue'), 'utf8')
+  assert.doesNotMatch(emailPage, /value:\s*'6',\s*label:\s*'ภารกิจ'/)
+})
