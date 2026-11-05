@@ -152,6 +152,17 @@
                             ></bs-option>
                         </bs-select>
                     </label>
+                    <label v-if="selectedRewardType === '5'" class="email-field email-equipment-quality">
+                        <span>คุณภาพอุปกรณ์</span>
+                        <bs-select v-model="selectedEquipmentQuality">
+                            <bs-option
+                                v-for="quality in equipmentQualities"
+                                :key="quality.value"
+                                :label="quality.label"
+                                :value="quality.value"
+                            ></bs-option>
+                        </bs-select>
+                    </label>
                     <label v-if="customContent" class="email-field email-picker-quantity">
                         <span>{{ selectedRewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
                         <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
@@ -197,7 +208,7 @@
                         <button
                             type="button"
                             class="btn btn-sm btn-outline-secondary"
-                            :disabled="!itemsForType(selectedRewardType).some(item => isRewardSelected(item))"
+                            :disabled="!selectedRewards.some(reward => reward.rewardType === selectedRewardType)"
                             @click="setCurrentTypeSelection(false)"
                         >
                             ล้างประเภทนี้
@@ -210,6 +221,9 @@
                 </p>
                 <p v-if="customContent" class="email-help mt-2 mb-0">
                     เลือกไอเทมจากรายการด้านล่าง แล้วกำหนดจำนวนได้จากช่องด้านบน
+                </p>
+                <p v-if="selectedRewardType === '5'" class="email-help mt-2 mb-0">
+                    เลือกคุณภาพเพื่อกรองรายการอุปกรณ์; อุปกรณ์ที่เลือกจากคุณภาพอื่นยังคงอยู่ในรายการส่ง
                 </p>
                 <div
                     v-if="!customContent && selectedEmailTemplate && templateRewardItems.length"
@@ -377,7 +391,20 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 rememberEmailSettings: false,
                 isRestoringEmailSettings: false,
                 selectedRewardType: '2',
+                selectedEquipmentQuality: '',
                 selectedRewards: [],
+                equipmentQualities: [
+                    { value: '', label: 'ทุกคุณภาพ' },
+                    { value: '1', label: 'คุณภาพ 1 (ขาว)' },
+                    { value: '2', label: 'คุณภาพ 2 (น้ำเงิน)' },
+                    { value: '3', label: 'คุณภาพ 3 (ม่วง)' },
+                    { value: '4', label: 'คุณภาพ 4 (ส้ม)' },
+                    { value: '5', label: 'คุณภาพ 5 (แดง)' },
+                    { value: '6', label: 'คุณภาพ 6 (ทอง)' },
+                    { value: '7', label: 'คุณภาพ 7 (ตำนาน)' },
+                    { value: '8', label: 'คุณภาพ 8 (มหากาพย์)' },
+                    { value: '9', label: 'คุณภาพ 9 (มายา)' }
+                ],
                 manualReward: {
                     quantity: '1',
                     year: ''
@@ -674,7 +701,14 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 }
             },
             itemsForType (rewardType) {
-                return this.itemCatalog.filter(item => item.rewardType === rewardType)
+                return this.itemCatalog.filter(item =>
+                    item.rewardType === rewardType
+                    && (
+                        rewardType !== '5'
+                        || !this.selectedEquipmentQuality
+                        || String(item.quality) === this.selectedEquipmentQuality
+                    )
+                )
             },
             rewardKey (item) {
                 return `${item.rewardType}:${item.id}`
@@ -688,10 +722,6 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
             toggleReward (item, checked) {
                 const key = this.rewardKey(item)
                 if (checked && !this.isRewardSelected(item)) {
-                    if (this.selectedRewards.length >= 255) {
-                        BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
-                        return
-                    }
                     this.selectedRewards.push({
                         key,
                         id: item.id,
@@ -711,19 +741,10 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     return
                 }
 
-                const availableSlots = 255 - this.selectedRewards.length
-                if (availableSlots <= 0) {
-                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
-                    return
-                }
-
                 const unselectedItems = this.itemsForType(this.selectedRewardType)
                     .filter(item => !this.isRewardSelected(item))
-                for (const item of unselectedItems.slice(0, availableSlots)) {
+                for (const item of unselectedItems) {
                     this.toggleReward(item, true)
-                }
-                if (unselectedItems.length > availableSlots) {
-                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ เลือกเพิ่มได้เท่าที่เหลือ')
                 }
             },
             applyQuantityToSelectedRewards () {
@@ -847,10 +868,6 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     !/^[1-9]\d*$/.test(String(reward.quantity ?? '').trim())
                     || Number(reward.quantity) > 2147483647,
                 )
-                if (this.selectedRewards.length > 255) {
-                    BsMessage.error('เลือกของแนบได้สูงสุด 255 รายการ')
-                    return
-                }
                 if (incompleteReward) {
                     BsMessage.error(`จำนวนของไอเทม ID ${incompleteReward.id} ต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647`)
                     return
@@ -948,6 +965,8 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     if (result?.result === 1) {
                         if (this.customContent && result.batchCount > 1) {
                             BsMessage.success(`ส่งอีเมล ${result.batchCount} ชุดไปยัง ${result.targetCount} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'ผู้เล่น'}สำเร็จ`)
+                        } else if (result.batchCount > 1) {
+                            BsMessage.success(`ส่งอีเมลสำเร็จ ${result.sent.toLocaleString()}/${result.total.toLocaleString()} ชุด`)
                         } else {
                             BsMessage.success(result.sent < result.total
                                 ? `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
@@ -956,15 +975,22 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                         this.handleCancle(true)
                     } else {
                         const partialMessage = Number.isInteger(result?.sent) && Number.isInteger(result?.total)
-                            ? this.customContent && result.batchCount > 1
-                                ? `ส่งสำเร็จ ${result.sent}/${result.total} ฉบับอีเมล`
-                                : `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
+                            ? (
+                                this.customContent && result.batchCount > 1
+                                    ? `ส่งสำเร็จ ${result.sent}/${result.total} ฉบับอีเมล`
+                                    : result.batchCount > 1
+                                        ? `ส่งอีเมลสำเร็จ ${result.sent}/${result.total} ชุด`
+                                        : `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
+                            )
                             : ''
                         const failedRecipients = Array.isArray(result?.failed)
                             ? result.failed.map(item => item.recipient).join(', ')
                             : ''
                         BsMessage.error([
                             partialMessage || result?.message || 'ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบข้อมูลและลองอีกครั้ง',
+                            Array.isArray(result?.failedBatches) && result.failedBatches.length
+                                ? `ชุดที่ไม่สำเร็จ: ${result.failedBatches.join(', ')}`
+                                : '',
                             failedRecipients ? `ส่งไม่สำเร็จ: ${failedRecipients}` : ''
                         ].filter(Boolean).join('\n'))
                     }
@@ -1130,6 +1156,11 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
 }
 
 .email-reward-type {
+    flex: 0 1 190px;
+    max-width: 220px;
+}
+
+.email-equipment-quality {
     flex: 0 1 190px;
     max-width: 220px;
 }

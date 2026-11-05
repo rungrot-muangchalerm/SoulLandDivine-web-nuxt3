@@ -7,6 +7,10 @@ import { getAdminSession } from '../utils/admin-session'
 import { sendGamePacket } from '../utils/game-server'
 import { recordOperationLog as writeOperationLog } from '../utils/operation-log'
 import { enqueueCustomEmail } from '../utils/custom-email-queue'
+import {
+  getEmailRewardBatches,
+  MAX_EMAIL_REWARD_BATCH_LENGTH,
+} from '../utils/email-rewards'
 
 type Body = Record<string, unknown>
 type SqlValue = string | number | boolean | Date | null
@@ -93,26 +97,6 @@ function isSoulRingReward(reward: string) {
   return /^([1-9]\d*):3:([1-9]\d*)@([1-9]\d*)$/.test(reward)
 }
 
-function getEmailRewardBatches(rewards: string[]) {
-  const batches: string[][] = []
-  let batch: string[] = []
-
-  for (const reward of rewards) {
-    const nextBatch = [...batch, reward]
-    if (nextBatch.join('|').length > 255) {
-      batches.push(batch)
-      batch = [reward]
-    } else {
-      batch = nextBatch
-    }
-  }
-
-  if (batch.length || batches.length === 0) {
-    batches.push(batch)
-  }
-  return batches
-}
-
 function getSoulRingEmailBatches(rewards: string[]) {
   const batches: Array<{ rewards: string[]; repeatCount: number }> = []
   for (const reward of rewards) {
@@ -123,6 +107,33 @@ function getSoulRingEmailBatches(rewards: string[]) {
     batches.push({ rewards: [singleRingReward], repeatCount: quantity })
   }
   return batches
+}
+
+async function sendEmailRewardBatches(
+  rewards: string[],
+  sendBatch: (batch: string[]) => Promise<unknown>,
+) {
+  const batches = getEmailRewardBatches(rewards)
+  const results: unknown[] = []
+  for (const batch of batches) {
+    results.push(await sendBatch(batch))
+  }
+
+  if (results.length === 1) return results[0]
+
+  const failedBatches = results.flatMap((result, index) =>
+    typeof result === 'object' && result !== null && 'result' in result
+      && result.result === 1
+      ? []
+      : [index + 1],
+  )
+  return {
+    result: failedBatches.length ? 0 : 1,
+    sent: results.length - failedBatches.length,
+    total: results.length,
+    batchCount: results.length,
+    failedBatches,
+  }
 }
 
 async function recordOperation(
@@ -381,6 +392,10 @@ export default defineEventHandler(async (event) => {
     if (!/^[1-9]\d*$/.test(mailId) || Number(mailId) > 2147483647) {
       throw createError({ statusCode: 400, statusMessage: 'รหัสเทมเพลตต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647' })
     }
+    const rewards = getEmailRewards(body)
+    if (rewards.some((item) => item.length > MAX_EMAIL_REWARD_BATCH_LENGTH || !validEmailReward(item))) {
+      throw createError({ statusCode: 400, message: 'ข้อมูลรางวัลไม่ถูกต้อง' })
+    }
   }
 
   if (['welfare/searchPlayer', 'welfare/addPlayer', 'welfare/deletePlayer'].includes(route)) {
@@ -455,12 +470,12 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'ข้อมูลอีเมลหรือไอเทมไม่ถูกต้อง' })
     }
 
-    const result = await sendGamePacket({
+    const result = await sendEmailRewardBatches(rewards, (batch) => sendGamePacket({
       mailId,
       serverId,
       uid: '0',
-      reward: rewards.join('|'),
-    }, 10020, channel)
+      reward: batch.join('|'),
+    }, 10020, channel))
     await recordOperation(event, session.username, route, body)
     return result
   }
@@ -484,10 +499,9 @@ export default defineEventHandler(async (event) => {
         statusMessage: 'หัวข้อ/ชื่อผู้ส่งต้องไม่เกิน 255 ตัวอักษร และเนื้อหาต้องไม่เกิน 2550 ตัวอักษร',
       })
     }
-    if (rewards.length > 255) {
-      throw createError({ statusCode: 400, statusMessage: 'แนบของรางวัลได้สูงสุด 255 รายการต่อคำขอ' })
-    }
-    if (rewards.some((item) => item.length > 255 || !validEmailReward(item))) {
+    if (rewards.some((item) =>
+      item.length > MAX_EMAIL_REWARD_BATCH_LENGTH || !validEmailReward(item),
+    )) {
       throw createError({ statusCode: 400, message: 'ข้อมูลรางวัลไม่ถูกต้อง' })
     }
     let targets: Array<{ serverId: number; uid: number }>
@@ -564,6 +578,14 @@ export default defineEventHandler(async (event) => {
 
   const gameRoute = gameRoutes[route]
   if (gameRoute) {
+    if (route === 'email/send') {
+      const rewards = getEmailRewards(body)
+      const result = await sendEmailRewardBatches(rewards, (batch) =>
+        sendGamePacket(gameRoute.payload({ ...body, rewards: batch }), gameRoute.protocol, channel),
+      )
+      await recordOperation(event, session.username, route, body)
+      return result
+    }
     const result = await sendGamePacket(gameRoute.payload(body), gameRoute.protocol, channel)
     await recordOperation(event, session.username, route, body)
     if (route === 'itemdelete/search') {

@@ -10,6 +10,7 @@ import petEggIcons from '../../../data/email-pet-egg-icons.json'
 import rewardCatalog from '../../../data/email-reward-catalog.json'
 import itemNames from '../../../data/item-names-th.json'
 import soulRingNames from '../../../data/soul-ring-names-th.json'
+import { getEquipmentQuality } from '../../utils/equipment-quality'
 import { getAdminSession } from '../../utils/admin-session'
 import { getGameDatabase } from '../../utils/database'
 
@@ -22,6 +23,7 @@ interface EmailItem {
   rewardType: string
   iconUrl: string | null
   name?: string
+  quality?: number
 }
 
 const clientItemNamesByType: Record<string, Record<string, string>> = clientItemNames
@@ -176,6 +178,7 @@ export default defineEventHandler(async (event) => {
         rewardType: match[2],
         iconUrl: getIconUrl(match[1], match[2]),
         name: getItemName(match[1], match[2]),
+        quality: match[2] === '5' ? getEquipmentQuality(match[1]) : undefined,
       })
     }
   }
@@ -188,6 +191,7 @@ export default defineEventHandler(async (event) => {
         || getThaiName(reward.name)
         || getThaiName(soulRingNames[reward.id as keyof typeof soulRingNames])
         || getThaiName(itemNames[reward.id as keyof typeof itemNames]),
+      quality: reward.rewardType === '5' ? getEquipmentQuality(reward.id) : undefined,
     })
   }
 
@@ -200,6 +204,7 @@ export default defineEventHandler(async (event) => {
         rewardType,
         iconUrl: getIconUrl(id, rewardType),
         name,
+        quality: rewardType === '5' ? getEquipmentQuality(id) : undefined,
       })
     }
   }

@@ -31,6 +31,9 @@ function loadItemsHandler(rows) {
     if (dependency === resolve(root, 'server/utils/database')) {
       return { getGameDatabase: () => ({ query: async () => [rows, []] }) }
     }
+    if (dependency === resolve(root, 'server/utils/equipment-quality')) {
+      return nativeRequire(`${dependency}.ts`)
+    }
     return nativeRequire(name)
   }
   new Function(
