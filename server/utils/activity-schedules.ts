@@ -21,7 +21,7 @@ export interface ActivityScheduleRow {
   configTitle: string
   fields: Record<string, string>
   imageUrl: string
-  canOpenImmediately: boolean
+  canOpenForever: boolean
 }
 
 const activityGiftTypeBanners: Record<number, number> = {
@@ -201,7 +201,7 @@ export const activityScheduleConfigs: ActivityScheduleConfig[] = [
     id: 'camp-timers',
     rootId: 'CampActivityTimer',
     title: 'กิจกรรมแคมป์',
-    description: 'เวลาเริ่มและจบเป็นวันในสัปดาห์:ชั่วโมง:นาที:วินาที (1 คือวันจันทร์, 0/7 คือวันอาทิตย์)',
+    description: 'เวลาเริ่มและจบเป็นวันในสัปดาห์:ชั่วโมง:นาที:วินาที (1 คือวันจันทร์, 0/7 คือวันอาทิตย์, 8 คือวันจันทร์ถัดไป)',
     fields: [
       { key: 'BeginTime', label: 'เวลาเริ่ม', format: 'วัน:HH:mm:ss' },
       { key: 'EndTime', label: 'เวลาจบ', format: 'วัน:HH:mm:ss' },
@@ -410,10 +410,7 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     configId: config.id,
     configTitle: config.title,
     imageUrl: `/activity-banners/${activityBannerId(config.id, values)}.webp`,
-    canOpenImmediately: config.id === 'recharge-tabs'
-      && Number(values.GiftType) === 9
-      && Object.hasOwn(values, 'ShowStart')
-      && Object.hasOwn(values, 'ShowEnd'),
+    canOpenForever: true,
     fields: Object.fromEntries(config.fields
       .filter((field) => Object.hasOwn(values, field.key))
       .map((field) => [field.key, values[field.key]])),
@@ -465,6 +462,7 @@ export async function saveActivitySchedule(configId: string, rowId: number, fiel
 
 function isValidScheduleValue(configId: string, key: string, value: string) {
   if (configId === 'integral-boss' && key === 'Opentime') {
+    if (value === '') return true
     const times = value.split('|')
     return times.length > 0 && times.every((time) => {
       const match = /^(2[0-4]|[01]?\d):([0-5]\d)$/.exec(time)
@@ -484,7 +482,7 @@ function isValidScheduleValue(configId: string, key: string, value: string) {
     return Boolean(match && Number(match[3]) < 24 && Number(match[4]) < 60 && Number(match[5]) < 60)
   }
   if (configId === 'camp-timers' && (key === 'BeginTime' || key === 'EndTime')) {
-    const match = /^([0-7]):(\d{1,2}):(\d{2}):(\d{2})$/.exec(value)
+    const match = /^([0-8]):(\d{1,2}):(\d{2}):(\d{2})$/.exec(value)
     return Boolean(match && Number(match[2]) < 24 && Number(match[3]) < 60 && Number(match[4]) < 60)
   }
   if (configId === 'wish-pool') {
@@ -495,6 +493,7 @@ function isValidScheduleValue(configId: string, key: string, value: string) {
     return isValidDateTime(value)
   }
   if (key === 'StartTime' || key === 'EndTime') {
+    if (configId === 'activity-info' && key === 'EndTime' && value === '24:00:00') return true
     const match = /^(\d{1,2}):(\d{2}):(\d{2})$/.exec(value)
     return Boolean(match && Number(match[1]) < 24 && Number(match[2]) < 60 && Number(match[3]) < 60)
   }
@@ -507,6 +506,7 @@ function isValidScheduleValue(configId: string, key: string, value: string) {
 }
 
 function isOptionalScheduleField(configId: string, key: string) {
+  if (configId === 'integral-boss' && key === 'Opentime') return true
   if (['recharge-tabs', 'recharge-time', 'direct-purchase-time'].includes(configId)) {
     return ['ShowStart', 'ShowEnd', 'ShowWeekStart', 'ShowWeekEnd', 'TabShowEnd', 'GiveReward'].includes(key)
   }

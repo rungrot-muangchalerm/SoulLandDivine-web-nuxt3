@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import {
+  getActivityOverrideFields,
+  isActivityAlwaysOpen,
+  isActivityForceClosed,
+} from '~/utils/activity-schedule-overrides'
 
 interface ScheduleField {
   key: string
@@ -21,14 +26,13 @@ interface ScheduleRow {
   configTitle: string
   fields: Record<string, string>
   imageUrl?: string
-  canOpenImmediately: boolean
+  canOpenForever: boolean
 }
 
 const allConfigsId = 'all'
 const configs = ref<ScheduleConfig[]>([])
 const activities = ref<ScheduleRow[]>([])
 const drafts = ref<Record<string, Record<string, string>>>({})
-const quickOpenEndTimes = ref<Record<string, string>>({})
 const selectedConfigId = ref(allConfigsId)
 const search = ref('')
 const page = ref(1)
@@ -69,9 +73,6 @@ async function loadSchedules() {
       `${item.configId}:${item.id}`,
       { ...item.fields },
     ]))
-    quickOpenEndTimes.value = Object.fromEntries(result.activities
-      .filter((item) => item.canOpenImmediately)
-      .map((item) => [`${item.configId}:${item.id}`, defaultQuickOpenEndTime()]))
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'โหลดตารางเวลากิจกรรมไม่สำเร็จ'
   } finally {
@@ -83,63 +84,23 @@ function rowKey(activity: ScheduleRow) {
   return `${activity.configId}:${activity.id}`
 }
 
-function defaultQuickOpenEndTime() {
-  const end = new Date()
-  end.setDate(end.getDate() + 1)
-  end.setMinutes(0, 0, 0)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}T${pad(end.getHours())}:${pad(end.getMinutes())}`
-}
-
-function formatScheduleDateTime(date: Date) {
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
-
-function formatInputDateTime(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
-  return match ? `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:00` : ''
-}
-
-async function setThemePassActive(activity: ScheduleRow, active: boolean, event: Event) {
+async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
 
   const key = rowKey(activity)
   if (isDirty(activity) || savingKey.value) {
-    errorMessage.value = 'กรุณาบันทึกตารางเวลาที่แก้ไขค้างไว้ก่อนเปิดทันที'
-    checkbox.checked = isThemePassActive(activity)
+    errorMessage.value = 'กรุณาบันทึกตารางเวลาที่แก้ไขค้างไว้ก่อนเปลี่ยนสถานะกิจกรรม'
+    checkbox.checked = isActivityAlwaysOpen(activity.configId, activity.fields)
     return
   }
 
-  const now = new Date()
-  const nowText = formatScheduleDateTime(now)
-  let fields: Record<string, string> = {
-    ShowEnd: nowText,
+  const currentlyOpen = isActivityAlwaysOpen(activity.configId, activity.fields)
+  if (!active && !window.confirm(`ยืนยันปิดกิจกรรม "${activity.name}" ทันทีหรือไม่?`)) {
+    checkbox.checked = currentlyOpen
+    return
   }
-  if (active) {
-    const endTime = formatInputDateTime(quickOpenEndTimes.value[key] || '')
-    const endDate = endTime ? parseScheduleDate(endTime) : null
-    if (!endDate || endDate <= now) {
-      errorMessage.value = 'กรุณากำหนดเวลาปิดให้เป็นอนาคต'
-      checkbox.checked = false
-      return
-    }
-    fields = {
-      ShowStart: nowText,
-      ShowEnd: endTime,
-    }
-    if ('OpenStart' in activity.fields) fields.OpenStart = '-1'
-    if ('ShowWeekStart' in activity.fields) fields.ShowWeekStart = ''
-    if ('ShowWeekEnd' in activity.fields) fields.ShowWeekEnd = ''
-    if ('TabShowEnd' in activity.fields) fields.TabShowEnd = endTime
-  } else {
-    if (!window.confirm(`ยืนยันปิดกิจกรรม "${activity.name}" ทันทีหรือไม่?`)) {
-      checkbox.checked = true
-      return
-    }
-    if ('TabShowEnd' in activity.fields) fields.TabShowEnd = nowText
-  }
+  const fields = getActivityOverrideFields(activity.configId, active, new Date())
 
   savingKey.value = key
   errorMessage.value = ''
@@ -152,22 +113,22 @@ async function setThemePassActive(activity: ScheduleRow, active: boolean, event:
     activity.fields = { ...activity.fields, ...fields }
     drafts.value[key] = { ...activity.fields }
     successMessage.value = active
-      ? `${activity.name}: เปิดทันทีและจะปิด ${fields.ShowEnd}`
+      ? `${activity.name}: เปิดตลอดแล้ว`
       : `${activity.name}: ปิดกิจกรรมแล้ว`
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'เปิดกิจกรรมทันทีไม่สำเร็จ'
-    checkbox.checked = isThemePassActive(activity)
+    errorMessage.value = error instanceof Error ? error.message : 'เปลี่ยนสถานะกิจกรรมไม่สำเร็จ'
+    checkbox.checked = currentlyOpen
   } finally {
     savingKey.value = ''
   }
 }
 
-function isThemePassActive(activity: ScheduleRow) {
-  if (!activity.canOpenImmediately) return false
-  const start = parseScheduleDate(activity.fields.ShowStart || '')
-  const end = parseScheduleDate(activity.fields.ShowEnd || '')
-  const now = new Date()
-  return Boolean(start && end && now > start && now < end)
+function isAlwaysOpen(activity: ScheduleRow) {
+  return isActivityAlwaysOpen(activity.configId, activity.fields)
+}
+
+function isForceClosed(activity: ScheduleRow) {
+  return isActivityForceClosed(activity.configId, activity.fields)
 }
 
 function isDirty(activity: ScheduleRow) {
@@ -274,15 +235,6 @@ onMounted(loadSchedules)
       </button>
     </div>
 
-    <div class="alert alert-warning">
-      แต่ละกิจกรรมใช้เงื่อนไขเวลาไม่เหมือนกัน (วันปฏิทิน, วันเปิดเซิร์ฟเวอร์ หรือรอบสัปดาห์) หน้านี้แก้เฉพาะฟิลด์ตารางเวลาที่มีอยู่ใน XML และไม่เปลี่ยนรางวัลหรือเงื่อนไขกิจกรรม
-      <br>
-      การบันทึกแก้ XML config; เกมอาจต้องโหลด config ใหม่หรือรีสตาร์ตจึงจะเห็นผล
-    </div>
-    <div class="alert alert-info">
-      ตรวจใน config และ source ที่มีแล้วพบกิจกรรมเรือมังกร/เรือพาย แต่ยังไม่พบรายการที่ระบุเป็นกิจกรรมรถไฟ จึงไม่สร้างรายการขึ้นมาเอง
-    </div>
-
     <div v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</div>
     <div v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
 
@@ -335,37 +287,23 @@ onMounted(loadSchedules)
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
               <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}</div>
             </div>
-            <div v-if="activity.canOpenImmediately" class="form-check form-switch mb-0">
+            <div v-if="activity.canOpenForever" class="form-check form-switch mb-0">
               <input
                 :id="`activity-active-${rowKey(activity)}`"
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
-                :checked="isThemePassActive(activity)"
+                :checked="isAlwaysOpen(activity)"
                 :disabled="savingKey !== ''"
-                @change="setThemePassActive(activity, ($event.target as HTMLInputElement).checked, $event)"
+                @change="setActivityAlwaysOpen(activity, ($event.target as HTMLInputElement).checked, $event)"
               >
               <label class="form-check-label" :for="`activity-active-${rowKey(activity)}`">
-                {{ isThemePassActive(activity) ? 'เปิดอยู่' : 'เปิดทันที' }}
+                {{ isAlwaysOpen(activity) ? 'เปิดตลอดอยู่' : isForceClosed(activity) ? 'ปิดแล้ว' : 'เปิดตลอด' }}
               </label>
             </div>
             <span v-else class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>
           </div>
           <div class="card-body">
-            <div v-if="activity.canOpenImmediately && !isThemePassActive(activity)" class="row align-items-end g-2 mb-3">
-              <div class="col">
-                <label class="form-label small" :for="`activity-open-end-${rowKey(activity)}`">กำหนดเวลาปิดหลังเปิดทันที</label>
-                <input
-                  :id="`activity-open-end-${rowKey(activity)}`"
-                  v-model="quickOpenEndTimes[rowKey(activity)]"
-                  class="form-control form-control-sm"
-                  type="datetime-local"
-                  :disabled="savingKey !== ''"
-                  required
-                >
-              </div>
-              <div class="form-text">เปิดสวิตช์เพื่อเริ่มบัตรธีมทันที และยกเลิกเงื่อนไขวัน/สัปดาห์เดิมของรายการนี้</div>
-            </div>
             <div class="row g-2">
               <div
                 v-for="field in configs.find((config) => config.id === activity.configId)?.fields.filter((item) => item.key in activity.fields)"
