@@ -6,8 +6,30 @@
             </bs-breadcrumb>
         </div>
         <div class="container email-form-container">
-            <section class="email-section">
-                <h2 class="email-section-title">ข้อมูลอีเมล</h2>
+            <section class="email-section email-details-section">
+                <div class="email-section-heading email-details-heading">
+                    <h2 class="email-section-title">ข้อมูลอีเมล</h2>
+                    <div class="email-details-actions">
+                        <label class="email-remember-setting" title="บันทึกข้อความและตัวเลือกการส่งไว้ใน localStorage ของเบราว์เซอร์นี้ โดยไม่บันทึก UID หรือของรางวัล">
+                            <input v-model="rememberEmailSettings" class="form-check-input" type="checkbox">
+                            <span>จำค่าฟอร์ม</span>
+                        </label>
+                        <button
+                            type="button"
+                            class="btn btn-sm btn-outline-secondary email-details-toggle"
+                            :aria-expanded="!emailDetailsCollapsed"
+                            aria-controls="email-details-content"
+                            @click="emailDetailsCollapsed = !emailDetailsCollapsed"
+                        >
+                            {{ emailDetailsCollapsed ? (form.emailType ? 'แก้ไขรายละเอียด' : 'ตั้งค่ารายละเอียด') : 'ย่อรายละเอียด' }}
+                            <span aria-hidden="true">{{ emailDetailsCollapsed ? '▸' : '▾' }}</span>
+                        </button>
+                    </div>
+                </div>
+                <p v-if="emailDetailsCollapsed" class="email-details-summary">
+                    {{ emailDetailsSummary }}
+                </p>
+                <div id="email-details-content" v-show="!emailDetailsCollapsed" class="email-details-content">
                 <div class="email-fields">
                     <label class="email-field">
                         <span>ประเภทอีเมล</span>
@@ -108,6 +130,7 @@
                     <span>ผู้เล่น (serverId:UID)</span>
                     <bs-input v-model="form.uidList" placeholder="เช่น 1001:123456 หรือหลายคนคั่นด้วย |"></bs-input>
                 </label>
+                </div>
             </section>
 
             <section class="email-section">
@@ -119,7 +142,7 @@
                 </div>
                 <div class="email-reward-picker">
                     <label class="email-field email-reward-type">
-                        <span>ประเภทไอเทม</span>
+                        <span>ประเภท</span>
                         <bs-select v-model="selectedRewardType">
                             <bs-option
                                 v-for="item in reward_list"
@@ -133,6 +156,17 @@
                         <span>{{ selectedRewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
                         <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
                     </label>
+                    <label v-if="customContent && selectedRewardType === '3'" class="email-field email-picker-quantity">
+                        <span>ปี</span>
+                        <input
+                            :value="manualReward.year"
+                            class="form-control"
+                            type="text"
+                            inputmode="numeric"
+                            placeholder="เช่น 270,145"
+                            @input="onManualYearInput"
+                        >
+                    </label>
                     <button
                         v-if="customContent"
                         type="button"
@@ -141,6 +175,15 @@
                         @click="applyQuantityToSelectedRewards"
                     >
                         ใช้จำนวนกับรายการที่เลือก
+                    </button>
+                    <button
+                        v-if="customContent && selectedRewardType === '3'"
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary align-self-end"
+                        :disabled="!selectedRewards.some(reward => reward.rewardType === '3')"
+                        @click="applyYearToSelectedSoulRings"
+                    >
+                        ใช้ปีกับวงแหวนที่เลือก
                     </button>
                     <div class="email-reward-picker-actions">
                         <button
@@ -261,6 +304,16 @@
                                 >
                                     <span>{{ param.label }}</span>
                                     <input
+                                        v-if="item.rewardType === '3' && param.index === 0"
+                                        :value="selectedReward(item).params[param.index]"
+                                        class="form-control form-control-sm"
+                                        type="text"
+                                        inputmode="numeric"
+                                        :placeholder="param.label"
+                                        @input="onSoulRingYearInput(item, $event)"
+                                    >
+                                    <input
+                                        v-else
                                         v-model="selectedReward(item).params[param.index]"
                                         class="form-control form-control-sm"
                                         type="number"
@@ -320,10 +373,14 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 disabled: false,
                 sending: false,
                 allServers: false,
+                emailDetailsCollapsed: true,
+                rememberEmailSettings: false,
+                isRestoringEmailSettings: false,
                 selectedRewardType: '2',
                 selectedRewards: [],
                 manualReward: {
-                    quantity: '1'
+                    quantity: '1',
+                    year: ''
                 },
                 type_list: [{
                     value: 'allserver',
@@ -385,17 +442,68 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
             }
         },
         mounted () {
+            this.loadRememberedEmailSettings()
             this.loadSenderName()
             this.loadItemCatalog()
             this.loadEmailTemplates()
             this.loadEmailChannels()
         },
+        watch: {
+            emailSettingsToRemember: {
+                deep: true,
+                handler () {
+                    if (this.rememberEmailSettings && !this.isRestoringEmailSettings) {
+                        this.saveRememberedEmailSettings()
+                    }
+                }
+            },
+            rememberEmailSettings (enabled) {
+                if (this.isRestoringEmailSettings) return
+                if (enabled) {
+                    this.saveRememberedEmailSettings()
+                } else {
+                    this.removeRememberedEmailSettings()
+                }
+            }
+        },
         computed: {
             customContent () {
                 return this.form.mailId === '1'
             },
+            emailSettingsToRemember () {
+                return {
+                    emailType: this.form.emailType,
+                    mailId: this.form.mailId,
+                    selectedEmailChannel: this.selectedEmailChannel,
+                    allServers: this.allServers,
+                    title: this.form.title,
+                    content: this.form.content
+                }
+            },
             selectedEmailTemplate () {
                 return this.emailTemplates.find(template => String(template.id) === this.form.mailId)
+            },
+            emailDetailsSummary () {
+                if (!this.form.emailType) {
+                    return 'กำหนดประเภทอีเมล ช่องทาง และผู้รับก่อนส่ง'
+                }
+
+                const summary = [
+                    this.type_list.find(item => item.value === this.form.emailType)?.label,
+                    this.emailChannels.find(channel => channel.index === this.selectedEmailChannel)?.name,
+                    this.form.emailType === 'allserver'
+                        ? this.allServers
+                            ? 'ทุกเซิร์ฟเวอร์ในช่องทาง'
+                            : `เซิร์ฟเวอร์ ${this.selectedServer || 'ยังไม่ได้เลือก'}`
+                        : this.form.emailType === 'personalemail'
+                            ? `${this.form.uidList.trim() || 'ยังไม่ได้ระบุผู้เล่น'}`
+                            : '',
+                    this.customContent
+                        ? this.form.title.trim() || 'Custom'
+                        : this.selectedEmailTemplate?.title || (this.form.mailId ? `Template #${this.form.mailId}` : '')
+                ].filter(Boolean)
+
+                return summary.length ? summary.join(' · ') : 'ยังไม่ได้ตั้งค่ารายละเอียดอีเมล'
             },
             templateRewardItems () {
                 if (!this.selectedEmailTemplate?.reward) return []
@@ -436,6 +544,63 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
             }
         },
         methods: {
+            loadRememberedEmailSettings () {
+                try {
+                    const saved = window.localStorage.getItem('email-page-settings-v1')
+                    if (!saved) return
+
+                    const parsed = JSON.parse(saved)
+                    const settings = parsed?.settings
+                    if (
+                        parsed?.version !== 1
+                        || !settings
+                        || typeof settings.emailType !== 'string'
+                        || typeof settings.mailId !== 'string'
+                        || !['string', 'number'].includes(typeof settings.selectedEmailChannel)
+                        || typeof settings.allServers !== 'boolean'
+                        || typeof settings.title !== 'string'
+                        || typeof settings.content !== 'string'
+                    ) {
+                        throw new Error('ข้อมูลการตั้งค่าที่บันทึกไว้ไม่ถูกต้อง')
+                    }
+
+                    this.isRestoringEmailSettings = true
+                    this.form.emailType = settings.emailType
+                    this.form.mailId = settings.mailId
+                    this.selectedEmailChannel = String(settings.selectedEmailChannel)
+                    this.allServers = settings.allServers
+                    this.form.title = settings.title
+                    this.form.content = settings.content
+                    this.rememberEmailSettings = true
+                    this.isRestoringEmailSettings = false
+                } catch (error) {
+                    this.isRestoringEmailSettings = false
+                    BsMessage.error(error instanceof Error
+                        ? `โหลดการตั้งค่าที่จำไว้ไม่สำเร็จ: ${error.message}`
+                        : 'โหลดการตั้งค่าที่จำไว้ไม่สำเร็จ')
+                }
+            },
+            saveRememberedEmailSettings () {
+                try {
+                    window.localStorage.setItem('email-page-settings-v1', JSON.stringify({
+                        version: 1,
+                        settings: this.emailSettingsToRemember
+                    }))
+                } catch (error) {
+                    BsMessage.error(error instanceof Error
+                        ? `บันทึกการตั้งค่าไม่สำเร็จ: ${error.message}`
+                        : 'บันทึกการตั้งค่าไม่สำเร็จ')
+                }
+            },
+            removeRememberedEmailSettings () {
+                try {
+                    window.localStorage.removeItem('email-page-settings-v1')
+                } catch (error) {
+                    BsMessage.error(error instanceof Error
+                        ? `ลบการตั้งค่าที่จำไว้ไม่สำเร็จ: ${error.message}`
+                        : 'ลบการตั้งค่าที่จำไว้ไม่สำเร็จ')
+                }
+            },
             async loadSenderName () {
                 try {
                     const response = await this.$api.get('/api/session')
@@ -572,6 +737,50 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 }
                 BsMessage.success(`กำหนดจำนวน ${quantity} ให้ไอเทมที่เลือก ${this.selectedRewards.length} รายการแล้ว`)
             },
+            applyYearToSelectedSoulRings () {
+                const year = String(this.manualReward.year).replaceAll(',', '').trim()
+                if (!/^[1-9]\d*$/.test(year) || Number(year) > MAX_SOUL_RING_YEAR) {
+                    BsMessage.error(`ปีวงแหวนวิญญาณต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
+                    return
+                }
+                const selectedSoulRings = this.selectedRewards.filter(reward => reward.rewardType === '3')
+                if (!selectedSoulRings.length) {
+                    BsMessage.error('กรุณาเลือกวงแหวนวิญญาณก่อน')
+                    return
+                }
+                for (const reward of selectedSoulRings) {
+                    reward.params[0] = year
+                }
+                BsMessage.success(`กำหนดอายุ ${year} ปีให้วงแหวนที่เลือก ${selectedSoulRings.length} รายการแล้ว`)
+            },
+            formatYearInput (event, updateValue) {
+                const input = event.target
+                const selectionStart = input.selectionStart ?? input.value.length
+                const digitsBeforeCursor = input.value.slice(0, selectionStart).replace(/\D/g, '').length
+                const digits = input.value.replace(/\D/g, '')
+                const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                updateValue(formatted)
+
+                this.$nextTick(() => {
+                    let cursor = 0
+                    let digitsAtCursor = 0
+                    while (cursor < formatted.length && digitsAtCursor < digitsBeforeCursor) {
+                        if (/\d/.test(formatted[cursor])) digitsAtCursor++
+                        cursor++
+                    }
+                    input.setSelectionRange(cursor, cursor)
+                })
+            },
+            onManualYearInput (event) {
+                this.formatYearInput(event, value => {
+                    this.manualReward.year = value
+                })
+            },
+            onSoulRingYearInput (item, event) {
+                this.formatYearInput(event, value => {
+                    this.selectedReward(item).params[0] = value
+                })
+            },
             changeEmailType () {
                 this.allServers = false;
                 this.form.mailId = '1';
@@ -586,7 +795,12 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 while (lastParam > firstParam && !params[lastParam]) {
                     lastParam--
                 }
-                return reward + '@' + params.slice(firstParam, lastParam + 1).map(param => param || '').join(':')
+                return reward + '@' + params.slice(firstParam, lastParam + 1).map((param, index) => {
+                    const value = param || ''
+                    return rewardItem.rewardType === '3' && firstParam + index === 0
+                        ? value.replaceAll(',', '')
+                        : value
+                }).join(':')
             },
             async handleSendEmail () {
                 if (!this.form.emailType) {
@@ -641,11 +855,11 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     BsMessage.error(`จำนวนของไอเทม ID ${incompleteReward.id} ต้องเป็นจำนวนเต็มบวกไม่เกิน 2147483647`)
                     return
                 }
-                const incompleteSoulRing = this.selectedRewards.find(reward =>
-                    reward.rewardType === '3'
-                    && (!/^[1-9]\d*$/.test(reward.params[0] || '')
-                        || Number(reward.params[0]) > MAX_SOUL_RING_YEAR),
-                )
+                const incompleteSoulRing = this.selectedRewards.find((reward) => {
+                    if (reward.rewardType !== '3') return false
+                    const year = String(reward.params[0] || '').replaceAll(',', '')
+                    return !/^[1-9]\d*$/.test(year) || Number(year) > MAX_SOUL_RING_YEAR
+                })
                 if (incompleteSoulRing) {
                     this.selectedRewardType = '3'
                     BsMessage.error(`ปีวงแหวนวิญญาณ ID ${incompleteSoulRing.id} ต้องเป็นจำนวนเต็มระหว่าง 1 ถึง ${MAX_SOUL_RING_YEAR}`)
@@ -719,7 +933,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                         }
                         if (job.result === 1) {
                             BsMessage.success(`ส่งอีเมลสำเร็จ ${job.sent.toLocaleString()}/${job.total.toLocaleString()} ฉบับ`)
-                            this.handleCancle()
+                            this.handleCancle(true)
                         } else {
                             const failedSamples = Array.isArray(job.failures)
                                 ? job.failures.map(item => `${item.recipient}: ${item.message}`).join('\n')
@@ -739,7 +953,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                                 ? `ส่งสำเร็จ ${result.sent}/${result.total} ${this.form.emailType === 'allserver' ? 'เซิร์ฟเวอร์' : 'รายการ'}`
                                 : 'ส่งอีเมลสำเร็จ')
                         }
-                        this.handleCancle()
+                        this.handleCancle(true)
                     } else {
                         const partialMessage = Number.isInteger(result?.sent) && Number.isInteger(result?.total)
                             ? this.customContent && result.batchCount > 1
@@ -783,21 +997,32 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     if (job.status === 'completed' || job.status === 'failed') return job
                 }
             },
-            handleCancle () {
+            handleCancle (preserveRememberedSettings = false) {
                 const emailType = this.form.emailType;
                 const mailId = this.form.mailId;
                 const senderName = this.form.senderName;
+                const title = preserveRememberedSettings && this.rememberEmailSettings
+                    ? this.form.title
+                    : DEFAULT_EMAIL_TITLE
+                const content = preserveRememberedSettings && this.rememberEmailSettings
+                    ? this.form.content
+                    : DEFAULT_EMAIL_CONTENT
+                const allServers = preserveRememberedSettings && this.rememberEmailSettings
+                    ? this.allServers
+                    : false
                 this.allServers = false;
                 this.selectedRewards = [];
                 this.manualReward.quantity = '1';
+                this.manualReward.year = '';
                 for (const key in this.form) {
                     this.form[key] = '';
                 }
                 this.form.emailType = emailType;
                 this.form.mailId = mailId;
-                this.form.title = DEFAULT_EMAIL_TITLE
-                this.form.content = DEFAULT_EMAIL_CONTENT
+                this.form.title = title
+                this.form.content = content
                 this.form.senderName = senderName
+                this.allServers = allServers
             }
         }
     }
@@ -826,6 +1051,53 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
     margin: 0;
     font-size: 1.1rem;
     font-weight: 650;
+}
+
+.email-details-heading {
+    margin-bottom: 0.9rem;
+}
+
+.email-details-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.email-remember-setting {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    color: var(--bs-secondary-color);
+    font-size: 0.8rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.email-remember-setting .form-check-input {
+    margin: 0;
+}
+
+.email-details-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    white-space: nowrap;
+}
+
+.email-details-summary {
+    margin: 0;
+    overflow: hidden;
+    color: var(--bs-secondary-color);
+    font-size: 0.875rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.email-details-content {
+    display: grid;
+    gap: 1rem;
 }
 
 .email-section-heading,
@@ -858,8 +1130,8 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
 }
 
 .email-reward-type {
-    flex: 1 1 240px;
-    max-width: 420px;
+    flex: 0 1 190px;
+    max-width: 220px;
 }
 
 .email-picker-quantity {
@@ -1135,6 +1407,14 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
     .email-section-heading,
     .email-delivery {
         align-items: flex-start;
+    }
+
+    .email-details-heading {
+        align-items: center;
+    }
+
+    .email-details-actions {
+        gap: 0.5rem;
     }
 
     .email-catalog-list {
