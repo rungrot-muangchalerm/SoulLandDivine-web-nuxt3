@@ -145,6 +145,30 @@ test('email general item catalog includes every localized item with its image', 
   )
 })
 
+test('email hero-fragment catalog includes every game fragment with its image', async () => {
+  const heroFragmentIds = JSON.parse(readFileSync(resolve(root, 'data/email-hero-fragment-ids.json'), 'utf8'))
+  const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
+  const numericIconFiles = new Set(readdirSync(resolve(root, 'public/icons_renamed')))
+  const heroFragmentIconFiles = new Set(readdirSync(resolve(root, 'public/icons_hero_fragments')))
+  const items = await loadItemsHandler([])({})
+  const fragments = items.filter((item) => item.rewardType === '9')
+
+  assert.equal(heroFragmentIds.length, 92)
+  assert.equal(fragments.length, heroFragmentIds.length)
+  for (const id of heroFragmentIds) {
+    const item = fragments.find((fragment) => fragment.id === id)
+    assert.ok(item, `Hero fragment ${id} is missing from the email catalog`)
+    assert.equal(item.name, namesByType['2'][id])
+    assert.ok(item.iconUrl, `Hero fragment ${id} is missing its image`)
+
+    const filename = decodeURIComponent(item.iconUrl.split('/').pop())
+    const filenames = item.iconUrl.startsWith('/icons_hero_fragments/')
+      ? heroFragmentIconFiles
+      : numericIconFiles
+    assert.ok(filenames.has(filename), `Hero fragment ${id} image ${filename} is missing`)
+  }
+})
+
 test('email catalog includes every localized item type and all equipment images', async () => {
   const namesByType = JSON.parse(readFileSync(resolve(root, 'data/email-item-names.json'), 'utf8'))
   const equipmentIcons = JSON.parse(readFileSync(resolve(root, 'data/email-equipment-icons.json'), 'utf8'))

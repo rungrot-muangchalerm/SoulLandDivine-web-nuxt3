@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import equipmentIcons from '../../../data/email-equipment-icons.json'
+import heroFragmentIds from '../../../data/email-hero-fragment-ids.json'
 import heroFragmentIcons from '../../../data/email-hero-fragment-icons.json'
 import itemIconFallbacks from '../../../data/email-item-icon-fallbacks.json'
 import hiddenWeaponIcons from '../../../data/email-hidden-weapon-icons.json'
@@ -34,7 +35,7 @@ const rewardTypes: Record<string, string> = {
   '3': 'วงแหวนวิญญาณ',
   '4': 'กระดูกวิญญาณ',
   '5': 'อุปกรณ์',
-  '9': 'แก่นวิญญาณ',
+  '9': 'เศษวิญญาณ',
   '11': 'กรอบแชต',
   '13': 'อาวุธลับ',
   '21': 'ไข่สัตว์เลี้ยง',
@@ -129,7 +130,7 @@ export default defineEventHandler(async (event) => {
     const numericIconUrl = iconUrls.get(id)
     if (numericIconUrl) return numericIconUrl
 
-    if (rewardType === '2') {
+    if (rewardType === '2' || rewardType === '9') {
       const heroFragmentIcon = heroFragmentIconById.get(id)
       if (heroFragmentIcon && heroFragmentIconFiles.has(heroFragmentIcon)) {
         return `/icons_hero_fragments/${encodeURIComponent(heroFragmentIcon)}`
@@ -207,6 +208,20 @@ export default defineEventHandler(async (event) => {
         quality: rewardType === '5' ? getEquipmentQuality(id) : undefined,
       })
     }
+  }
+
+  for (const id of heroFragmentIds) {
+    const name = getClientItemName(id, '9')
+    if (!name) {
+      throw new Error(`ไม่พบชื่อภาษาไทยสำหรับเศษวิญญาณ ${id}`)
+    }
+
+    items.set(`9:${id}`, {
+      id,
+      rewardType: '9',
+      iconUrl: getIconUrl(id, '9'),
+      name,
+    })
   }
 
   return [...items.values()].sort((first, second) =>

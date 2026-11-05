@@ -446,7 +446,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     label: 'ตัวละคร'
                 }, {
                     value: '9',
-                    label: 'แก่นวิญญาณ'
+                    label: 'เศษวิญญาณ'
                 }, {
                     value: '11',
                     label: 'กรอบแชต'
