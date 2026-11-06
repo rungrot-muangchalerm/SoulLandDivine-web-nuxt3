@@ -25,10 +25,11 @@ test('activity schedule cards include matching banner artwork or a category fall
   const { activityScheduleConfigs, parseActivitySchedule } = loadActivitySchedules()
   const rechargeTabs = activityScheduleConfigs.find((config) => config.id === 'recharge-tabs')
   const rows = parseActivitySchedule(rechargeTabs,
-    '<idspace id="RechargeGiftTab"><class id="8" GiftType="9" SubType="2" ShowStart="2023-9-15 00:00:01" ShowEnd="2023-10-14 23:59:58"/><class id="1000" GiftType="26" SubType="3" ShowStart="2023-9-15 00:00:01" ShowEnd="2023-10-14 23:59:58"/></idspace>')
+    '<idspace id="RechargeGiftTab"><class id="8" GiftType="9" SubType="2" ShowStart="2023-9-15 00:00:01" ShowEnd="2023-10-14 23:59:58" DurationDays="30"/><class id="1000" GiftType="26" SubType="3" ShowStart="2023-9-15 00:00:01" ShowEnd="2023-10-14 23:59:58"/></idspace>')
 
   assert.equal(rows[0].imageUrl, '/activity-banners/3.webp')
   assert.equal(rows[0].canOpenForever, true)
+  assert.equal(rows[0].durationDays, 30)
   assert.equal(rows[1].imageUrl, '/activity-banners/16.webp')
   assert.equal(rows[1].canOpenForever, true)
   assert.equal(
@@ -67,6 +68,27 @@ test('activity schedule API accepts empty integral boss times for manual force-c
   assert.deepEqual(JSON.parse(request.init.body), { Opentime: '' })
 })
 
+test('configured-duration opening uses the game AdminAPI and returns fixed schedule fields', async () => {
+  let request
+  const result = {
+    code: 1,
+    configured: true,
+    durationDays: 7,
+    fields: { ShowStart: '2026-11-06 06:00:00', ShowEnd: '2026-11-13 00:00:00' },
+  }
+  const { openRechargeTabForConfiguredDuration } = loadActivitySchedules(async (path, init) => {
+    request = { path, init }
+    return { json: async () => result }
+  })
+
+  assert.deepEqual(await openRechargeTabForConfiguredDuration(30), {
+    durationDays: 7,
+    fields: result.fields,
+  })
+  assert.equal(request.path, '/api/activities/config/recharge-tabs/30/open')
+  assert.equal(request.init.method, 'POST')
+})
+
 test('all activity categories can be forced permanently open and closed', async () => {
   const filename = resolve(root, 'utils/activity-schedule-overrides.ts')
   const source = readFileSync(filename, 'utf8')
@@ -100,6 +122,12 @@ test('all activity categories can be forced permanently open and closed', async 
     const closedFields = getActivityOverrideFields(configId, false, now)
     assert.equal(isActivityAlwaysOpen(configId, closedFields), false, `${configId} closed state`)
     assert.equal(isActivityForceClosed(configId, closedFields), true, `${configId} force-closed state`)
+    if (configId === 'recharge-tabs') {
+      assert.equal(closedFields.ShowStart, '')
+      assert.equal(closedFields.ShowEnd, '')
+      assert.notEqual(closedFields.ShowStart, '9999-12-31 23:59:59')
+      assert.notEqual(closedFields.ShowEnd, '9999-12-31 23:59:59')
+    }
   }
 
   const { saveActivitySchedule } = loadActivitySchedules(async () => ({ json: async () => ({ code: 1 }) }))

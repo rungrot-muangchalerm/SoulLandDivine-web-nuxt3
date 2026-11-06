@@ -20,6 +20,7 @@ export interface ActivityScheduleRow {
   configId: string
   configTitle: string
   fields: Record<string, string>
+  durationDays?: number
   imageUrl: string
   canOpenForever: boolean
 }
@@ -404,17 +405,21 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     throw createError({ statusCode: 502, statusMessage: `ID ใน ${config.title} ไม่ถูกต้องหรือซ้ำกัน` })
   }
 
-  return rows.map((values) => ({
-    id: Number(values.id),
-    name: rowName(config.id, values),
-    configId: config.id,
-    configTitle: config.title,
-    imageUrl: `/activity-banners/${activityBannerId(config.id, values)}.webp`,
-    canOpenForever: true,
-    fields: Object.fromEntries(config.fields
-      .filter((field) => Object.hasOwn(values, field.key))
-      .map((field) => [field.key, values[field.key]])),
-  }))
+  return rows.map((values) => {
+    const durationDays = Number(values.DurationDays)
+    return {
+      id: Number(values.id),
+      name: rowName(config.id, values),
+      configId: config.id,
+      configTitle: config.title,
+      ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),
+      imageUrl: `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+      canOpenForever: true,
+      fields: Object.fromEntries(config.fields
+        .filter((field) => Object.hasOwn(values, field.key))
+        .map((field) => [field.key, values[field.key]])),
+    }
+  })
 }
 
 export async function fetchActivitySchedules() {
@@ -458,6 +463,49 @@ export async function saveActivitySchedule(configId: string, rowId: number, fiel
       statusMessage: typeof result.message === 'string' ? result.message : 'Game AdminAPI บันทึกตารางเวลาไม่สำเร็จ',
     })
   }
+}
+
+export async function openRechargeTabForConfiguredDuration(rowId: number) {
+  if (!Number.isSafeInteger(rowId) || rowId < 1) {
+    throw createError({ statusCode: 400, statusMessage: 'ID กิจกรรมไม่ถูกต้อง' })
+  }
+
+  const response = await fetchGameAdminApi(`/api/activities/config/recharge-tabs/${rowId}/open`, {
+    method: 'POST',
+  })
+  const result = await response.json() as {
+    code?: unknown
+    configured?: unknown
+    durationDays?: unknown
+    fields?: unknown
+    message?: unknown
+  }
+  if (result.code === 2 && result.configured === false) return null
+  if (
+    result.code !== 1
+    || result.configured !== true
+    || !Number.isSafeInteger(result.durationDays)
+    || typeof result.durationDays !== 'number'
+    || !isStringRecord(result.fields)
+  ) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: typeof result.message === 'string'
+        ? result.message
+        : 'Game AdminAPI เปิดกิจกรรมตามระยะเวลาที่กำหนดไม่สำเร็จ',
+    })
+  }
+
+  return { durationDays: result.durationDays, fields: result.fields }
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.values(value).every((item) => typeof item === 'string'),
+  )
 }
 
 function isValidScheduleValue(configId: string, key: string, value: string) {

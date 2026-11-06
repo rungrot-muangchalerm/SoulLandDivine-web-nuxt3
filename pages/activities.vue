@@ -25,6 +25,7 @@ interface ScheduleRow {
   configId: string
   configTitle: string
   fields: Record<string, string>
+  durationDays?: number
   imageUrl?: string
   canOpenForever: boolean
 }
@@ -91,29 +92,52 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
   const key = rowKey(activity)
   if (isDirty(activity) || savingKey.value) {
     errorMessage.value = 'กรุณาบันทึกตารางเวลาที่แก้ไขค้างไว้ก่อนเปลี่ยนสถานะกิจกรรม'
-    checkbox.checked = isActivityAlwaysOpen(activity.configId, activity.fields)
+    checkbox.checked = isActivityEnabled(activity)
     return
   }
 
-  const currentlyOpen = isActivityAlwaysOpen(activity.configId, activity.fields)
+  const currentlyOpen = isActivityEnabled(activity)
   if (!active && !window.confirm(`ยืนยันปิดกิจกรรม "${activity.name}" ทันทีหรือไม่?`)) {
     checkbox.checked = currentlyOpen
     return
   }
-  const fields = getActivityOverrideFields(activity.configId, active, new Date())
 
   savingKey.value = key
   errorMessage.value = ''
   successMessage.value = ''
   try {
-    await $fetch('/api/activities/schedule', {
-      method: 'POST',
-      body: { configId: activity.configId, id: activity.id, fields },
-    })
+    let fields: Record<string, string>
+    if (active && activity.configId === 'recharge-tabs') {
+      const result = await $fetch<{
+        configured: boolean
+        durationDays?: number
+        fields?: Record<string, string>
+      }>('/api/activities/open', {
+        method: 'POST',
+        body: { configId: activity.configId, id: activity.id },
+      })
+      if (result.configured) {
+        if (!result.fields || !result.durationDays) {
+          throw new Error('ข้อมูลระยะเวลาเปิดกิจกรรมจาก AdminAPI ไม่ครบ')
+        }
+        fields = result.fields
+        activity.durationDays = result.durationDays
+      } else {
+        throw new Error('แพ็กนี้ไม่มีระยะเวลาเปิดที่กำหนดไว้ จึงไม่สามารถเปิดจากสวิตช์นี้ได้ เพื่อป้องกันการตั้งวันสิ้นสุดเป็น 9999')
+      }
+    } else {
+      fields = getActivityOverrideFields(activity.configId, active, new Date())
+      await $fetch('/api/activities/schedule', {
+        method: 'POST',
+        body: { configId: activity.configId, id: activity.id, fields },
+      })
+    }
     activity.fields = { ...activity.fields, ...fields }
     drafts.value[key] = { ...activity.fields }
     successMessage.value = active
-      ? `${activity.name}: เปิดตลอดแล้ว`
+      ? activity.durationDays
+        ? `${activity.name}: ตั้งเปิด ${activity.durationDays} วัน เริ่ม ${activity.fields.ShowStart || ''} ถึง ${activity.fields.ShowEnd || ''}`
+        : `${activity.name}: เปิดตลอดแล้ว`
       : `${activity.name}: ปิดกิจกรรมแล้ว`
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'เปลี่ยนสถานะกิจกรรมไม่สำเร็จ'
@@ -125,6 +149,30 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
 
 function isAlwaysOpen(activity: ScheduleRow) {
   return isActivityAlwaysOpen(activity.configId, activity.fields)
+}
+
+function isActivityEnabled(activity: ScheduleRow) {
+  if (
+    activity.configId === 'recharge-tabs'
+    && activity.durationDays
+    && !isActivityForceClosed(activity.configId, activity.fields)
+  ) {
+    const start = parseScheduleDate(activity.fields.ShowStart || '')
+    const end = parseScheduleDate(activity.fields.ShowEnd || '')
+    const now = new Date()
+    return Boolean(start && end && end > start && now < end)
+  }
+  return isAlwaysOpen(activity)
+}
+
+function activityToggleLabel(activity: ScheduleRow) {
+  if (isActivityEnabled(activity)) {
+    const start = parseScheduleDate(activity.fields.ShowStart || '')
+    if (start && new Date() < start) return `ตั้งเปิด (${activity.durationDays} วัน)`
+    return activity.durationDays ? `เปิดอยู่ (${activity.durationDays} วัน)` : 'เปิดตลอดอยู่'
+  }
+  if (isForceClosed(activity)) return 'ปิดแล้ว'
+  return activity.durationDays ? `เปิด ${activity.durationDays} วัน` : 'เปิด'
 }
 
 function isForceClosed(activity: ScheduleRow) {
@@ -159,6 +207,10 @@ async function saveSchedule(activity: ScheduleRow) {
       body: { configId: activity.configId, id: activity.id, fields },
     })
     activity.fields = { ...activity.fields, ...fields }
+    if (activity.configId === 'recharge-tabs' && ('ShowStart' in fields || 'ShowEnd' in fields)) {
+      const durationDays = getConfiguredDurationDays(activity.fields.ShowStart, activity.fields.ShowEnd)
+      if (durationDays) activity.durationDays = durationDays
+    }
     successMessage.value = `${activity.name}: บันทึกตารางเวลาแล้ว`
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'บันทึกตารางเวลาไม่สำเร็จ'
@@ -210,6 +262,19 @@ function parseScheduleDate(value: string) {
     return null
   }
   return date
+}
+
+function getConfiguredDurationDays(startValue?: string, endValue?: string) {
+  const start = startValue ? parseScheduleDate(startValue) : null
+  const end = endValue ? parseScheduleDate(endValue) : null
+  if (!start || !end || start.getFullYear() >= 9999 || end.getFullYear() >= 9999 || end <= start) return undefined
+
+  const startDay = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())
+  const endDay = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+  const dateDifference = (endDay - startDay) / 86_400_000
+  const endsAtMidnight = end.getHours() === 0 && end.getMinutes() === 0 && end.getSeconds() === 0
+  const durationDays = dateDifference + (endsAtMidnight ? 0 : 1)
+  return Number.isSafeInteger(durationDays) && durationDays > 0 ? durationDays : undefined
 }
 
 function formatClass(activity: ScheduleRow) {
@@ -293,12 +358,12 @@ onMounted(loadSchedules)
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
-                :checked="isAlwaysOpen(activity)"
+                :checked="isActivityEnabled(activity)"
                 :disabled="savingKey !== ''"
                 @change="setActivityAlwaysOpen(activity, ($event.target as HTMLInputElement).checked, $event)"
               >
               <label class="form-check-label" :for="`activity-active-${rowKey(activity)}`">
-                {{ isAlwaysOpen(activity) ? 'เปิดตลอดอยู่' : isForceClosed(activity) ? 'ปิดแล้ว' : 'เปิดตลอด' }}
+                {{ activityToggleLabel(activity) }}
               </label>
             </div>
             <span v-else class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>

@@ -8,7 +8,6 @@ export function getActivityOverrideFields(
 ): Record<string, string> {
   const nowText = formatDateTime(now)
   switch (configId) {
-    case 'recharge-tabs':
     case 'recharge-time':
     case 'direct-purchase-time':
       return {
@@ -18,8 +17,29 @@ export function getActivityOverrideFields(
         ShowWeekEnd: '',
         TabShowEnd: active ? permanentEnd : nowText,
         GiveReward: active ? permanentEnd : nowText,
-        ...(configId === 'recharge-tabs' ? { OpenStart: '-1', OpenEnd: '0' } : {}),
       }
+    case 'recharge-tabs':
+      return active
+        ? {
+            ShowStart: nowText,
+            ShowEnd: permanentEnd,
+            ShowWeekStart: '',
+            ShowWeekEnd: '',
+            TabShowEnd: permanentEnd,
+            GiveReward: permanentEnd,
+            OpenStart: '-1',
+            OpenEnd: '0',
+          }
+        : {
+            ShowStart: '',
+            ShowEnd: '',
+            ShowWeekStart: '',
+            ShowWeekEnd: '',
+            TabShowEnd: nowText,
+            GiveReward: nowText,
+            OpenStart: '-1',
+            OpenEnd: '0',
+          }
     case 'activity-info':
       return {
         OpenStart: '-1',
@@ -109,10 +129,11 @@ export function isActivityAlwaysOpen(configId: string, fields: Record<string, st
 
 export function isActivityForceClosed(configId: string, fields: Record<string, string>) {
   switch (configId) {
-    case 'recharge-tabs':
     case 'recharge-time':
     case 'direct-purchase-time':
       return fields.ShowStart === permanentEnd && fields.ShowEnd === permanentEnd
+    case 'recharge-tabs':
+      return fields.ShowStart === '' && fields.ShowEnd === ''
     case 'activity-info':
       return fields.StartDate === permanentEnd && fields.EndDate === permanentEnd
     case 'special-activity':
