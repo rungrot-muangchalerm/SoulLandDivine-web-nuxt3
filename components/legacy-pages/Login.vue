@@ -10,13 +10,28 @@
                 <bs-input v-model="ruleForm.username" placeholder="ชื่อผู้ใช้" autocomplete="username" />
               </bs-form-item>
               <bs-form-item prop="password">
-                <bs-input
-                  v-model="ruleForm.password"
-                  type="password"
-                  placeholder="รหัสผ่าน"
-                  autocomplete="current-password"
-                  @keyup.enter="submitForm('ruleForm')"
-                />
+                <div class="input-group">
+                  <bs-input
+                    v-model="ruleForm.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    class="password-input"
+                    placeholder="รหัสผ่าน"
+                    autocomplete="current-password"
+                    @keyup.enter="submitForm('ruleForm')"
+                  />
+                  <button
+                    class="btn btn-outline-secondary"
+                    type="button"
+                    :aria-label="showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'"
+                    :aria-pressed="showPassword"
+                    @click="showPassword = !showPassword"
+                  >
+                    <i
+                      :class="['fa-solid', showPassword ? 'fa-eye-slash' : 'fa-eye']"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               </bs-form-item>
               <div class="text-end mb-3">
                 <button class="btn btn-link p-0 small" type="button" @click="handleForgotPsw">ลืมรหัสผ่าน</button>
@@ -48,6 +63,7 @@ import { BsMessage } from '~/utils/bootstrap-message'
                     username: '',
                     password: ''
                 },
+                showPassword: false,
                 rules: {
                     username: [
                         { required: true, message: 'กรุณากรอกชื่อผู้ใช้', trigger: 'blur' }
