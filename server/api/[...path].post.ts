@@ -2,7 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { getCookie } from 'h3'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { getDatabase, getGameDatabase } from '../utils/database'
+import { getAccountDatabase, getDatabase, getGameDatabase } from '../utils/database'
 import { getAdminSession } from '../utils/admin-session'
 import { sendGamePacket } from '../utils/game-server'
 import { recordOperationLog as writeOperationLog } from '../utils/operation-log'
@@ -412,7 +412,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'รหัสเซิร์ฟเวอร์, UID หรือรหัสสิทธิประโยชน์ไม่ถูกต้อง' })
     }
 
-    const [servers] = await getGameDatabase().execute(
+    const [servers] = await getAccountDatabase().execute(
       'SELECT id FROM server_list WHERE id = ? LIMIT 1',
       [serverId],
     )
@@ -427,7 +427,7 @@ export default defineEventHandler(async (event) => {
         filters.push('Uid = ?')
         params.push(uid)
       }
-      const [rows] = await getGameDatabase().execute(
+      const [rows] = await getAccountDatabase().execute(
         `SELECT ServerId AS serverId, Uid AS uid, WelfareId AS id, Name AS name, LastSend AS LastTime FROM welfare_player WHERE ${filters.join(' AND ')} ORDER BY Uid, WelfareId`,
         params,
       )
@@ -439,7 +439,7 @@ export default defineEventHandler(async (event) => {
     }
 
     if (route === 'welfare/addPlayer') {
-      const [result] = await getGameDatabase().execute(
+      const [result] = await getAccountDatabase().execute(
         'INSERT INTO welfare_player (ServerId, Uid, WelfareId, Name, LastSend) VALUES (?, ?, ?, ?, ?)',
         [serverId, uid, welfareId, '', 0],
       )
@@ -447,7 +447,7 @@ export default defineEventHandler(async (event) => {
       return { result: affectedRows(result) }
     }
 
-    const [result] = await getGameDatabase().execute(
+    const [result] = await getAccountDatabase().execute(
       'DELETE FROM welfare_player WHERE ServerId = ? AND Uid = ? AND WelfareId = ?',
       [serverId, uid, welfareId],
     )
@@ -542,7 +542,7 @@ export default defineEventHandler(async (event) => {
     const serverIds = [...new Set(targets.map(({ serverId }) => serverId).filter((serverId) => serverId > 0))]
     if (serverIds.length) {
       const placeholders = serverIds.map(() => '?').join(', ')
-      const [serverRows] = await getGameDatabase().execute(
+      const [serverRows] = await getAccountDatabase().execute(
         `SELECT id FROM server_list WHERE id IN (${placeholders})`,
         serverIds,
       )

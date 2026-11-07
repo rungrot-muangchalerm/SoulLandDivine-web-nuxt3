@@ -1,6 +1,7 @@
 import mysql, { type Pool } from 'mysql2/promise'
 
 let pool: Pool | undefined
+let accountPool: Pool | undefined
 let gamePool: Pool | undefined
 
 export function getDatabase() {
@@ -16,6 +17,21 @@ export function getDatabase() {
     timezone: '+08:00',
   })
   return pool
+}
+
+export function getAccountDatabase() {
+  const config = useRuntimeConfig()
+  accountPool ??= mysql.createPool({
+    host: config.accountDbHost,
+    port: config.accountDbPort,
+    database: config.accountDbName,
+    user: config.accountDbUser,
+    password: config.accountDbPassword,
+    waitForConnections: true,
+    connectionLimit: 5,
+    timezone: '+08:00',
+  })
+  return accountPool
 }
 
 export function getGameDatabase() {

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `gamedb`.`admin_user` (
+CREATE TABLE IF NOT EXISTS `gamedb_cmdl`.`admin_user` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `username` varchar(255) NOT NULL,
   `password` varchar(255) NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `gamedb`.`admin_user` (
   UNIQUE KEY `userRandom` (`userRandom`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO `gamedb`.`admin_user` (`id`, `username`, `password`, `authorization`, `channel`)
+INSERT INTO `gamedb_cmdl`.`admin_user` (`id`, `username`, `password`, `authorization`, `channel`)
 SELECT `id`, `username`, `password`, `authorization`, `channel`
 FROM `dlbackstage`.`user`
 ON DUPLICATE KEY UPDATE

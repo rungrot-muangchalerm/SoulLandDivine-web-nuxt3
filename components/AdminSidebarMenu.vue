@@ -15,6 +15,7 @@ const menu: MenuEntry[] = [
   { title: 'ข้อมูลผู้เล่น', path: '/role', limit: 0 },
   { title: 'จัดการตู้กาชาเรทอัพ', path: '/gacha', limit: 'admin' },
   { title: 'จัดการกิจกรรม', path: '/activities', limit: 'admin' },
+  { title: 'อัปเดต Client', path: '/client-update', limit: 'admin' },
   { title: 'หักทรัพยากร', limit: 4, children: [
     { title: 'หักไอเทม', path: '/item' },
     { title: 'หักความคืบหน้าการเติมเงินสะสม', path: '/recharge' },

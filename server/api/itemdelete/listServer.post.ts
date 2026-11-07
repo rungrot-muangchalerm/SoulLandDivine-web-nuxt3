@@ -1,5 +1,5 @@
 import { getAdminSession } from '../../utils/admin-session'
-import { getGameDatabase } from '../../utils/database'
+import { getAccountDatabase, getGameDatabase } from '../../utils/database'
 import { recordOperationLog } from '../../utils/operation-log'
 
 interface InventoryListBody {
@@ -133,7 +133,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const database = getGameDatabase()
-  const [serverRows] = await database.execute(
+  const [serverRows] = await getAccountDatabase().execute(
     'SELECT id FROM server_list WHERE id = ? LIMIT 1',
     [serverId],
   )

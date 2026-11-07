@@ -1,5 +1,5 @@
 import { getAdminSession } from '../../utils/admin-session'
-import { getGameDatabase } from '../../utils/database'
+import { getAccountDatabase, getGameDatabase } from '../../utils/database'
 import { recordOperationLog } from '../../utils/operation-log'
 
 interface ListBody {
@@ -49,7 +49,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'เลขหน้าไม่ถูกต้อง' })
   }
 
-  const [serverRows] = await getGameDatabase().execute(
+  const [serverRows] = await getAccountDatabase().execute(
     'SELECT id FROM server_list WHERE id = ? LIMIT 1',
     [serverId],
   )
@@ -59,51 +59,48 @@ export default defineEventHandler(async (event) => {
 
   const serverUidStart = serverId * 100_000
   const serverUidEnd = (serverId + 1) * 100_000
-  const database = getGameDatabase()
-  const [countRows] = await database.execute(
-    `SELECT COUNT(*) AS total
-    FROM account a
-    WHERE EXISTS (
-      SELECT 1
-      FROM \`character\` c
-      WHERE c.accountName = a.id
-        AND c.channelName = a.channelName
-        AND c.uid >= ?
-        AND c.uid < ?
-    )`,
+  const gameDatabase = getGameDatabase()
+  const accountDatabase = getAccountDatabase()
+  const [accountKeyRows] = await gameDatabase.execute(
+    `SELECT DISTINCT accountName, channelName
+    FROM \`character\`
+    WHERE uid >= ? AND uid < ?`,
     [serverUidStart, serverUidEnd],
   )
-  const total = Number((countRows as Array<{ total: number }>)[0]?.total || 0)
 
-  const [accountRows] = await database.execute(
-    `SELECT
-      a.uid AS accountUid,
-      a.id AS accountId,
-      a.channelName,
-      DATE_FORMAT(a.timeCreated, '%Y-%m-%d %H:%i:%s') AS timeCreated,
-      DATE_FORMAT(a.lastLoginTime, '%Y-%m-%d %H:%i:%s') AS lastLoginTime
-    FROM account a
-    WHERE EXISTS (
-      SELECT 1
-      FROM \`character\` c
-      WHERE c.accountName = a.id
-        AND c.channelName = a.channelName
-        AND c.uid >= ?
-        AND c.uid < ?
+  const accountKeys = accountKeyRows as Array<{ accountName: string; channelName: string }>
+  const accountRows: Array<Omit<PlayerRow, 'characters' | 'accumulateTotal' | 'characterCount'>> = []
+  for (let index = 0; index < accountKeys.length; index += 250) {
+    const batch = accountKeys.slice(index, index + 250)
+    const filters = batch.map(() => '(id = ? AND channelName = ?)').join(' OR ')
+    const values = batch.flatMap(({ accountName, channelName }) => [accountName, channelName])
+    const [rows] = await accountDatabase.execute(
+      `SELECT
+        uid AS accountUid,
+        id AS accountId,
+        channelName,
+        DATE_FORMAT(timeCreated, '%Y-%m-%d %H:%i:%s') AS timeCreated,
+        DATE_FORMAT(lastLoginTime, '%Y-%m-%d %H:%i:%s') AS lastLoginTime
+      FROM account
+      WHERE ${filters}`,
+      values,
     )
-    ORDER BY a.uid
-    LIMIT ? OFFSET ?`,
-    [serverUidStart, serverUidEnd, pageSize, (page - 1) * pageSize],
-  )
+    accountRows.push(...rows as Array<Omit<PlayerRow, 'characters' | 'accumulateTotal' | 'characterCount'>>)
+  }
+  accountRows.sort((left, right) => left.accountUid - right.accountUid)
+  const total = accountRows.length
 
-  const players: PlayerRow[] = (accountRows as Omit<PlayerRow, 'characters' | 'accumulateTotal' | 'characterCount'>[])
+  const players: PlayerRow[] = accountRows
+    .slice((page - 1) * pageSize, page * pageSize)
     .map(player => ({ ...player, characterCount: 0, characters: [], accumulateTotal: 0 }))
   if (players.length) {
-    const accountPlaceholders = players.map(() => '?').join(', ')
-    const [characterRows] = await database.execute(
+    const accountFilters = players.map(() => '(c.accountName = ? AND c.channelName = ?)').join(' OR ')
+    const accountValues = players.flatMap(({ accountId, channelName }) => [accountId, channelName])
+    const [characterRows] = await gameDatabase.execute(
       `SELECT
-        a.uid AS accountUid,
         c.uid,
+        c.accountName,
+        c.channelName,
         c.charName AS name,
         c.sex,
         'ไม่ทราบจากฐานข้อมูล' AS online,
@@ -116,24 +113,24 @@ export default defineEventHandler(async (event) => {
         COALESCE(r.gold, 0) AS gold,
         COALESCE(r.diamond, 0) AS diamond,
         COALESCE(w.accumulate_total, 0) AS accumulateTotal
-      FROM account a
-      JOIN \`character\` c
-        ON c.accountName = a.id
-        AND c.channelName = a.channelName
+      FROM \`character\` c
       LEFT JOIN character_resource r ON r.uid = c.uid
       LEFT JOIN recharge w ON w.pc_uid = c.uid
-      WHERE a.uid IN (${accountPlaceholders})
+      WHERE ${accountFilters}
         AND c.uid >= ?
         AND c.uid < ?
-      ORDER BY a.uid, c.uid`,
-      [...players.map(player => player.accountUid), serverUidStart, serverUidEnd],
+      ORDER BY c.accountName, c.channelName, c.uid`,
+      [...accountValues, serverUidStart, serverUidEnd],
     )
 
-    const playerByUid = new Map(players.map(player => [String(player.accountUid), player]))
-    for (const character of characterRows as Array<CharacterRow & { accountUid: number }>) {
-      const player = playerByUid.get(String(character.accountUid))
+    const playerByKey = new Map(players.map(player => [
+      `${player.accountId}\u0000${player.channelName}`,
+      player,
+    ]))
+    for (const character of characterRows as Array<CharacterRow & { accountName: string; channelName: string }>) {
+      const player = playerByKey.get(`${character.accountName}\u0000${character.channelName}`)
       if (!player) continue
-      const { accountUid: _accountUid, ...playerCharacter } = character
+      const { accountName: _accountName, channelName: _channelName, ...playerCharacter } = character
       player.characters.push(playerCharacter)
       player.characterCount += 1
       player.accumulateTotal += Number(playerCharacter.accumulateTotal)

@@ -1,7 +1,7 @@
-CREATE TABLE IF NOT EXISTS `gamedb`.`channel_list`
+CREATE TABLE IF NOT EXISTS `gamedb_cmdl`.`channel_list`
 LIKE `dlbackstage`.`channel_list`;
 
-INSERT INTO `gamedb`.`channel_list` (`id`, `name`, `index`, `ip`, `url`)
+INSERT INTO `gamedb_cmdl`.`channel_list` (`id`, `name`, `index`, `ip`, `url`)
 SELECT `id`, `name`, `index`, `ip`, `url`
 FROM `dlbackstage`.`channel_list`
 ON DUPLICATE KEY UPDATE

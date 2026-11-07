@@ -1,5 +1,5 @@
 import { getAdminSession } from '../../utils/admin-session'
-import { getGameDatabase } from '../../utils/database'
+import { getAccountDatabase, getGameDatabase } from '../../utils/database'
 import { recordOperationLog } from '../../utils/operation-log'
 
 interface SearchBody {
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุ UID หรือชื่อตัวละครให้ถูกต้อง' })
   }
 
-  const [serverRows] = await getGameDatabase().execute(
+  const [serverRows] = await getAccountDatabase().execute(
     'SELECT id FROM server_list WHERE id = ? LIMIT 1',
     [serverId],
   )

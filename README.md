@@ -7,13 +7,15 @@ under `legacy/` as references.
 ## Run
 
 Requires Node.js 20.19 or newer and reachable MySQL/MariaDB databases. `DB_*`
-connects to `dlbackstage` for operation logs and broadcasts. `GAMEDB_*`
-connects to `gamedb` for game data, admin accounts, and channels; if omitted,
-its host, port, user, and password fall back to `DB_*`.
+connects to `dlbackstage` for operation logs and broadcasts. `ACCOUNTDB_*`
+connects to `account_cmdl` for accounts, server lists, and welfare assignments.
+`GAMEDB_*` connects to `gamedb_cmdl` for characters, game data, admin accounts,
+and channels. The account and game database host, port, user, and password
+settings fall back to `DB_*` when omitted.
 
 ```powershell
 Copy-Item .env.example .env
-# Set DB_* and GAMEDB_* in .env for the two databases
+# Set DB_*, ACCOUNTDB_*, and GAMEDB_* in .env for the three databases
 npm install
 npm run dev
 ```
@@ -28,14 +30,21 @@ The checked-in `database/gamedb_export.sql` is a database dump containing
 database without reviewing it and taking a backup first.
 
 Apply `database/migrations/20261031_admin_users_gamedb.sql` once to create the
-`gamedb.admin_user` table and copy existing admin accounts from
+`gamedb_cmdl.admin_user` table and copy existing admin accounts from
 `dlbackstage.user`. Login, sessions, and admin-account management then use
-`gamedb.admin_user`. Apply
+`gamedb_cmdl.admin_user`. Apply
 `database/migrations/20261103_channel_list_gamedb.sql` once to create
-`gamedb.channel_list` with the existing `dlbackstage.channel_list` structure and
-copy its channel records. The migration leaves the old table in place for
-rollback; the web app reads and updates channels in `gamedb` afterward.
-Operation logs and broadcasts continue to use `dlbackstage`.
+`gamedb_cmdl.channel_list` with the existing `dlbackstage.channel_list`
+structure and copy its channel records. The migration leaves the old table in
+place for rollback; the web app reads and updates channels in `gamedb_cmdl`
+afterward. Operation logs and broadcasts continue to use `dlbackstage`.
+
+To initialize a fresh, empty `admin_user` table, set
+`ADMIN_DEFAULT_USERNAME` and `ADMIN_DEFAULT_PASSWORD` in the local environment.
+On startup, the web app creates that account with admin access to all channels
+only when the table has no accounts; existing accounts are never overwritten.
+Leave both settings empty to disable automatic initialization. Change the
+default password before exposing the admin site to an untrusted network.
 
 The player information page lists accounts with characters in the selected
 server, 50 accounts per page. Expanding an account shows its characters,
@@ -82,6 +91,10 @@ allowlisted activity XML configs documented in `docs/API_DOCUMENTATION.md`.
 After changing `Game_Server/AdminAPI`, rebuild and restart AdminAPI before the
 new activity endpoints are available; the game server may also need to reload
 its XML configuration.
+
+The admin-only **อัปเดต Client** page publishes Windows and Android manifests.
+Store the installer/APK in the persistent `CLIENT_UPDATE_DIR` and see
+`docs/client-update.md` for local development and production release steps.
 
 Routes that depend on the database, game server, or announcement service need
 those services configured for end-to-end verification. Legacy files remain
