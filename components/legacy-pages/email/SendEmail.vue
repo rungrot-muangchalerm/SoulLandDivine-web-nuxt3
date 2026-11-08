@@ -61,8 +61,8 @@
                         <span v-if="emailTemplatesLoading" class="email-help">กำลังโหลด Email template...</span>
                         <span v-else-if="emailTemplatesError" class="text-danger small">{{ emailTemplatesError }}</span>
                     </label>
-                    <label class="email-field">
-                        <span>ช่องทางเกม</span>
+                    <label v-if="form.emailType === 'allserver' && allServers" class="email-field">
+                        <span>กลุ่มเซิร์ฟเวอร์ (ช่องทางเกม)</span>
                         <bs-select
                             v-model="selectedEmailChannel"
                             :disabled="emailChannelsLoading || emailChannels.length === 0"
@@ -89,6 +89,7 @@
                         active-text="ทุกเซิร์ฟเวอร์ในช่องทาง"
                         inactive-text="เซิร์ฟเวอร์ที่เลือก"
                     ></bs-switch>
+                    <span v-if="!allServers && selectedServer" class="email-help">ส่งไปยังเซิร์ฟเวอร์ {{ selectedServer }} โดยตรง</span>
                 </div>
                 <div v-if="!customContent && selectedEmailTemplate" class="email-template-info">
                     <strong>{{ selectedEmailTemplate.title || `Email template #${selectedEmailTemplate.id}` }}</strong>
@@ -127,8 +128,9 @@
                     </label>
                 </div>
                 <label v-if="form.emailType === 'personalemail'" class="email-field email-uid-field">
-                    <span>ผู้เล่น (serverId:UID)</span>
-                    <bs-input v-model="form.uidList" placeholder="เช่น 1001:123456 หรือหลายคนคั่นด้วย |"></bs-input>
+                    <span>UID ผู้เล่น</span>
+                    <bs-input v-model="form.uidList" placeholder="เช่น 123456 หรือหลายคนคั่นด้วย |"></bs-input>
+                    <small class="email-help">ใช้เซิร์ฟเวอร์ {{ selectedServer || 'ที่เลือกจากแถบด้านบน' }} อัตโนมัติ</small>
                 </label>
                 </div>
             </section>
@@ -165,7 +167,7 @@
                     </label>
                     <label v-if="customContent" class="email-field email-picker-quantity">
                         <span>{{ selectedRewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
-                        <input v-model="manualReward.quantity" class="form-control" type="number" min="1">
+                        <input :value="formatQuantity(manualReward.quantity)" class="form-control" type="text" inputmode="numeric" @input="onManualQuantityInput">
                     </label>
                     <label v-if="customContent && selectedRewardType === '3'" class="email-field email-picker-quantity">
                         <span>ปี</span>
@@ -300,10 +302,11 @@
                             <label class="email-field email-quantity-field">
                                 <span>{{ item.rewardType === '3' ? 'จำนวนฉบับ' : 'จำนวน' }}</span>
                                 <input
-                                    v-model="selectedReward(item).quantity"
+                                    :value="formatQuantity(selectedReward(item).quantity)"
                                     class="form-control form-control-sm"
-                                    type="number"
-                                    min="1"
+                                    type="text"
+                                    inputmode="numeric"
+                                    @input="onRewardQuantityInput(item, $event)"
                                     placeholder="เช่น 1"
                                 >
                             </label>
@@ -470,12 +473,16 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
         },
         mounted () {
             this.loadRememberedEmailSettings()
+            if (this.selectedServer) this.allServers = false
             this.loadSenderName()
             this.loadItemCatalog()
             this.loadEmailTemplates()
             this.loadEmailChannels()
         },
         watch: {
+            selectedServer () {
+                if (this.selectedServer) this.allServers = false
+            },
             emailSettingsToRemember: {
                 deep: true,
                 handler () {
@@ -682,14 +689,17 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 this.emailChannelError = ''
                 try {
                     const selectedChannel = getCookie('channel')
-                    const response = await this.$api.post('/api/set/searchChannelOne', selectedChannel
+                    const response = await this.$api.post('/api/set/searchChannelOne', selectedChannel && selectedChannel !== '*'
                         ? { channel: selectedChannel }
                         : {})
-                    this.emailChannels = response.data
+                    this.emailChannels = response.data.map(channel => ({
+                        ...channel,
+                        index: String(channel.index)
+                    }))
                     if (!this.selectedEmailChannel && this.emailChannels.length === 1) {
                         this.selectedEmailChannel = this.emailChannels[0].index
                     }
-                    if (this.selectedEmailChannel && !this.emailChannels.some(channel => channel.index === this.selectedEmailChannel)) {
+                    if (this.selectedEmailChannel && !this.emailChannels.some(channel => String(channel.index) === String(this.selectedEmailChannel))) {
                         this.selectedEmailChannel = ''
                     }
                 } catch (error) {
@@ -780,6 +790,7 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                 const digitsBeforeCursor = input.value.slice(0, selectionStart).replace(/\D/g, '').length
                 const digits = input.value.replace(/\D/g, '')
                 const formatted = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+                input.value = formatted
                 updateValue(formatted)
 
                 this.$nextTick(() => {
@@ -790,6 +801,19 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                         cursor++
                     }
                     input.setSelectionRange(cursor, cursor)
+                })
+            },
+            formatQuantity (value) {
+                return String(value ?? '').replaceAll(',', '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+            },
+            onManualQuantityInput (event) {
+                this.formatYearInput(event, value => {
+                    this.manualReward.quantity = value.replaceAll(',', '')
+                })
+            },
+            onRewardQuantityInput (item, event) {
+                this.formatYearInput(event, value => {
+                    this.selectedReward(item).quantity = value.replaceAll(',', '')
                 })
             },
             onManualYearInput (event) {
@@ -855,12 +879,17 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                     BsMessage.error('กรุณากรอก UID ผู้เล่น')
                     return
                 }
-                if (!this.selectedEmailChannel) {
-                    BsMessage.error('กรุณาเลือกช่องทางเกม')
-                    return
-                }
                 if (this.form.emailType === 'allserver' && !this.allServers && !this.selectedServer) {
                     BsMessage.error('กรุณาเลือกเซิร์ฟเวอร์จากแถบด้านบน หรือเลือกส่งทุกเซิร์ฟเวอร์')
+                    return
+                }
+                if (this.form.emailType === 'personalemail' && !this.selectedServer) {
+                    BsMessage.error('กรุณาเลือกเซิร์ฟเวอร์จากแถบด้านบน')
+                    return
+                }
+                const requiresEmailChannel = this.form.emailType === 'allserver' && this.allServers
+                if (requiresEmailChannel && !this.selectedEmailChannel) {
+                    BsMessage.error('กรุณาเลือกช่องทางเกม')
                     return
                 }
 
@@ -916,8 +945,9 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                         }
                     : this.customContent
                         ? {
-                            channel: this.selectedEmailChannel,
+                            channel: getCookie('channel') === '*' ? '' : getCookie('channel'),
                             emailType: this.form.emailType,
+                            serverId: this.selectedServer,
                             uidList: this.form.uidList.trim(),
                             title: this.form.title.trim(),
                             senderName: this.form.senderName.trim(),
@@ -925,10 +955,10 @@ const DEFAULT_EMAIL_CONTENT = 'ขออภัยในความไม่ส�
                             rewards
                         }
                         : {
-                            channel: this.selectedEmailChannel,
+                            channel: getCookie('channel') === '*' ? '' : getCookie('channel'),
                             emailType: this.form.emailType,
                             mailId: this.form.mailId.trim(),
-                            serverId: 'list',
+                            serverId: this.selectedServer,
                             uidList: this.form.uidList.trim(),
                             rewards
                         }

@@ -15,6 +15,9 @@ export interface ActivityScheduleConfig {
 }
 
 export interface ActivityScheduleRow {
+  giftType?: number
+  subType?: number
+  groupName?: string
   id: number
   name: string
   configId: string
@@ -383,7 +386,7 @@ function isRelevantRow(config: ActivityScheduleConfig, values: Record<string, st
   if (!hasSchedule) return false
   if (
     ['recharge-tabs', 'activity-info'].includes(config.id)
-    && !['ShowStart', 'ShowEnd', 'OpenStart', 'OpenEnd', 'StartDate', 'EndDate', 'StartTime', 'EndTime']
+    && !['ShowStart', 'ShowEnd', 'ShowWeekStart', 'ShowWeekEnd', 'OpenStart', 'OpenEnd', 'StartDate', 'EndDate', 'StartTime', 'EndTime']
       .some((key) => Object.hasOwn(values, key))
   ) {
     return false
@@ -410,6 +413,11 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     return {
       id: Number(values.id),
       name: rowName(config.id, values),
+      ...(Number(values.GiftType) > 0 ? {
+        giftType: Number(values.GiftType),
+        subType: Number(values.SubType) || undefined,
+        groupName: giftTypeNames[Number(values.GiftType)] || `กิจกรรมประเภท ${values.GiftType}`,
+      } : {}),
       configId: config.id,
       configTitle: config.title,
       ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),

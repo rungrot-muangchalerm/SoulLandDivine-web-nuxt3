@@ -20,6 +20,9 @@ interface ScheduleConfig {
 }
 
 interface ScheduleRow {
+  giftType?: number
+  subType?: number
+  groupName?: string
   id: number
   name: string
   configId: string
@@ -30,6 +33,11 @@ interface ScheduleRow {
   canOpenForever: boolean
 }
 
+const route = useRoute()
+const activeGroupKey = computed(() => typeof route.params.group === 'string' ? route.params.group : '')
+function groupKey(activity: ScheduleRow) {
+  return activity.giftType ? `gift-${activity.giftType}` : `config-${activity.configId}`
+}
 const allConfigsId = 'all'
 const configs = ref<ScheduleConfig[]>([])
 const activities = ref<ScheduleRow[]>([])
@@ -45,6 +53,7 @@ const successMessage = ref('')
 
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
 const configRows = computed(() => activities.value
+  .filter((activity) => !activeGroupKey.value || groupKey(activity) === activeGroupKey.value)
   .filter((activity) => selectedConfigId.value === allConfigsId || activity.configId === selectedConfigId.value)
   .filter((activity) => {
     const query = search.value.trim().toLocaleLowerCase()
@@ -52,10 +61,26 @@ const configRows = computed(() => activities.value
       .toLocaleLowerCase()
       .includes(query)
   }))
-const pageCount = computed(() => Math.max(1, Math.ceil(configRows.value.length / pageSize)))
+const groups = computed(() => {
+  const grouped = new Map<string, { key: string; name: string; giftType?: number; rows: ScheduleRow[]; imageUrl?: string }>()
+  for (const activity of configRows.value) {
+    const key = groupKey(activity)
+    let group = grouped.get(key)
+    if (!group) {
+      group = { key, name: activity.groupName || activity.configTitle, giftType: activity.giftType, rows: [], imageUrl: activity.imageUrl }
+      grouped.set(key, group)
+    }
+    group.rows.push(activity)
+  }
+  return [...grouped.values()]
+})
+const currentGroup = computed(() => activities.value.find((activity) => groupKey(activity) === activeGroupKey.value))
+const resultCount = computed(() => activeGroupKey.value ? configRows.value.length : groups.value.length)
+const pageCount = computed(() => Math.max(1, Math.ceil(resultCount.value / pageSize)))
 const visibleRows = computed(() => configRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
+const visibleGroups = computed(() => groups.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 
-watch([selectedConfigId, search], () => {
+watch([selectedConfigId, search, activeGroupKey], () => {
   page.value = 1
 })
 
@@ -83,6 +108,69 @@ async function loadSchedules() {
 
 function rowKey(activity: ScheduleRow) {
   return `${activity.configId}:${activity.id}`
+}
+
+function isGroupEnabled(group: { rows: ScheduleRow[] }) {
+  return group.rows.length > 0 && group.rows.every(activity => isActivityEnabled(activity))
+}
+
+async function setGroupActivity(group: { key: string; name: string; rows: ScheduleRow[] }, active: boolean, event: Event) {
+  const checkbox = event.target
+  if (!(checkbox instanceof HTMLInputElement)) return
+  if (savingKey.value) return
+  if (!active && !window.confirm(`ยืนยันปิด "${group.name}" ทันทีหรือไม่?`)) {
+    checkbox.checked = isGroupEnabled(group)
+    return
+  }
+
+  const key = group.key
+  errorMessage.value = ''
+  successMessage.value = ''
+  let openedCount = 0
+
+  try {
+    savingKey.value = key
+    for (const activity of group.rows) {
+      if (isDirty(activity)) {
+        throw new Error(`กรุณาบันทึกตารางเวลาของ "${activity.name}" ที่แก้ไขค้างไว้ก่อน`)
+      }
+
+      let fields: Record<string, string>
+      if (active && activity.configId === 'recharge-tabs') {
+        const result = await $fetch<{
+          configured: boolean
+          durationDays?: number
+          fields?: Record<string, string>
+        }>('/api/activities/open', {
+          method: 'POST',
+          body: { configId: activity.configId, id: activity.id },
+        })
+        if (!result.configured || !result.fields || !result.durationDays) {
+          throw new Error(`"${activity.name}" ยังไม่มีระยะเวลาเปิดที่กำหนดไว้`)
+        }
+        fields = result.fields
+        activity.durationDays = result.durationDays
+      } else {
+        fields = getActivityOverrideFields(activity.configId, active, new Date())
+        await $fetch('/api/activities/schedule', {
+          method: 'POST',
+          body: { configId: activity.configId, id: activity.id, fields },
+        })
+      }
+
+      activity.fields = { ...activity.fields, ...fields }
+      drafts.value[rowKey(activity)] = { ...activity.fields }
+      openedCount++
+    }
+    successMessage.value = active
+      ? `เปิด "${group.name}" ทันทีแล้ว (${openedCount} ชุดกิจกรรม)`
+      : `ปิด "${group.name}" แล้ว (${openedCount} ชุดกิจกรรม)`
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : 'เปิดกิจกรรมไม่สำเร็จ'
+    checkbox.checked = isGroupEnabled(group)
+  } finally {
+    savingKey.value = ''
+  }
 }
 
 async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, event: Event) {
@@ -292,8 +380,9 @@ onMounted(loadSchedules)
   <section class="container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div>
-        <h1 class="h3 mb-1">จัดการกิจกรรม</h1>
-        <p class="text-body-secondary mb-0">จัดการตารางเวลาจาก XML เกม รวมถึงกิจกรรมเรือมังกรและเรือพาย</p>
+        <NuxtLink v-if="activeGroupKey" to="/activities" class="d-inline-block mb-2">← กิจกรรมทั้งหมด</NuxtLink>
+        <h1 class="h3 mb-1">{{ activeGroupKey ? (currentGroup?.groupName || currentGroup?.configTitle || 'ไม่พบกิจกรรม') : 'กิจกรรมทั้งหมด' }}</h1>
+        <p class="text-body-secondary mb-0">{{ activeGroupKey ? 'เลือกชุดกิจกรรมเพื่อจัดการเวลาเปิด–ปิด' : 'เลือกกิจกรรมเพื่อจัดการชุดและรอบทั้งหมด' }}</p>
       </div>
       <button class="btn btn-outline-secondary" type="button" :disabled="loading || savingKey !== ''" @click="loadSchedules">
         {{ loading ? 'กำลังโหลด...' : 'โหลดข้อมูลใหม่' }}
@@ -321,7 +410,7 @@ onMounted(loadSchedules)
 
     <p v-if="selectedConfig" class="small text-body-secondary">{{ selectedConfig.description }}</p>
     <div v-if="!loading && configRows.length" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-      <span class="small text-body-secondary">พบ {{ configRows.length }} รายการ</span>
+      <span class="small text-body-secondary">พบ {{ resultCount }} {{ activeGroupKey ? 'ชุดกิจกรรม' : 'กิจกรรม' }}</span>
       <nav v-if="pageCount > 1" aria-label="หน้ารายการกิจกรรม">
         <ul class="pagination pagination-sm mb-0">
           <li class="page-item" :class="{ disabled: page <= 1 }">
@@ -337,6 +426,34 @@ onMounted(loadSchedules)
 
     <div v-if="loading" class="alert alert-info">กำลังโหลดตารางเวลากิจกรรม...</div>
     <div v-else-if="!configRows.length" class="alert alert-secondary">ไม่พบกิจกรรมในหมวดนี้ หรือไม่ตรงกับคำค้นหา</div>
+    <div v-else-if="!activeGroupKey" class="row g-3">
+      <div v-for="group in visibleGroups" :key="group.key" class="col-12 col-md-6 col-xl-4">
+        <article class="card h-100 activity-group-card">
+          <NuxtLink :to="`/activities/${group.key}`" class="text-decoration-none text-reset">
+            <img v-if="group.imageUrl" :src="group.imageUrl" :alt="group.name" class="card-img-top activity-card-image" loading="lazy">
+            <div class="card-body">
+              <h2 class="h5">{{ group.name }}</h2>
+              <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftType"> · GiftType {{ group.giftType }}</span></p>
+            </div>
+          </NuxtLink>
+          <div class="activity-group-toggle form-check form-switch mb-0">
+            <input
+              :id="`group-active-${group.key}`"
+              class="form-check-input"
+              type="checkbox"
+              role="switch"
+              :checked="isGroupEnabled(group)"
+              :disabled="savingKey !== ''"
+              @change="setGroupActivity(group, ($event.target as HTMLInputElement).checked, $event)"
+            >
+            <label class="visually-hidden" :for="`group-active-${group.key}`">เปิดหรือปิดกิจกรรม {{ group.name }}</label>
+          </div>
+          <div class="card-body pt-0 d-flex justify-content-end">
+            <NuxtLink :to="`/activities/${group.key}`" class="btn btn-primary">จัดการกิจกรรม →</NuxtLink>
+          </div>
+        </article>
+      </div>
+    </div>
     <div v-else class="row g-3">
       <div v-for="activity in visibleRows" :key="rowKey(activity)" class="col-12 col-xl-6">
         <article class="card h-100">
@@ -350,7 +467,7 @@ onMounted(loadSchedules)
           <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
             <div>
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
-              <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}</div>
+              <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
             </div>
             <div v-if="activity.canOpenForever" class="form-check form-switch mb-0">
               <input
@@ -412,5 +529,16 @@ onMounted(loadSchedules)
   aspect-ratio: 16 / 9;
   object-fit: cover;
   background-color: var(--bs-tertiary-bg);
+}
+
+.activity-group-card {
+  position: relative;
+}
+
+.activity-group-toggle {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  z-index: 2;
 }
 </style>

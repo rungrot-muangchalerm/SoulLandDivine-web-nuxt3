@@ -340,7 +340,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
   const session = await getAdminSession(event)
   const allChannels = event.context.adminChannel === '*'
-  const channel = String(body.channel ?? event.context.adminChannel ?? getCookie(event, 'channel') ?? '')
+  let channel = String(body.channel ?? event.context.adminChannel ?? getCookie(event, 'channel') ?? '')
   const allChannelRoutes = new Set([
     'baseinfo/serverlist',
     'baseinfo/userlist',
@@ -362,21 +362,53 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 501, statusMessage: 'ฟีเจอร์นี้ยังไม่รองรับการทำงานกับฐานข้อมูลโดยตรง' })
   }
   if (allChannels && ['email/send', 'email/sendCustom'].includes(route)) {
-    if (!channel || channel === '*') {
-      throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุช่องทางเกมสำหรับส่งอีเมล' })
-    }
-    const [channels] = await getGameDatabase().execute(
-      'SELECT `index` FROM channel_list WHERE `index` = ? LIMIT 1',
-      [channel],
-    )
-    if (!(channels as Array<{ index: string }>).length) {
-      throw createError({ statusCode: 400, statusMessage: 'ไม่พบช่องทางเกมที่เลือก' })
+    const selectedServerId = String(body.serverId ?? '').trim()
+    const isSpecificServerSend = ['allserver', 'personalemail'].includes(String(body.emailType))
+      && /^[1-9]\d*$/.test(selectedServerId)
+      && Number.isSafeInteger(Number(selectedServerId))
+
+    if ((!channel || channel === '*') && isSpecificServerSend) {
+      channel = ''
+      const [servers] = await getAccountDatabase().execute(
+        'SELECT id FROM server_list WHERE id = ? LIMIT 1',
+        [selectedServerId],
+      )
+      if (!(servers as Array<{ id: number }>).length) {
+        throw createError({ statusCode: 404, statusMessage: 'ไม่พบเซิร์ฟเวอร์ของผู้รับ' })
+      }
+      if (!useRuntimeConfig(event).gameServerHost) {
+        throw createError({ statusCode: 503, statusMessage: 'ยังไม่ได้ตั้งค่า game server host' })
+      }
+    } else {
+      if (!channel || channel === '*') {
+        throw createError({ statusCode: 400, statusMessage: 'กรุณาระบุช่องทางเกมสำหรับส่งอีเมล' })
+      }
+      const [channels] = await getGameDatabase().execute(
+        'SELECT `index` FROM channel_list WHERE `index` = ? LIMIT 1',
+        [channel],
+      )
+      if (!(channels as Array<{ index: string }>).length) {
+        throw createError({ statusCode: 400, statusMessage: 'ไม่พบช่องทางเกมที่เลือก' })
+      }
     }
   }
   if (!allChannels && (!channel || channel !== event.context.adminChannel)) {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์ใช้ช่องทางนี้' })
   }
   if (!allChannels) body.channel = channel
+  if (['email/send', 'email/sendCustom'].includes(route) && body.emailType === 'personalemail') {
+    const serverId = String(body.serverId ?? '').trim()
+    if (/^[1-9]\d*$/.test(serverId) && typeof body.uidList === 'string') {
+      const recipients = getCustomEmailRecipients(body.uidList.split('|').map((entry) => {
+        const uid = entry.trim()
+        return uid.includes(':') ? uid : `${serverId}:${uid}`
+      }).join('|'))
+      if (recipients.some((recipient) => recipient.serverId !== Number(serverId))) {
+        throw createError({ statusCode: 400, statusMessage: 'ผู้รับต้องอยู่ในเซิร์ฟเวอร์ที่เลือก' })
+      }
+      body.uidList = recipients.map((recipient) => `${recipient.serverId}:${recipient.uid}`).join('|')
+    }
+  }
   if (route.startsWith('users/') && route !== 'users/changePsw' && session.authorization !== 'admin') {
     throw createError({ statusCode: 403, statusMessage: 'ไม่มีสิทธิ์จัดการผู้ใช้หรือประวัติการทำงาน' })
   }

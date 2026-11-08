@@ -64,8 +64,9 @@ from the message content (an Email template or custom title, sender, body, and
 item rewards). Custom rewards can be selected from the catalog or entered by
 item ID, type, and quantity, up to 255 items per request. Custom rewards are
 sent in separate emails when their combined reward data would exceed 255
-characters per email. Individual recipients use `serverId:UID`,
-separated by `|` for multiple players (up to 50 per request). Custom server
+characters per email. Individual recipients enter UID only and use the server selected in the header.
+Separate multiple UIDs with `|` (up to 50 per request). The API adds the server
+ID for the Game Server protocol and rejects recipients from another server. Custom server
 mail can target the selected server or all RelationServers connected to the
 selected channel's GlobalServer. Custom mail uses the existing Game Server
 protocol and requires rebuilding and restarting GlobalServer and RelationServer
