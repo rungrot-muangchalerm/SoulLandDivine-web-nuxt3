@@ -1,4 +1,6 @@
 import { fetchGameAdminApi } from './game-admin-api'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 export interface ActivityScheduleField {
   key: string
@@ -109,6 +111,19 @@ function activityBannerId(configId: string, values: Record<string, string>) {
   if (activityType && activityTypeBanners[activityType]) return activityTypeBanners[activityType]
 
   return activityFallbackBanners[configId] || 4
+}
+
+function rechargeBannerFilename(values: Record<string, string>) {
+  const tabIcon = values.TabIcon?.trim()
+  return tabIcon ? `${tabIcon}_EN.png` : undefined
+}
+
+function rechargeBannerImageUrl(values: Record<string, string>) {
+  const filename = rechargeBannerFilename(values)
+  if (!filename) return undefined
+
+  const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', filename)
+  return existsSync(bannerPath) ? `/recharge-banners/${filename}` : undefined
 }
 
 export const activityScheduleConfigs: ActivityScheduleConfig[] = [
@@ -421,20 +436,33 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
       configId: config.id,
       configTitle: config.title,
       ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),
-      imageUrl: `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+      imageUrl: rechargeBannerImageUrl(values) || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
       canOpenForever: true,
-      fields: Object.fromEntries(config.fields
-        .filter((field) => Object.hasOwn(values, field.key))
-        .map((field) => [field.key, values[field.key]])),
+      fields: {
+        ...Object.fromEntries(config.fields
+          .filter((field) => Object.hasOwn(values, field.key))
+          .map((field) => [field.key, values[field.key]])),
+        ...(config.id === 'recharge-tabs' ? {
+          ...(Object.hasOwn(values, 'TabAtlas') ? { TabAtlas: values.TabAtlas } : {}),
+          ...(Object.hasOwn(values, 'TabIcon') ? { TabIcon: values.TabIcon } : {}),
+        } : {}),
+      },
     }
   })
 }
 
 export async function fetchActivitySchedules() {
-  return (await Promise.all(activityScheduleConfigs.map(async (config) => {
+  const bannerConfig = activityScheduleConfigs.find(config => config.id === 'recharge-tabs')
+  if (!bannerConfig) return []
+
+  return (await Promise.all([bannerConfig].map(async (config) => {
     const response = await fetchGameAdminApi(`/api/activities/config/${config.id}`)
     return parseActivitySchedule(config, await response.text())
-  }))).flat()
+  }))).flat().filter(activity =>
+    activity.fields.TabAtlas?.trim()
+    && activity.fields.TabIcon?.trim()
+    && rechargeBannerImageUrl(activity.fields)
+  )
 }
 
 export async function saveActivitySchedule(configId: string, rowId: number, fields: Record<string, string>) {

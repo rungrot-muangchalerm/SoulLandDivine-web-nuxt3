@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
-    configs: activityScheduleConfigs,
+    configs: activityScheduleConfigs.filter(config => config.id === 'recharge-tabs'),
     activities: await fetchActivitySchedules(),
   }
 })

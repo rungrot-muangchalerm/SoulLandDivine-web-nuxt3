@@ -1,6 +1,7 @@
 import { getAdminSession } from '../../utils/admin-session'
 import { recordOperationLog } from '../../utils/operation-log'
 import { saveActivitySchedule } from '../../utils/activity-schedules'
+import { isProtectedRechargeActivity } from '../../../utils/activity-schedule-overrides'
 
 interface ActivityScheduleRequest {
   configId?: unknown
@@ -33,6 +34,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const fields = body.fields
+  if (
+    isProtectedRechargeActivity(body.configId, body.id)
+    && fields.ShowStart === ''
+    && fields.ShowEnd === ''
+  ) {
+    throw createError({ statusCode: 400, statusMessage: 'กิจกรรม ID 1 ห้ามปิดระบบ' })
+  }
   await saveActivitySchedule(body.configId, body.id, fields)
   await recordOperationLog({
     username: session.username,

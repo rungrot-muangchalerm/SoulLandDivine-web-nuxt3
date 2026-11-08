@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   getActivityOverrideFields,
+  isProtectedRechargeActivity,
   isActivityAlwaysOpen,
   isActivityForceClosed,
 } from '~/utils/activity-schedule-overrides'
@@ -131,6 +132,9 @@ async function setGroupActivity(group: { key: string; name: string; rows: Schedu
   try {
     savingKey.value = key
     for (const activity of group.rows) {
+      if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
+        throw new Error('กิจกรรม ID 1 ("Magic Crystal Daily Gift Pack") ห้ามปิดระบบ')
+      }
       if (isDirty(activity)) {
         throw new Error(`กรุณาบันทึกตารางเวลาของ "${activity.name}" ที่แก้ไขค้างไว้ก่อน`)
       }
@@ -178,6 +182,11 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
   if (!(checkbox instanceof HTMLInputElement)) return
 
   const key = rowKey(activity)
+  if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
+    errorMessage.value = 'กิจกรรม ID 1 ("Magic Crystal Daily Gift Pack") ห้ามปิดระบบ'
+    checkbox.checked = isActivityEnabled(activity)
+    return
+  }
   if (isDirty(activity) || savingKey.value) {
     errorMessage.value = 'กรุณาบันทึกตารางเวลาที่แก้ไขค้างไว้ก่อนเปลี่ยนสถานะกิจกรรม'
     checkbox.checked = isActivityEnabled(activity)
@@ -526,8 +535,9 @@ onMounted(loadSchedules)
 
 <style scoped>
 .activity-card-image {
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
   background-color: var(--bs-tertiary-bg);
 }
 
