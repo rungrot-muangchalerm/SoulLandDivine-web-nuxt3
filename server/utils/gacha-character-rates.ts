@@ -1,6 +1,9 @@
+import characterDisplay from '../../data/gacha-character-display.json'
+
 export interface GachaCharacterRate {
   id: number
   name: string
+  imageUrl?: string
   quality: number
   ratio: number
   openWeek: number
@@ -66,9 +69,11 @@ export function getGachaCharacterRates(xml: string, drawType: number): GachaChar
     if (!(ratioKey in values) || !(qualityKey in values)) return []
 
     const id = parseInteger(values.id, 'ID', values.id || '?')
+    const display = characterDisplay[String(id) as keyof typeof characterDisplay]
     return [{
       id,
-      name: values.CEHUA || `ตัวละคร ${id}`,
+      name: display?.name || values.CEHUA || `ตัวละคร ${id}`,
+      imageUrl: display?.imageUrl,
       quality: parseInteger(values[qualityKey], qualityKey, String(id)),
       ratio: parseInteger(values[ratioKey], ratioKey, String(id)),
       openWeek: values.OpenWeek ? parseInteger(values.OpenWeek, 'OpenWeek', String(id)) : 0,

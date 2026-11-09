@@ -9,21 +9,6 @@ interface GachaPool {
   imageUrl?: string
 }
 
-interface GachaCharacterRate {
-  id: number
-  name: string
-  quality: number
-  ratio: number
-  draftRatio: number
-}
-
-interface CharacterRatePanel {
-  open: boolean
-  loaded: boolean
-  loading: boolean
-  characters: GachaCharacterRate[]
-}
-
 interface CustomGachaConfig {
   singlePrice: number
   continuousPrice: number
@@ -78,8 +63,6 @@ async function saveCustomConfig() {
 const pools = ref<GachaPool[]>([])
 const endTimes = ref<Record<number, string>>({})
 const savingPoolId = ref<number | null>(null)
-const characterRatePanels = ref<Record<number, CharacterRatePanel>>({})
-const savingCharacterKey = ref<string | null>(null)
 const loading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -170,87 +153,6 @@ async function togglePool(pool: GachaPool, event: Event) {
   }
 }
 
-function getCharacterRatePanel(pool: GachaPool) {
-  return characterRatePanels.value[Number(pool.type)]
-}
-
-async function toggleCharacterRates(pool: GachaPool) {
-  const drawType = Number(pool.type)
-  if (!Number.isSafeInteger(drawType) || drawType < 1) {
-    errorMessage.value = 'ข้อมูลประเภทตู้กาชาไม่ถูกต้อง'
-    return
-  }
-
-  const panel = characterRatePanels.value[drawType] ??= {
-    open: false,
-    loaded: false,
-    loading: false,
-    characters: [],
-  }
-  panel.open = !panel.open
-  if (!panel.open || panel.loaded) return
-
-  panel.loading = true
-  errorMessage.value = ''
-  try {
-    const result = await $fetch<{ characters: Omit<GachaCharacterRate, 'draftRatio'>[] }>(
-      `/api/gacha/character-rates?drawType=${drawType}`,
-    )
-    panel.characters = result.characters.map((character: Omit<GachaCharacterRate, 'draftRatio'>) => ({
-      ...character,
-      draftRatio: character.ratio,
-    }))
-    panel.loaded = true
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'โหลดเรทตัวละครไม่สำเร็จ'
-    panel.open = false
-  } finally {
-    panel.loading = false
-  }
-}
-
-function qualityName(quality: number) {
-  return ({ 2: 'SSR', 3: 'SR', 4: 'R', 5: 'N' } as Record<number, string>)[quality] || `คุณภาพ ${quality}`
-}
-
-async function saveCharacterRate(pool: GachaPool, character: GachaCharacterRate) {
-  const drawType = Number(pool.type)
-  if (!Number.isSafeInteger(character.draftRatio) || character.draftRatio < 0 || character.draftRatio > 1_000_000) {
-    errorMessage.value = 'เรทตัวละครต้องเป็นจำนวนเต็มระหว่าง 0 ถึง 1000000'
-    return
-  }
-  if (savingCharacterKey.value !== null) return
-  if (
-    character.draftRatio === 0
-    && character.ratio > 0
-    && !window.confirm(`ยืนยันตั้งเรทของ ${character.name} (ID ${character.id}) เป็น 0 หรือไม่? ตัวละครนี้จะไม่ถูกสุ่มจากตู้ประเภท ${drawType}`)
-  ) return
-
-  savingCharacterKey.value = `${drawType}:${character.id}`
-  errorMessage.value = ''
-  successMessage.value = ''
-  try {
-    const result = await $fetch<{ characters: Omit<GachaCharacterRate, 'draftRatio'>[], message: string }>(
-      '/api/gacha/character-rates',
-      {
-        method: 'POST',
-        body: { drawType, heroId: character.id, ratio: character.draftRatio },
-      },
-    )
-    const panel = characterRatePanels.value[drawType]
-    panel.characters = result.characters.map((item: Omit<GachaCharacterRate, 'draftRatio'>) => {
-      const current = panel.characters.find((entry: GachaCharacterRate) => entry.id === item.id)
-      const ratio = item.id === character.id ? item.ratio : (current?.ratio ?? item.ratio)
-      return { ...item, ratio, draftRatio: item.id === character.id ? item.ratio : (current?.draftRatio ?? item.ratio) }
-    })
-    successMessage.value = `${character.name}: ${result.message}`
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'บันทึกเรทตัวละครไม่สำเร็จ'
-  } finally {
-    savingCharacterKey.value = null
-  }
-}
-
 let scheduleRefresh: ReturnType<typeof setInterval> | undefined
 async function refreshScheduleSilently() {
   if (loading.value || savingPoolId.value !== null) return
@@ -337,7 +239,7 @@ onBeforeUnmount(() => {
                       type="number" :min="field.min" :max="field.max" step="1" :disabled="customConfigBusy">
                   </div>
                   <p class="small text-body-secondary mb-0">
-                    น้ำหนักระดับคุณภาพหารด้วยผลรวมคือโอกาสสุ่มปกติ ส่วนเรทตัวละครปรับในปุ่มด้านล่าง การันตีแยกจากเรทปกติ
+                    น้ำหนักระดับคุณภาพหารด้วยผลรวมคือโอกาสสุ่มปกติ ส่วนเรทตัวละครปรับในหน้าจัดการตัวละครและเรท การันตีแยกจากเรทปกติ
                     ถ้าเลือก ID ตั๋วเดียวกับตู้อื่น จะใช้จำนวนตั๋วในกระเป๋าร่วมกัน
                   </p>
                   <div><button class="btn btn-sm btn-primary" type="button" :disabled="customConfigBusy" @click="saveCustomConfig">บันทึกกติกาตู้ปรับแต่ง</button></div>
@@ -357,72 +259,12 @@ onBeforeUnmount(() => {
             </dl>
 
             <div class="border-top pt-3">
-              <button
+              <NuxtLink
                 class="btn btn-sm btn-outline-primary"
-                type="button"
-                :aria-expanded="getCharacterRatePanel(pool)?.open || false"
-                :disabled="getCharacterRatePanel(pool)?.loading || savingPoolId !== null"
-                @click="toggleCharacterRates(pool)"
+                :to="{ path: '/gacha/characters', query: { drawType: pool.type } }"
               >
-                {{ getCharacterRatePanel(pool)?.open ? 'ซ่อนเรทตัวละคร' : 'ปรับเรทตัวละคร' }}
-              </button>
-              <div v-if="getCharacterRatePanel(pool)?.open" class="mt-3">
-                <p class="small text-body-secondary mb-2">
-                  Type {{ pool.type }} · น้ำหนักสุ่มภายในระดับคุณภาพ ไม่ใช่เปอร์เซ็นต์จริง
-                </p>
-                <p class="small text-body-secondary mb-2">
-                  ตู้ที่ใช้ Type เดียวกันจะใช้เรทชุดเดียวกัน
-                </p>
-                <p class="small text-body-secondary mb-2">
-                  บันทึกแล้วระบบจะส่งอัปเดตเรทเข้าเกมโดยอัตโนมัติ
-                </p>
-                <p v-if="getCharacterRatePanel(pool)?.loading" class="small mb-0" role="status">
-                  กำลังโหลดเรทตัวละคร...
-                </p>
-                <div v-else class="table-responsive">
-                  <table class="table table-sm align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th scope="col">ตัวละคร</th>
-                        <th scope="col">คุณภาพ</th>
-                        <th scope="col">น้ำหนัก</th>
-                        <th scope="col"><span class="visually-hidden">บันทึก</span></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="character in getCharacterRatePanel(pool)?.characters" :key="character.id">
-                        <td>
-                          {{ character.name }}
-                          <span class="text-body-secondary">#{{ character.id }}</span>
-                        </td>
-                        <td>{{ qualityName(character.quality) }}</td>
-                        <td>
-                          <input
-                            v-model.number="character.draftRatio"
-                            class="form-control form-control-sm gacha-rate-input"
-                            type="number"
-                            min="0"
-                            max="1000000"
-                            step="1"
-                            :aria-label="`น้ำหนักสุ่มของ ${character.name} ID ${character.id}`"
-                            :disabled="savingCharacterKey !== null"
-                          >
-                        </td>
-                        <td>
-                          <button
-                            class="btn btn-sm btn-primary"
-                            type="button"
-                            :disabled="savingCharacterKey !== null || character.draftRatio === character.ratio"
-                            @click="saveCharacterRate(pool, character)"
-                          >
-                            {{ savingCharacterKey === `${pool.type}:${character.id}` ? 'กำลังบันทึก...' : 'บันทึก' }}
-                          </button>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                จัดการตัวละครและเรท
+              </NuxtLink>
             </div>
 
             <div v-if="!pool.active" class="row align-items-end g-2">
