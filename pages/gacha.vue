@@ -261,7 +261,7 @@ onBeforeUnmount(() => {
             <div class="border-top pt-3">
               <NuxtLink
                 class="btn btn-sm btn-outline-primary"
-                :to="{ path: '/gacha/characters', query: { drawType: pool.type } }"
+                :to="{ path: '/page/gacha-characters', query: { drawType: pool.type } }"
               >
                 จัดการตัวละครและเรท
               </NuxtLink>

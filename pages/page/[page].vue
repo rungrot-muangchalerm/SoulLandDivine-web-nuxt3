@@ -14,6 +14,9 @@ interface CharacterRatesResponse {
 }
 
 const route = useRoute()
+if (route.params.page !== 'gacha-characters') {
+  throw createError({ statusCode: 404, statusMessage: 'ไม่พบหน้าที่ต้องการ' })
+}
 const drawType = computed(() => {
   const value = route.query.drawType
   return typeof value === 'string' ? Number(value) : 0
