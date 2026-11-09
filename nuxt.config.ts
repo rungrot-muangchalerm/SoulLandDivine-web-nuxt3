@@ -1,6 +1,11 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-03-01',
-  devServer: { host: 'localhost', port: 8081 },
+  devServer: { host: '127.0.0.1', port: 8081 },
+  vite: {
+    server: {
+      allowedHosts: ['soul-land-advent-of-the-gods.aoatheallrandom.com'],
+    },
+  },
   devtools: { enabled: false },
   css: ['~/assets/css/admin-theme.css', '@fortawesome/fontawesome-free/css/all.min.css'],
   app: {
