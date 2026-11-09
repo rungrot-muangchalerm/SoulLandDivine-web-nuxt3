@@ -17,6 +17,7 @@ export interface ActivityScheduleConfig {
 }
 
 export interface ActivityScheduleRow {
+  exclusiveGroup: boolean
   giftType?: number
   subType?: number
   groupName?: string
@@ -427,6 +428,7 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     const durationDays = Number(values.DurationDays)
     return {
       id: Number(values.id),
+      exclusiveGroup: values.ExclusiveGroup === '1',
       name: rowName(config.id, values),
       ...(Number(values.GiftType) > 0 ? {
         giftType: Number(values.GiftType),

@@ -21,6 +21,7 @@ interface ScheduleConfig {
 }
 
 interface ScheduleRow {
+  exclusiveGroup: boolean
   giftType?: number
   subType?: number
   groupName?: string
@@ -112,13 +113,18 @@ function rowKey(activity: ScheduleRow) {
 }
 
 function isGroupEnabled(group: { rows: ScheduleRow[] }) {
-  return group.rows.length > 0 && group.rows.every(activity => isActivityEnabled(activity))
+  return group.rows.length > 0 && group.rows.some(activity => isActivityEnabled(activity))
 }
 
 async function setGroupActivity(group: { key: string; name: string; rows: ScheduleRow[] }, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
   if (savingKey.value) return
+  if (active && group.rows.some(row => row.exclusiveGroup) && group.key !== 'gift-44') {
+    errorMessage.value = 'กิจกรรมนี้เปิดได้ครั้งละรอบ กรุณาเลือกชุดในหน้าจัดการกิจกรรม'
+    checkbox.checked = isGroupEnabled(group)
+    return
+  }
   if (!active && !window.confirm(`ยืนยันปิด "${group.name}" ทันทีหรือไม่?`)) {
     checkbox.checked = isGroupEnabled(group)
     return
@@ -131,9 +137,12 @@ async function setGroupActivity(group: { key: string; name: string; rows: Schedu
 
   try {
     savingKey.value = key
-    for (const activity of group.rows) {
+    const rows = active && group.key === 'gift-44'
+      ? activities.value.filter(activity => activity.configId === 'recharge-tabs' && activity.id === 130)
+      : group.rows
+    for (const activity of rows) {
       if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
-        throw new Error('กิจกรรม ID 1 ("Magic Crystal Daily Gift Pack") ห้ามปิดระบบ')
+        throw new Error(`กิจกรรม ID ${activity.id} ถูกล็อกไว้ ห้ามปิดระบบ`)
       }
       if (isDirty(activity)) {
         throw new Error(`กรุณาบันทึกตารางเวลาของ "${activity.name}" ที่แก้ไขค้างไว้ก่อน`)
@@ -166,6 +175,7 @@ async function setGroupActivity(group: { key: string; name: string; rows: Schedu
       drafts.value[rowKey(activity)] = { ...activity.fields }
       openedCount++
     }
+    if (group.key === 'gift-44') await loadSchedules()
     successMessage.value = active
       ? `เปิด "${group.name}" ทันทีแล้ว (${openedCount} ชุดกิจกรรม)`
       : `ปิด "${group.name}" แล้ว (${openedCount} ชุดกิจกรรม)`
@@ -183,7 +193,7 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
 
   const key = rowKey(activity)
   if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
-    errorMessage.value = 'กิจกรรม ID 1 ("Magic Crystal Daily Gift Pack") ห้ามปิดระบบ'
+    errorMessage.value = `กิจกรรม ID ${activity.id} ถูกล็อกไว้ ห้ามปิดระบบ`
     checkbox.checked = isActivityEnabled(activity)
     return
   }
@@ -231,6 +241,7 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
     }
     activity.fields = { ...activity.fields, ...fields }
     drafts.value[key] = { ...activity.fields }
+    if (activity.giftType === 44) await loadSchedules()
     successMessage.value = active
       ? activity.durationDays
         ? `${activity.name}: ตั้งเปิด ${activity.durationDays} วัน เริ่ม ${activity.fields.ShowStart || ''} ถึง ${activity.fields.ShowEnd || ''}`
@@ -249,6 +260,8 @@ function isAlwaysOpen(activity: ScheduleRow) {
 }
 
 function isActivityEnabled(activity: ScheduleRow) {
+  if (isProtectedRechargeActivity(activity.configId, activity.id)) return true
+
   if (
     activity.configId === 'recharge-tabs'
     && activity.durationDays
@@ -263,6 +276,8 @@ function isActivityEnabled(activity: ScheduleRow) {
 }
 
 function activityToggleLabel(activity: ScheduleRow) {
+  if (isProtectedRechargeActivity(activity.configId, activity.id)) return 'เปิดอยู่ (ห้ามปิด)'
+
   if (isActivityEnabled(activity)) {
     const start = parseScheduleDate(activity.fields.ShowStart || '')
     if (start && new Date() < start) return `ตั้งเปิด (${activity.durationDays} วัน)`
@@ -442,17 +457,19 @@ onMounted(loadSchedules)
             <img v-if="group.imageUrl" :src="group.imageUrl" :alt="group.name" class="card-img-top activity-card-image" loading="lazy">
             <div class="card-body">
               <h2 class="h5">{{ group.name }}</h2>
+              <p v-if="group.rows.some(row => row.exclusiveGroup)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
+              <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
               <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftType"> · GiftType {{ group.giftType }}</span></p>
             </div>
           </NuxtLink>
-          <div class="activity-group-toggle form-check form-switch mb-0">
+          <div v-if="!group.rows.some(row => row.exclusiveGroup) || group.key === 'gift-44'" class="activity-group-toggle form-check form-switch mb-0">
             <input
               :id="`group-active-${group.key}`"
               class="form-check-input"
               type="checkbox"
               role="switch"
               :checked="isGroupEnabled(group)"
-              :disabled="savingKey !== ''"
+              :disabled="savingKey !== '' || group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))"
               @change="setGroupActivity(group, ($event.target as HTMLInputElement).checked, $event)"
             >
             <label class="visually-hidden" :for="`group-active-${group.key}`">เปิดหรือปิดกิจกรรม {{ group.name }}</label>
@@ -476,16 +493,18 @@ onMounted(loadSchedules)
           <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
             <div>
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
+              <p v-if="activity.exclusiveGroup && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
+              <p v-if="activity.giftType === 44" class="small mb-1">{{ activity.id === 130 ? 'ชุดเปิดทันที — เมื่อเปิดจะอัปเดตเวลา และปิดชุดที่มีช่วงเวลาซ้อนกัน' : 'ชุดตั้งเวลา — กำหนดวันเริ่มและวันจบด้านล่าง' }}</p>
               <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
             </div>
-            <div v-if="activity.canOpenForever" class="form-check form-switch mb-0">
+            <div v-if="activity.canOpenForever && !(activity.giftType === 44 && activity.id !== 130)" class="form-check form-switch mb-0">
               <input
                 :id="`activity-active-${rowKey(activity)}`"
                 class="form-check-input"
                 type="checkbox"
                 role="switch"
                 :checked="isActivityEnabled(activity)"
-                :disabled="savingKey !== ''"
+                :disabled="savingKey !== '' || isProtectedRechargeActivity(activity.configId, activity.id)"
                 @change="setActivityAlwaysOpen(activity, ($event.target as HTMLInputElement).checked, $event)"
               >
               <label class="form-check-label" :for="`activity-active-${rowKey(activity)}`">

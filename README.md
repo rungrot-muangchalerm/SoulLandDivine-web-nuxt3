@@ -25,6 +25,23 @@ and listen on IPv4 so VS Code/browser port forwarding can connect. For the
 production Nitro server, set `HOST=0.0.0.0` and `PORT=8081` (or
 `NITRO_HOST=0.0.0.0` and `NITRO_PORT=8081`).
 
+### Run production with PM2
+
+Build the app, then start the generated Nitro entry directly. Node loads the
+local `.env` file; PM2 keeps the process definition across restarts with
+`pm2 save`.
+
+```powershell
+npm run build
+$env:HOST = '0.0.0.0'
+$env:PORT = '8081'
+pm2 start .output/server/index.mjs --name soulland-divine-nuxt3 --node-args="--env-file=.env"
+pm2 save
+```
+
+After building a code change, restart the app with `pm2 restart soulland-divine-nuxt3`
+and save the process list with `pm2 save`. Use `pm2 logs soulland-divine-nuxt3` to inspect its output.
+
 The checked-in `database/gamedb_export.sql` is a database dump containing
 `DROP TABLE` and `CREATE TABLE` statements. Do not import it into a live
 database without reviewing it and taking a backup first.

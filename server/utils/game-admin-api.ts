@@ -38,6 +38,12 @@ export async function fetchGameAdminApi(path: string, init: RequestInit = {}) {
   }
 
   if (!response.ok) {
+    if (response.status === 400) {
+      const detail = await response.json().catch(() => null) as { message?: unknown } | null
+      if (typeof detail?.message === 'string') {
+        throw createError({ statusCode: 400, statusMessage: detail.message.slice(0, 512) })
+      }
+    }
     const hint = response.status === 403
       ? ' (ตรวจสอบ ADMIN_API_TOKEN)'
       : ''
