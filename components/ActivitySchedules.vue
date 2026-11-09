@@ -32,13 +32,67 @@ interface ScheduleRow {
   fields: Record<string, string>
   durationDays?: number
   imageUrl?: string
+  bannerGroupKey?: string
   canOpenForever: boolean
 }
 
+type ActivityKind = 'all' | 'permanent' | 'scheduled' | 'theme-boss'
+
 const route = useRoute()
+const activityKind = ref<ActivityKind>('all')
 const activeGroupKey = computed(() => typeof route.params.group === 'string' ? route.params.group : '')
+watch(() => route.query.kind, (kind) => {
+  activityKind.value = kind === 'permanent'
+    || kind === 'scheduled'
+    || kind === 'theme-boss'
+    ? kind
+    : 'all'
+}, { immediate: true })
+
 function groupKey(activity: ScheduleRow) {
+  if (activity.giftType === 44) return 'gift-44'
+  if (activity.giftType === 11 && activity.bannerGroupKey) {
+    return `banner-${activity.bannerGroupKey}`
+  }
+  if (activity.giftType) {
+    const categoryBannerKey = activities.value.find(item => item.giftType === activity.giftType)?.bannerGroupKey
+    if (categoryBannerKey) return `banner-${categoryBannerKey}`
+  }
+  if (activity.bannerGroupKey) return `banner-${activity.bannerGroupKey}`
   return activity.giftType ? `gift-${activity.giftType}` : `config-${activity.configId}`
+}
+function isInGroup(activity: ScheduleRow, key: string) {
+  if (groupKey(activity) === key) return true
+  const legacyGiftType = /^gift-(\d+)$/.exec(key)
+  return Boolean(legacyGiftType && activity.giftType === Number(legacyGiftType[1]))
+}
+function groupName(rows: ScheduleRow[]) {
+  if (rows.length && rows.every(activity => activity.giftType === 11)) {
+    return [...new Set(rows.map(activity => activity.name))].join(' / ')
+  }
+  return [...new Set(rows.map(activity => activity.groupName || activity.configTitle))].join(' / ')
+}
+function isPermanentActivity(activity: ScheduleRow) {
+  return isProtectedRechargeActivity(activity.configId, activity.id)
+    || isActivityAlwaysOpen(activity.configId, activity.fields)
+}
+function matchesActivityKind(activity: ScheduleRow) {
+  if (activityKind.value === 'permanent') return isPermanentActivity(activity)
+  if (activityKind.value === 'scheduled') return !isPermanentActivity(activity)
+  if (activityKind.value === 'theme-boss') return activity.giftType === 11
+  return true
+}
+function activityGroupRoute(key: string) {
+  return {
+    path: `/activities/${key}`,
+    query: activityKind.value === 'all' ? {} : { kind: activityKind.value },
+  }
+}
+function activityListRoute() {
+  return {
+    path: '/activities',
+    query: activityKind.value === 'all' ? {} : { kind: activityKind.value },
+  }
 }
 const allConfigsId = 'all'
 const configs = ref<ScheduleConfig[]>([])
@@ -55,7 +109,8 @@ const successMessage = ref('')
 
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
 const configRows = computed(() => activities.value
-  .filter((activity) => !activeGroupKey.value || groupKey(activity) === activeGroupKey.value)
+  .filter(matchesActivityKind)
+  .filter((activity) => !activeGroupKey.value || isInGroup(activity, activeGroupKey.value))
   .filter((activity) => selectedConfigId.value === allConfigsId || activity.configId === selectedConfigId.value)
   .filter((activity) => {
     const query = search.value.trim().toLocaleLowerCase()
@@ -64,25 +119,30 @@ const configRows = computed(() => activities.value
       .includes(query)
   }))
 const groups = computed(() => {
-  const grouped = new Map<string, { key: string; name: string; giftType?: number; rows: ScheduleRow[]; imageUrl?: string }>()
+  const grouped = new Map<string, { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[]; imageUrl?: string }>()
   for (const activity of configRows.value) {
     const key = groupKey(activity)
     let group = grouped.get(key)
     if (!group) {
-      group = { key, name: activity.groupName || activity.configTitle, giftType: activity.giftType, rows: [], imageUrl: activity.imageUrl }
+      group = { key, name: '', giftTypes: [], rows: [], imageUrl: activity.imageUrl }
       grouped.set(key, group)
     }
     group.rows.push(activity)
+    group.name = groupName(group.rows)
+    if (activity.giftType && !group.giftTypes.includes(activity.giftType)) group.giftTypes.push(activity.giftType)
   }
   return [...grouped.values()]
 })
-const currentGroup = computed(() => activities.value.find((activity) => groupKey(activity) === activeGroupKey.value))
+const currentGroupName = computed(() => {
+  const rows = activities.value.filter(activity => isInGroup(activity, activeGroupKey.value))
+  return rows.length ? groupName(rows) : undefined
+})
 const resultCount = computed(() => activeGroupKey.value ? configRows.value.length : groups.value.length)
 const pageCount = computed(() => Math.max(1, Math.ceil(resultCount.value / pageSize)))
 const visibleRows = computed(() => configRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 const visibleGroups = computed(() => groups.value.slice((page.value - 1) * pageSize, page.value * pageSize))
 
-watch([selectedConfigId, search, activeGroupKey], () => {
+watch([selectedConfigId, search, activeGroupKey, activityKind], () => {
   page.value = 1
 })
 
@@ -116,11 +176,20 @@ function isGroupEnabled(group: { rows: ScheduleRow[] }) {
   return group.rows.length > 0 && group.rows.some(activity => isActivityEnabled(activity))
 }
 
-async function setGroupActivity(group: { key: string; name: string; rows: ScheduleRow[] }, active: boolean, event: Event) {
+function isSingleThemeBossGroup(group: { giftTypes: number[]; rows: ScheduleRow[] }) {
+  return group.giftTypes.length === 1 && group.giftTypes[0] === 11 && group.rows.length === 1
+}
+
+async function setGroupActivity(group: { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[] }, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
   if (savingKey.value) return
-  if (active && group.rows.some(row => row.exclusiveGroup) && group.key !== 'gift-44') {
+  if (
+    active
+    && group.rows.some(row => row.exclusiveGroup)
+    && group.key !== 'gift-44'
+    && !isSingleThemeBossGroup(group)
+  ) {
     errorMessage.value = 'กิจกรรมนี้เปิดได้ครั้งละรอบ กรุณาเลือกชุดในหน้าจัดการกิจกรรม'
     checkbox.checked = isGroupEnabled(group)
     return
@@ -149,7 +218,7 @@ async function setGroupActivity(group: { key: string; name: string; rows: Schedu
       }
 
       let fields: Record<string, string>
-      if (active && activity.configId === 'recharge-tabs') {
+      if (active && activity.configId === 'recharge-tabs' && activity.durationDays) {
         const result = await $fetch<{
           configured: boolean
           durationDays?: number
@@ -214,7 +283,7 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
   successMessage.value = ''
   try {
     let fields: Record<string, string>
-    if (active && activity.configId === 'recharge-tabs') {
+    if (active && activity.configId === 'recharge-tabs' && activity.durationDays) {
       const result = await $fetch<{
         configured: boolean
         durationDays?: number
@@ -264,6 +333,18 @@ function isActivityEnabled(activity: ScheduleRow) {
 
   if (
     activity.configId === 'recharge-tabs'
+    && !activity.durationDays
+    && !isActivityForceClosed(activity.configId, activity.fields)
+    && !activity.fields.ShowStart
+    && !activity.fields.ShowEnd
+    && Boolean(activity.fields.ShowWeekStart)
+    && !activity.fields.ShowWeekEnd
+  ) {
+    return true
+  }
+
+  if (
+    activity.configId === 'recharge-tabs'
     && activity.durationDays
     && !isActivityForceClosed(activity.configId, activity.fields)
   ) {
@@ -281,7 +362,8 @@ function activityToggleLabel(activity: ScheduleRow) {
   if (isActivityEnabled(activity)) {
     const start = parseScheduleDate(activity.fields.ShowStart || '')
     if (start && new Date() < start) return `ตั้งเปิด (${activity.durationDays} วัน)`
-    return activity.durationDays ? `เปิดอยู่ (${activity.durationDays} วัน)` : 'เปิดตลอดอยู่'
+    if (activity.durationDays) return `เปิดอยู่ (${activity.durationDays} วัน)`
+    return isPermanentActivity(activity) ? 'เปิดตลอดอยู่' : 'เปิดตามตาราง'
   }
   if (isForceClosed(activity)) return 'ปิดแล้ว'
   return activity.durationDays ? `เปิด ${activity.durationDays} วัน` : 'เปิด'
@@ -404,8 +486,8 @@ onMounted(loadSchedules)
   <section class="container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div>
-        <NuxtLink v-if="activeGroupKey" to="/activities" class="d-inline-block mb-2">← กิจกรรมทั้งหมด</NuxtLink>
-        <h1 class="h3 mb-1">{{ activeGroupKey ? (currentGroup?.groupName || currentGroup?.configTitle || 'ไม่พบกิจกรรม') : 'กิจกรรมทั้งหมด' }}</h1>
+        <NuxtLink v-if="activeGroupKey" :to="activityListRoute()" class="d-inline-block mb-2">← กิจกรรมทั้งหมด</NuxtLink>
+        <h1 class="h3 mb-1">{{ activeGroupKey ? (currentGroupName || 'ไม่พบกิจกรรม') : 'กิจกรรมทั้งหมด' }}</h1>
         <p class="text-body-secondary mb-0">{{ activeGroupKey ? 'เลือกชุดกิจกรรมเพื่อจัดการเวลาเปิด–ปิด' : 'เลือกกิจกรรมเพื่อจัดการชุดและรอบทั้งหมด' }}</p>
       </div>
       <button class="btn btn-outline-secondary" type="button" :disabled="loading || savingKey !== ''" @click="loadSchedules">
@@ -417,7 +499,16 @@ onMounted(loadSchedules)
     <div v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
 
     <div class="row g-2 mb-3">
-      <div class="col-12 col-md-5">
+      <div class="col-12 col-md-3">
+        <label class="form-label" for="activity-kind">หมวดเวลาเปิด</label>
+        <select id="activity-kind" v-model="activityKind" class="form-select" :disabled="loading">
+          <option value="all">กิจกรรมทั้งหมด</option>
+          <option value="permanent">กิจกรรมถาวร</option>
+          <option value="scheduled">กิจกรรมตามกำหนดเวลา</option>
+          <option v-if="!activeGroupKey" value="theme-boss">บอสธีม</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-3">
         <label class="form-label" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
         <select id="activity-config" v-model="selectedConfigId" class="form-select" :disabled="loading">
           <option :value="allConfigsId">ทั้งหมด</option>
@@ -426,7 +517,7 @@ onMounted(loadSchedules)
           </option>
         </select>
       </div>
-      <div class="col-12 col-md-7">
+      <div class="col-12 col-md-3">
         <label class="form-label" for="activity-search">ค้นหาชื่อหรือ ID</label>
         <input id="activity-search" v-model="search" class="form-control" type="search" placeholder="เช่น เรือพาย, เรือมังกร, 33">
       </div>
@@ -453,16 +544,19 @@ onMounted(loadSchedules)
     <div v-else-if="!activeGroupKey" class="row g-3">
       <div v-for="group in visibleGroups" :key="group.key" class="col-12 col-md-6 col-xl-4">
         <article class="card h-100 activity-group-card">
-          <NuxtLink :to="`/activities/${group.key}`" class="text-decoration-none text-reset">
+          <NuxtLink :to="activityGroupRoute(group.key)" class="text-decoration-none text-reset">
             <img v-if="group.imageUrl" :src="group.imageUrl" :alt="group.name" class="card-img-top activity-card-image" loading="lazy">
             <div class="card-body">
               <h2 class="h5">{{ group.name }}</h2>
               <p v-if="group.rows.some(row => row.exclusiveGroup)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
               <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
-              <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftType"> · GiftType {{ group.giftType }}</span></p>
+              <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftTypes.length"> · GiftType {{ group.giftTypes.join(', ') }}</span></p>
             </div>
           </NuxtLink>
-          <div v-if="!group.rows.some(row => row.exclusiveGroup) || group.key === 'gift-44'" class="activity-group-toggle form-check form-switch mb-0">
+          <div
+            v-if="!group.rows.some(row => row.exclusiveGroup) || group.key === 'gift-44' || isSingleThemeBossGroup(group)"
+            class="activity-group-toggle form-check form-switch mb-0"
+          >
             <input
               :id="`group-active-${group.key}`"
               class="form-check-input"
@@ -474,8 +568,8 @@ onMounted(loadSchedules)
             >
             <label class="visually-hidden" :for="`group-active-${group.key}`">เปิดหรือปิดกิจกรรม {{ group.name }}</label>
           </div>
-          <div class="card-body pt-0 d-flex justify-content-end">
-            <NuxtLink :to="`/activities/${group.key}`" class="btn btn-primary">จัดการกิจกรรม →</NuxtLink>
+          <div class="card-body flex-grow-0 pt-0 mt-auto d-flex justify-content-end">
+            <NuxtLink :to="activityGroupRoute(group.key)" class="btn btn-primary">จัดการกิจกรรม →</NuxtLink>
           </div>
         </article>
       </div>
@@ -549,6 +643,18 @@ onMounted(loadSchedules)
         </article>
       </div>
     </div>
+
+    <nav v-if="!loading && configRows.length && pageCount > 1" class="d-flex justify-content-center mt-3" aria-label="การแบ่งหน้ารายการกิจกรรมด้านล่าง">
+      <ul class="pagination pagination-sm mb-0">
+        <li class="page-item" :class="{ disabled: page <= 1 }">
+          <button class="page-link" type="button" :disabled="page <= 1" @click="page--">ก่อนหน้า</button>
+        </li>
+        <li class="page-item disabled"><span class="page-link">{{ page }} / {{ pageCount }}</span></li>
+        <li class="page-item" :class="{ disabled: page >= pageCount }">
+          <button class="page-link" type="button" :disabled="page >= pageCount" @click="page++">ถัดไป</button>
+        </li>
+      </ul>
+    </nav>
   </section>
 </template>
 

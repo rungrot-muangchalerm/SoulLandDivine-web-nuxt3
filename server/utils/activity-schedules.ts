@@ -1,6 +1,7 @@
-import { fetchGameAdminApi } from './game-admin-api'
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fetchGameAdminApi } from './game-admin-api'
 
 export interface ActivityScheduleField {
   key: string
@@ -28,6 +29,7 @@ export interface ActivityScheduleRow {
   fields: Record<string, string>
   durationDays?: number
   imageUrl: string
+  bannerGroupKey?: string
   canOpenForever: boolean
 }
 
@@ -119,12 +121,21 @@ function rechargeBannerFilename(values: Record<string, string>) {
   return tabIcon ? `${tabIcon}_EN.png` : undefined
 }
 
-function rechargeBannerImageUrl(values: Record<string, string>) {
+const rechargeBannerHashes = new Map<string, string>()
+
+function rechargeBannerImage(values: Record<string, string>) {
   const filename = rechargeBannerFilename(values)
   if (!filename) return undefined
 
   const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', filename)
-  return existsSync(bannerPath) ? `/recharge-banners/${filename}` : undefined
+  if (!existsSync(bannerPath)) return undefined
+
+  let bannerGroupKey = rechargeBannerHashes.get(bannerPath)
+  if (!bannerGroupKey) {
+    bannerGroupKey = createHash('sha256').update(readFileSync(bannerPath)).digest('hex')
+    rechargeBannerHashes.set(bannerPath, bannerGroupKey)
+  }
+  return { imageUrl: `/recharge-banners/${filename}`, bannerGroupKey }
 }
 
 export const activityScheduleConfigs: ActivityScheduleConfig[] = [
@@ -426,6 +437,7 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
 
   return rows.map((values) => {
     const durationDays = Number(values.DurationDays)
+    const banner = rechargeBannerImage(values)
     return {
       id: Number(values.id),
       exclusiveGroup: values.ExclusiveGroup === '1',
@@ -438,7 +450,8 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
       configId: config.id,
       configTitle: config.title,
       ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),
-      imageUrl: rechargeBannerImageUrl(values) || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+      imageUrl: banner?.imageUrl || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+      ...(banner ? { bannerGroupKey: banner.bannerGroupKey } : {}),
       canOpenForever: true,
       fields: {
         ...Object.fromEntries(config.fields
@@ -463,7 +476,7 @@ export async function fetchActivitySchedules() {
   }))).flat().filter(activity =>
     activity.fields.TabAtlas?.trim()
     && activity.fields.TabIcon?.trim()
-    && rechargeBannerImageUrl(activity.fields)
+    && rechargeBannerImage(activity.fields)
   )
 }
 
