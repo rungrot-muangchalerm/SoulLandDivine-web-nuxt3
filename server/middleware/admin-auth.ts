@@ -5,6 +5,7 @@ const publicApiPaths = new Set([
   '/api/login',
   '/api/logout',
   '/api/set/searchChannel',
+  '/api/client-config',
   '/api/client-update/manifest',
   '/api/client-update/download/windows',
   '/api/client-update/download/android',

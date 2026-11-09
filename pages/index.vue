@@ -1,10 +1,29 @@
 <script setup lang="ts">
 definePageMeta({ layout: false })
+const siteTitle = 'SoulLand Divine | ดาวน์โหลดเกม'
+const siteDescription = 'ดาวน์โหลด SoulLand Divine สำหรับ Windows และ Android'
+const siteUrl = 'https://soul-land-advent-of-the-gods.aoatheallrandom.com/'
+const ogImage = `${siteUrl}og-image.png`
+
+useSeoMeta({
+  title: siteTitle,
+  description: siteDescription,
+  ogTitle: siteTitle,
+  ogDescription: siteDescription,
+  ogType: 'website',
+  ogUrl: siteUrl,
+  ogImage,
+  ogImageWidth: '1200',
+  ogImageHeight: '630',
+  ogImageAlt: 'SoulLand Divine - ดาวน์โหลดเกม',
+  ogLocale: 'th_TH',
+  twitterCard: 'summary_large_image',
+  twitterTitle: siteTitle,
+  twitterDescription: siteDescription,
+  twitterImage: ogImage,
+})
 useHead({
-  title: 'SoulLand Divine | ดาวน์โหลดเกม',
-  meta: [
-    { name: 'description', content: 'ดาวน์โหลด SoulLand Divine สำหรับ Windows และ Android' },
-  ],
+  link: [{ rel: 'canonical', href: siteUrl }],
 })
 
 interface UpdateManifest {

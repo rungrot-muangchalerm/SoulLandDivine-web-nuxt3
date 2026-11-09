@@ -1,0 +1,8 @@
+{
+  "serverId": 1001,
+  "loginHost": "203.154.16.117",
+  "loginPort": 8880,
+  "announcementUrl": "http://203.154.16.117/Announcement.xml",
+  "payNotifyUrl": "https://203.154.16.117:8889",
+  "updateManifestUrl": "https://soul-land-advent-of-the-gods.aoatheallrandom.com/api/client-update/manifest"
+}

@@ -26,14 +26,20 @@ Put release files under the Nuxt data directory with these exact names:
   android/SoulLandDivine.apk
 ```
 
-Sign in to Nuxt as an administrator, open **อัปเดต Client**, select a platform, and publish
-its version and minimum supported version. The endpoint calculates SHA-256 and size when
-publishing. Android also records `versionCode`; it must increase with every new APK.
-Re-publish after replacing an artifact.
+Successful Windows installer and Android builds automatically stage the artifact and
+publish its manifest, including version, SHA-256, size and Android `versionCode`. No admin
+action is required. Android builds also publish when development signing is enabled;
+updates to an existing installation require the same signing key.
+The first release uses its client version as the minimum supported version; later releases
+preserve the previous minimum. The admin page remains available for changing release metadata.
+Changed artifacts require a higher client version; Android `versionCode` must also increase.
 
 The Windows installer and Android build scripts stage successful builds to these locations
 automatically. Use `-NuxtDirectory` to target another Nuxt checkout or `-SkipNuxtStage` to
-disable staging. By default, the scripts use `CLIENT_UPDATE_DIR` when set, otherwise they use
+disable staging. Manual staging also publishes: pass `-ClientVersion` and, for Android,
+`-AndroidVersionCode`. Windows can read its version from the installer metadata.
+Use `-MinimumVersion` or `-ReleaseNotes` to set metadata, or `-SkipPublish` to stage only.
+By default, the scripts use `CLIENT_UPDATE_DIR` when set, otherwise they use
 `.data/client-updates` inside the Nuxt project. The scripts default the update manifest URL to
 `https://soul-land-advent-of-the-gods.aoatheallrandom.com/api/client-update/manifest`; override
 it with `-UpdateManifestUrl` when building for another environment.
@@ -43,7 +49,7 @@ it with `-UpdateManifestUrl` when building for another environment.
 Set `CLIENT_UPDATE_DIR` to a persistent directory on the Nuxt host and preserve its files
 between deployments. Pass the same path to the build script with `-ClientUpdateDirectory`,
 or run `stage-client-updates.ps1` with that directory. Publish artifact metadata from the admin
-page. Put Nuxt behind HTTPS before releasing clients.
+page only when manually overriding the automatically published metadata. Put Nuxt behind HTTPS before releasing clients.
 
 Set the client `updateManifestUrl` in the build's `StreamingAssets/client-config.json` to
 `https://<public-host>/api/client-update/manifest`. Keep the same host for subsequent builds
