@@ -1,8 +1,10 @@
 # Client updates
 
 The Nuxt app publishes update manifests and serves the Windows installer and Android APK.
-Android updates are downloaded as APKs and must be confirmed in Android's installer. Windows
-updates are downloaded as an installer; the game exits after the player accepts the update.
+After the player accepts an update, the client downloads the artifact and verifies its SHA-256
+and size. Android opens the downloaded APK in Android's installer, where the player confirms
+installation. Windows runs the downloaded installer silently, closes the game, installs the
+update, and restarts the game.
 
 ## Local development
 
@@ -29,11 +31,19 @@ its version and minimum supported version. The endpoint calculates SHA-256 and s
 publishing. Android also records `versionCode`; it must increase with every new APK.
 Re-publish after replacing an artifact.
 
+The Windows installer and Android build scripts stage successful builds to these locations
+automatically. Use `-NuxtDirectory` to target another Nuxt checkout or `-SkipNuxtStage` to
+disable staging. By default, the scripts use `CLIENT_UPDATE_DIR` when set, otherwise they use
+`.data/client-updates` inside the Nuxt project. The scripts default the update manifest URL to
+`https://soul-land-advent-of-the-gods.aoatheallrandom.com/api/client-update/manifest`; override
+it with `-UpdateManifestUrl` when building for another environment.
+
 ## Production
 
 Set `CLIENT_UPDATE_DIR` to a persistent directory on the Nuxt host and preserve its files
-between deployments. Transfer the artifacts to that directory, then publish their metadata
-from the admin page. Put Nuxt behind HTTPS before releasing clients.
+between deployments. Pass the same path to the build script with `-ClientUpdateDirectory`,
+or run `stage-client-updates.ps1` with that directory. Publish artifact metadata from the admin
+page. Put Nuxt behind HTTPS before releasing clients.
 
 Set the client `updateManifestUrl` in the build's `StreamingAssets/client-config.json` to
 `https://<public-host>/api/client-update/manifest`. Keep the same host for subsequent builds
@@ -49,3 +59,7 @@ Do not publish an APK signed with a development/debug key to existing players.
 `minimumVersion` receives a mandatory prompt; newer clients below `version` receive an
 optional prompt. The download API uses a fixed filename per platform, streams the file, and
 requires no admin login. Manifest publishing and status are restricted to administrators.
+
+Automatic package downloads and installation are available only in client builds that include
+the updater. Older installed clients continue to use their existing update behavior and need
+one manually installed client update before they can use this flow.

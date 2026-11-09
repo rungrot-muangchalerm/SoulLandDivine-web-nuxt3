@@ -1,4 +1,4 @@
-const publicPaths = new Set(['/login', '/403', '/404'])
+const publicPaths = new Set(['/', '/login', '/403', '/404'])
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.path === '/login') {
