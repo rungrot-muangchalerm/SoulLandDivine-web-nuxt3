@@ -86,11 +86,6 @@ async function saveCharacterRate(character: GachaCharacterRate) {
     return
   }
   if (savingCharacterId.value !== null) return
-  if (
-    character.draftRatio === 0
-    && character.ratio > 0
-    && !window.confirm(`ยืนยันตั้งเรทของ ${character.name} (ID ${character.id}) เป็น 0 หรือไม่? ตัวละครนี้จะไม่ถูกสุ่มจากตู้ประเภท ${drawType.value}`)
-  ) return
 
   savingCharacterId.value = character.id
   errorMessage.value = ''

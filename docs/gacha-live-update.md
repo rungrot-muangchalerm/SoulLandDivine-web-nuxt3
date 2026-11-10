@@ -40,8 +40,9 @@ all running binaries support Type=2. Do not fall back to a full `updatexml` for
 routine gacha edits.
 
 Character rates are weights within the selected rarity, not overall percentages.
-Pity rules and rarity-tier probabilities are separate server settings. The editor
-rejects removing the last positive weight in the selected rarity.
+Pity rules and rarity-tier probabilities are separate server settings. Any
+character listed in the selected pool can be set to weight 0, including the last
+character with a positive weight in its rarity.
 
 ## Verification without a build
 

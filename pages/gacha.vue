@@ -76,11 +76,11 @@ function toInputDateTime(value: string) {
 }
 
 function defaultEndTime() {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  tomorrow.setMinutes(0, 0, 0)
+  const endDate = new Date()
+  endDate.setDate(endDate.getDate() + 30)
+  endDate.setMinutes(0, 0, 0)
   const pad = (part: number) => String(part).padStart(2, '0')
-  return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`
+  return `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}`
 }
 
 function setPools(value: GachaPool[], preserveDrafts = false) {
@@ -278,7 +278,7 @@ onBeforeUnmount(() => {
                   :disabled="savingPoolId !== null"
                   required
                 >
-                <div class="form-text">เมื่อเปิดแล้ว ตู้จะเริ่มทำงานทันที</div>
+                <div class="form-text">ค่าเริ่มต้นปิดในอีก 30 วัน (ปรับเวลาได้) และเมื่อเปิดแล้วตู้จะเริ่มทำงานทันที</div>
               </div>
             </div>
           </div>

@@ -119,12 +119,6 @@ export function updateGachaCharacterRate(xml: string, drawType: number, heroId: 
   }
 
   const updatedCharacters = getGachaCharacterRates(updatedXml, drawType)
-  if (!updatedCharacters.some((item) => item.quality === character.quality && item.ratio > 0)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: `ต้องเหลือตัวละครคุณภาพ ${character.quality} ที่มีน้ำหนักมากกว่า 0 อย่างน้อยหนึ่งตัว`,
-    })
-  }
   return {
     xml: updatedXml,
     previousRatio: character.ratio,
