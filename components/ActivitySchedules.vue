@@ -176,19 +176,14 @@ function isGroupEnabled(group: { rows: ScheduleRow[] }) {
   return group.rows.length > 0 && group.rows.some(activity => isActivityEnabled(activity))
 }
 
-function isSingleThemeBossGroup(group: { giftTypes: number[]; rows: ScheduleRow[] }) {
-  return group.giftTypes.length === 1 && group.giftTypes[0] === 11 && group.rows.length === 1
-}
-
 async function setGroupActivity(group: { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[] }, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
   if (savingKey.value) return
   if (
     active
-    && group.rows.some(row => row.exclusiveGroup)
+    && group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)
     && group.key !== 'gift-44'
-    && !isSingleThemeBossGroup(group)
   ) {
     errorMessage.value = 'กิจกรรมนี้เปิดได้ครั้งละรอบ กรุณาเลือกชุดในหน้าจัดการกิจกรรม'
     checkbox.checked = isGroupEnabled(group)
@@ -548,13 +543,13 @@ onMounted(loadSchedules)
             <img v-if="group.imageUrl" :src="group.imageUrl" :alt="group.name" class="card-img-top activity-card-image" loading="lazy">
             <div class="card-body">
               <h2 class="h5">{{ group.name }}</h2>
-              <p v-if="group.rows.some(row => row.exclusiveGroup)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
+              <p v-if="group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
               <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
               <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftTypes.length"> · GiftType {{ group.giftTypes.join(', ') }}</span></p>
             </div>
           </NuxtLink>
           <div
-            v-if="!group.rows.some(row => row.exclusiveGroup) || group.key === 'gift-44' || isSingleThemeBossGroup(group)"
+            v-if="!group.rows.some(row => row.exclusiveGroup && row.giftType !== 11) || group.key === 'gift-44'"
             class="activity-group-toggle form-check form-switch mb-0"
           >
             <input
@@ -587,7 +582,7 @@ onMounted(loadSchedules)
           <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
             <div>
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
-              <p v-if="activity.exclusiveGroup && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
+              <p v-if="activity.exclusiveGroup && activity.giftType !== 11 && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
               <p v-if="activity.giftType === 44" class="small mb-1">{{ activity.id === 130 ? 'ชุดเปิดทันที — เมื่อเปิดจะอัปเดตเวลา และปิดชุดที่มีช่วงเวลาซ้อนกัน' : 'ชุดตั้งเวลา — กำหนดวันเริ่มและวันจบด้านล่าง' }}</p>
               <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
             </div>
