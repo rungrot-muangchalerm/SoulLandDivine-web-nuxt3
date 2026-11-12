@@ -2,9 +2,14 @@ const permanentEnd = '9999-12-31 23:59:59'
 const closedCampTime = '0:00:00:00'
 
 export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 13, 22]
+export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [18, 19, 126]
 
 export function isProtectedRechargeActivity(configId: string, id: number) {
   return configId === 'recharge-tabs' && PROTECTED_RECHARGE_ACTIVITY_IDS.includes(id)
+}
+
+export function isGachaLinkedRechargeActivity(configId: string, id: number) {
+  return configId === 'recharge-tabs' && GACHA_LINKED_RECHARGE_ACTIVITY_IDS.includes(id)
 }
 
 export function getActivityOverrideFields(

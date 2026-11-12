@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   getActivityOverrideFields,
+  isGachaLinkedRechargeActivity,
   isProtectedRechargeActivity,
   isActivityAlwaysOpen,
   isActivityForceClosed,
@@ -152,12 +153,15 @@ async function loadSchedules() {
   successMessage.value = ''
   try {
     const result = await $fetch<{ configs: ScheduleConfig[]; activities: ScheduleRow[] }>('/api/activities')
+    const managedActivities = result.activities.filter(
+      activity => !isGachaLinkedRechargeActivity(activity.configId, activity.id),
+    )
     configs.value = result.configs
-    activities.value = result.activities
+    activities.value = managedActivities
     if (selectedConfigId.value !== allConfigsId && !configs.value.some((config) => config.id === selectedConfigId.value)) {
       selectedConfigId.value = allConfigsId
     }
-    drafts.value = Object.fromEntries(result.activities.map((item) => [
+    drafts.value = Object.fromEntries(managedActivities.map((item) => [
       `${item.configId}:${item.id}`,
       { ...item.fields },
     ]))
@@ -173,16 +177,18 @@ function rowKey(activity: ScheduleRow) {
 }
 
 function isGroupEnabled(group: { rows: ScheduleRow[] }) {
-  return group.rows.length > 0 && group.rows.some(activity => isActivityEnabled(activity))
+  const manageableRows = group.rows.filter(activity => !isGachaLinkedRechargeActivity(activity.configId, activity.id))
+  return manageableRows.some(activity => isActivityEnabled(activity))
 }
 
 async function setGroupActivity(group: { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[] }, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
   if (savingKey.value) return
+  const manageableRows = group.rows.filter(row => !isGachaLinkedRechargeActivity(row.configId, row.id))
   if (
     active
-    && group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)
+    && manageableRows.some(row => row.exclusiveGroup && row.giftType !== 11)
     && group.key !== 'gift-44'
   ) {
     errorMessage.value = 'กิจกรรมนี้เปิดได้ครั้งละรอบ กรุณาเลือกชุดในหน้าจัดการกิจกรรม'
@@ -203,7 +209,10 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
     savingKey.value = key
     const rows = active && group.key === 'gift-44'
       ? activities.value.filter(activity => activity.configId === 'recharge-tabs' && activity.id === 130)
-      : group.rows
+      : manageableRows
+    if (rows.length === 0) {
+      throw new Error('กิจกรรมกลุ่มนี้ถูกควบคุมตามตู้กาชาเงินคราม ID 24')
+    }
     for (const activity of rows) {
       if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
         throw new Error(`กิจกรรม ID ${activity.id} ถูกล็อกไว้ ห้ามปิดระบบ`)
@@ -256,6 +265,11 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
   if (!(checkbox instanceof HTMLInputElement)) return
 
   const key = rowKey(activity)
+  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
+    errorMessage.value = `กิจกรรม ID ${activity.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24`
+    checkbox.checked = isActivityEnabled(activity)
+    return
+  }
   if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
     errorMessage.value = `กิจกรรม ID ${activity.id} ถูกล็อกไว้ ห้ามปิดระบบ`
     checkbox.checked = isActivityEnabled(activity)
@@ -384,6 +398,10 @@ function changedFields(activity: ScheduleRow): Record<string, string> {
 }
 
 async function saveSchedule(activity: ScheduleRow) {
+  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
+    errorMessage.value = `กิจกรรม ID ${activity.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24`
+    return
+  }
   const fields = changedFields(activity)
   if (Object.keys(fields).length === 0 || savingKey.value) return
 
@@ -410,6 +428,16 @@ async function saveSchedule(activity: ScheduleRow) {
 
 function scheduleStatus(activity: ScheduleRow) {
   const fields = activity.fields
+  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
+    const startDate = parseScheduleDate(fields.ShowStart || '')
+    const endDate = parseScheduleDate(fields.ShowEnd || '')
+    if (!startDate || !endDate) return 'หมดเวลา'
+    const now = new Date()
+    if (now < startDate) return 'ยังไม่เริ่ม'
+    if (now > endDate) return 'หมดเวลา'
+    return 'อยู่ในช่วงเวลา'
+  }
+
   const start = fields.ShowStart || fields.OpenStart || fields.StartDate || fields.ActivityStart
   const end = fields.ShowEnd || fields.OpenEnd || fields.EndDate || fields.ActivityEnd
   const startDate = start ? parseScheduleDate(start) : null
@@ -545,11 +573,12 @@ onMounted(loadSchedules)
               <h2 class="h5">{{ group.name }}</h2>
               <p v-if="group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
               <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
+              <p v-if="group.rows.some(row => isGachaLinkedRechargeActivity(row.configId, row.id))" class="small text-info mb-2">กิจกรรมเงินครามในกลุ่มนี้ควบคุมตามตู้กาชา ID 24</p>
               <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftTypes.length"> · GiftType {{ group.giftTypes.join(', ') }}</span></p>
             </div>
           </NuxtLink>
           <div
-            v-if="!group.rows.some(row => row.exclusiveGroup && row.giftType !== 11) || group.key === 'gift-44'"
+            v-if="(!group.rows.some(row => row.exclusiveGroup && row.giftType !== 11) || group.key === 'gift-44') && group.rows.some(row => !isGachaLinkedRechargeActivity(row.configId, row.id))"
             class="activity-group-toggle form-check form-switch mb-0"
           >
             <input
@@ -584,9 +613,10 @@ onMounted(loadSchedules)
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
               <p v-if="activity.exclusiveGroup && activity.giftType !== 11 && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
               <p v-if="activity.giftType === 44" class="small mb-1">{{ activity.id === 130 ? 'ชุดเปิดทันที — เมื่อเปิดจะอัปเดตเวลา และปิดชุดที่มีช่วงเวลาซ้อนกัน' : 'ชุดตั้งเวลา — กำหนดวันเริ่มและวันจบด้านล่าง' }}</p>
+              <p v-if="isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="small text-info mb-1">เปิด–ปิดตามตู้กาชาเงินคราม ID 24 เท่านั้น</p>
               <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
             </div>
-            <div v-if="activity.canOpenForever && !(activity.giftType === 44 && activity.id !== 130)" class="form-check form-switch mb-0">
+            <div v-if="activity.canOpenForever && !(activity.giftType === 44 && activity.id !== 130) && !isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="form-check form-switch mb-0">
               <input
                 :id="`activity-active-${rowKey(activity)}`"
                 class="form-check-input"
@@ -618,7 +648,7 @@ onMounted(loadSchedules)
                   class="form-control form-control-sm"
                   type="text"
                   maxlength="128"
-                  :disabled="savingKey !== ''"
+                  :disabled="savingKey !== '' || isGachaLinkedRechargeActivity(activity.configId, activity.id)"
                   :aria-describedby="`activity-format-${activity.configId}-${field.key}`"
                 >
                 <div :id="`activity-format-${activity.configId}-${field.key}`" class="form-text">{{ field.format }}</div>
@@ -628,7 +658,7 @@ onMounted(loadSchedules)
               <button
                 class="btn btn-sm btn-primary"
                 type="button"
-                :disabled="!isDirty(activity) || savingKey !== ''"
+                :disabled="!isDirty(activity) || savingKey !== '' || isGachaLinkedRechargeActivity(activity.configId, activity.id)"
                 @click="saveSchedule(activity)"
               >
                 {{ savingKey === rowKey(activity) ? 'กำลังบันทึก...' : 'บันทึกตารางเวลา' }}
