@@ -2,6 +2,7 @@ import { getAdminSession } from '../../utils/admin-session'
 import { recordOperationLog } from '../../utils/operation-log'
 import { saveActivitySchedule } from '../../utils/activity-schedules'
 import {
+  getGachaLinkedRechargeActivityMessage,
   isGachaLinkedRechargeActivity,
   isProtectedRechargeActivity,
 } from '../../../utils/activity-schedule-overrides'
@@ -38,7 +39,10 @@ export default defineEventHandler(async (event) => {
 
   const fields = body.fields
   if (isGachaLinkedRechargeActivity(body.configId, body.id)) {
-    throw createError({ statusCode: 409, statusMessage: `กิจกรรม ID ${body.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24` })
+    throw createError({
+      statusCode: 409,
+      statusMessage: getGachaLinkedRechargeActivityMessage(body.configId, body.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง',
+    })
   }
   if (
     isProtectedRechargeActivity(body.configId, body.id)

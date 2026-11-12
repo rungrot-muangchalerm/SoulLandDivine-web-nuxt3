@@ -2,7 +2,14 @@ const permanentEnd = '9999-12-31 23:59:59'
 const closedCampTime = '0:00:00:00'
 
 export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 13, 22]
-export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [18, 19, 126]
+export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [18, 19, 25, 126]
+
+const gachaLinkedRechargeActivityInfo: Record<number, { gachaId: number; activityName: string; gachaName: string }> = {
+  18: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'เงินคราม' },
+  19: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'เงินคราม' },
+  25: { gachaId: 5, activityName: 'กิจกรรมเซียนเริ่นเสวี่ย', gachaName: 'เซียนเริ่นเสวี่ย' },
+  126: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'เงินคราม' },
+}
 
 export function isProtectedRechargeActivity(configId: string, id: number) {
   return configId === 'recharge-tabs' && PROTECTED_RECHARGE_ACTIVITY_IDS.includes(id)
@@ -10,6 +17,22 @@ export function isProtectedRechargeActivity(configId: string, id: number) {
 
 export function isGachaLinkedRechargeActivity(configId: string, id: number) {
   return configId === 'recharge-tabs' && GACHA_LINKED_RECHARGE_ACTIVITY_IDS.includes(id)
+}
+
+export function getGachaLinkedRechargeActivityMessage(configId: string, id: number) {
+  if (configId !== 'recharge-tabs') return undefined
+  const linkedActivity = gachaLinkedRechargeActivityInfo[id]
+  return linkedActivity
+    ? `${linkedActivity.activityName} ID ${id} ถูกควบคุมตามตู้กาชา${linkedActivity.gachaName} ID ${linkedActivity.gachaId}`
+    : undefined
+}
+
+export function getGachaLinkedRechargeActivityNotice(configId: string, id: number) {
+  if (configId !== 'recharge-tabs') return undefined
+  const linkedActivity = gachaLinkedRechargeActivityInfo[id]
+  return linkedActivity
+    ? `เปิด–ปิดตามตู้กาชา${linkedActivity.gachaName} ID ${linkedActivity.gachaId} เท่านั้น`
+    : undefined
 }
 
 export function getActivityOverrideFields(

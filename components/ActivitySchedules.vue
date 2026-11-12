@@ -2,6 +2,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   getActivityOverrideFields,
+  getGachaLinkedRechargeActivityMessage,
+  getGachaLinkedRechargeActivityNotice,
   isGachaLinkedRechargeActivity,
   isProtectedRechargeActivity,
   isActivityAlwaysOpen,
@@ -176,6 +178,12 @@ function rowKey(activity: ScheduleRow) {
   return `${activity.configId}:${activity.id}`
 }
 
+function gachaLinkedActivityNotices(rows: ScheduleRow[]) {
+  return [...new Set(rows
+    .map(row => getGachaLinkedRechargeActivityNotice(row.configId, row.id))
+    .filter((notice): notice is string => Boolean(notice)))].join(' · ')
+}
+
 function isGroupEnabled(group: { rows: ScheduleRow[] }) {
   const manageableRows = group.rows.filter(activity => !isGachaLinkedRechargeActivity(activity.configId, activity.id))
   return manageableRows.some(activity => isActivityEnabled(activity))
@@ -211,7 +219,7 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
       ? activities.value.filter(activity => activity.configId === 'recharge-tabs' && activity.id === 130)
       : manageableRows
     if (rows.length === 0) {
-      throw new Error('กิจกรรมกลุ่มนี้ถูกควบคุมตามตู้กาชาเงินคราม ID 24')
+      throw new Error('กิจกรรมในกลุ่มนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง')
     }
     for (const activity of rows) {
       if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
@@ -266,7 +274,7 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
 
   const key = rowKey(activity)
   if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
-    errorMessage.value = `กิจกรรม ID ${activity.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24`
+    errorMessage.value = getGachaLinkedRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
     checkbox.checked = isActivityEnabled(activity)
     return
   }
@@ -399,7 +407,7 @@ function changedFields(activity: ScheduleRow): Record<string, string> {
 
 async function saveSchedule(activity: ScheduleRow) {
   if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
-    errorMessage.value = `กิจกรรม ID ${activity.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24`
+    errorMessage.value = getGachaLinkedRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
     return
   }
   const fields = changedFields(activity)
@@ -573,7 +581,7 @@ onMounted(loadSchedules)
               <h2 class="h5">{{ group.name }}</h2>
               <p v-if="group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
               <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
-              <p v-if="group.rows.some(row => isGachaLinkedRechargeActivity(row.configId, row.id))" class="small text-info mb-2">กิจกรรมเงินครามในกลุ่มนี้ควบคุมตามตู้กาชา ID 24</p>
+              <p v-if="group.rows.some(row => isGachaLinkedRechargeActivity(row.configId, row.id))" class="small text-info mb-2">{{ gachaLinkedActivityNotices(group.rows) }}</p>
               <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftTypes.length"> · GiftType {{ group.giftTypes.join(', ') }}</span></p>
             </div>
           </NuxtLink>
@@ -613,7 +621,7 @@ onMounted(loadSchedules)
               <h2 class="h6 mb-1">{{ activity.name }}</h2>
               <p v-if="activity.exclusiveGroup && activity.giftType !== 11 && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
               <p v-if="activity.giftType === 44" class="small mb-1">{{ activity.id === 130 ? 'ชุดเปิดทันที — เมื่อเปิดจะอัปเดตเวลา และปิดชุดที่มีช่วงเวลาซ้อนกัน' : 'ชุดตั้งเวลา — กำหนดวันเริ่มและวันจบด้านล่าง' }}</p>
-              <p v-if="isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="small text-info mb-1">เปิด–ปิดตามตู้กาชาเงินคราม ID 24 เท่านั้น</p>
+              <p v-if="isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="small text-info mb-1">{{ getGachaLinkedRechargeActivityNotice(activity.configId, activity.id) }}</p>
               <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
             </div>
             <div v-if="activity.canOpenForever && !(activity.giftType === 44 && activity.id !== 130) && !isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="form-check form-switch mb-0">

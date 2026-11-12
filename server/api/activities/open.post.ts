@@ -1,7 +1,10 @@
 import { getAdminSession } from '../../utils/admin-session'
 import { recordOperationLog } from '../../utils/operation-log'
 import { openRechargeTabForConfiguredDuration } from '../../utils/activity-schedules'
-import { isGachaLinkedRechargeActivity } from '../../../utils/activity-schedule-overrides'
+import {
+  getGachaLinkedRechargeActivityMessage,
+  isGachaLinkedRechargeActivity,
+} from '../../../utils/activity-schedule-overrides'
 
 interface ActivityOpenRequest {
   configId?: unknown
@@ -19,7 +22,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'ข้อมูลกิจกรรมไม่ถูกต้อง' })
   }
   if (isGachaLinkedRechargeActivity(body.configId, body.id)) {
-    throw createError({ statusCode: 409, statusMessage: `กิจกรรม ID ${body.id} ถูกควบคุมตามตู้กาชาเงินคราม ID 24` })
+    throw createError({
+      statusCode: 409,
+      statusMessage: getGachaLinkedRechargeActivityMessage(body.configId, body.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง',
+    })
   }
 
   const result = await openRechargeTabForConfiguredDuration(body.id)
