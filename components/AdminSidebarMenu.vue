@@ -12,6 +12,7 @@ const props = defineProps<{
 }>()
 
 const menu: MenuEntry[] = [
+  { title: 'บัญชีอีเมลรายเดือน', path: '/email-accounts', limit: 'admin' },
   { title: 'ข้อมูลผู้เล่น', path: '/role', limit: 0 },
   { title: 'จัดการตู้กาชาเรทอัพ', path: '/gacha', limit: 'admin' },
   { title: 'จัดการกิจกรรม', path: '/activities', limit: 'admin' },

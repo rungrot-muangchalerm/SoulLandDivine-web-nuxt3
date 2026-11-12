@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     && fields.ShowStart === ''
     && fields.ShowEnd === ''
   ) {
-    throw createError({ statusCode: 400, statusMessage: 'กิจกรรม ID 1 ห้ามปิดระบบ' })
+    throw createError({ statusCode: 400, statusMessage: `กิจกรรม ID ${body.id} ห้ามปิดระบบ` })
   }
   await saveActivitySchedule(body.configId, body.id, fields)
   await recordOperationLog({
