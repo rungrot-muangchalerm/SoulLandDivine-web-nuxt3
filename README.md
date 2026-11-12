@@ -39,6 +39,11 @@ structure and copy its channel records. The migration leaves the old table in
 place for rollback; the web app reads and updates channels in `gamedb_cmdl`
 afterward. Operation logs and broadcasts continue to use `dlbackstage`.
 
+For a fresh local setup without `dlbackstage`, apply
+`database/migrations/20261113_dlbackstage_local.sql` to create the database and
+the operation-log and broadcast tables. These tables start empty; this does not
+restore historical logs, broadcasts, admin accounts, or channel records.
+
 To initialize a fresh, empty `admin_user` table, set
 `ADMIN_DEFAULT_USERNAME` and `ADMIN_DEFAULT_PASSWORD` in the local environment.
 On startup, the web app creates that account with admin access to all channels
