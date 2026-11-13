@@ -1,0 +1,2 @@
+ALTER TABLE admin_email_accounts
+  ADD COLUMN IF NOT EXISTS contact_url VARCHAR(2048) NOT NULL DEFAULT '';

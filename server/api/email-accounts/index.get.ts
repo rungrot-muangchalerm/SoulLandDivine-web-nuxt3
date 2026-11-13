@@ -8,6 +8,6 @@ export default defineEventHandler(async event => {
   if (session.authorization !== 'admin') throw createError({ statusCode: 403, statusMessage: 'Admin only' })
   setHeader(event, 'Cache-Control', 'no-store')
   const month = monthInBangkok()
-  const [rows] = await getDatabase().execute<RowDataPacket[]>('SELECT id, email, used_month FROM admin_email_accounts ORDER BY id DESC')
-  return { month, accounts: rows.map(row => ({ id: row.id, email: row.email, used: row.used_month === month })) }
+  const [rows] = await getDatabase().execute<RowDataPacket[]>('SELECT id, email, contact_url, used_month FROM admin_email_accounts ORDER BY id DESC')
+  return { month, accounts: rows.map(row => ({ id: row.id, email: row.email, contactUrl: row.contact_url, used: row.used_month === month })) }
 })

@@ -20,11 +20,21 @@ export default defineEventHandler(async event => {
       throw createError({ statusCode: 400, statusMessage: 'Invalid email or password' })
     }
     const storedPassword = password || null
+    const contactUrl = typeof body.contactUrl === 'string' ? body.contactUrl.trim() : ''
+    if (body.contactUrl != null && typeof body.contactUrl !== 'string') throw createError({ statusCode: 400, statusMessage: 'Invalid contact URL' })
+    if (contactUrl) {
+      try {
+        const url = new URL(contactUrl)
+        if (contactUrl.length > 2048 || !['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid URL')
+      } catch {
+        throw createError({ statusCode: 400, statusMessage: 'กรุณากรอกลิงก์ติดต่อที่ขึ้นต้นด้วย https:// หรือ http://' })
+      }
+    }
     try {
       if (id) {
-        const [result] = await db.execute<ResultSetHeader>('UPDATE admin_email_accounts SET email=?, password_plaintext=COALESCE(?, password_plaintext) WHERE id=?', [email, storedPassword, id])
+        const [result] = await db.execute<ResultSetHeader>('UPDATE admin_email_accounts SET email=?, password_plaintext=COALESCE(?, password_plaintext), contact_url=COALESCE(?, contact_url) WHERE id=?', [email, storedPassword, body.contactUrl === undefined ? null : contactUrl, id])
         if (!result.affectedRows) throw createError({ statusCode: 404, statusMessage: 'Not found' })
-      } else await db.execute('INSERT INTO admin_email_accounts (email, password_plaintext) VALUES (?, ?)', [email, storedPassword])
+      } else await db.execute('INSERT INTO admin_email_accounts (email, password_plaintext, contact_url) VALUES (?, ?, ?)', [email, storedPassword, contactUrl])
     } catch (error: any) {
       if (error.code === 'ER_DUP_ENTRY') throw createError({ statusCode: 409, statusMessage: 'Email already exists' })
       throw error
