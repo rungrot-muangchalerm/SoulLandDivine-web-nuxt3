@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import {
+  getGachaScheduleFollowers,
+  isGachaScheduleFollower,
+} from '~/utils/gacha-schedule-links'
+
 interface GachaPool {
   id: number
   type: string
@@ -7,57 +12,6 @@ interface GachaPool {
   endTime: string
   active: boolean
   imageUrl?: string
-}
-
-interface CustomGachaConfig {
-  singlePrice: number
-  continuousPrice: number
-  singleItem: number
-  continuousItem: number
-  blessingMax: number
-  ssrWeight: number
-  srWeight: number
-  rWeight: number
-  nWeight: number
-}
-const customConfig = ref<CustomGachaConfig | null>(null)
-const customConfigOpen = ref(false)
-const customConfigBusy = ref(false)
-const customConfigFields: { key: keyof CustomGachaConfig, label: string, min: number, max: number }[] = [
-  { key: 'singlePrice', label: 'เพชรต่อครั้ง', min: 1, max: 1000000 },
-  { key: 'continuousPrice', label: 'เพชรต่อเจ็ดครั้ง', min: 1, max: 1000000 },
-  { key: 'singleItem', label: 'ID ตั๋วเดี่ยว (0 = ไม่ใช้)', min: 0, max: 100000000 },
-  { key: 'continuousItem', label: 'ID ตั๋วเจ็ดครั้ง (0 = ไม่ใช้)', min: 0, max: 100000000 },
-  { key: 'blessingMax', label: 'จำนวนครั้งการันตี SSR (0 = ปิด)', min: 0, max: 10000 },
-  { key: 'ssrWeight', label: 'น้ำหนัก SSR', min: 0, max: 1000000 },
-  { key: 'srWeight', label: 'น้ำหนัก SR', min: 0, max: 1000000 },
-  { key: 'rWeight', label: 'น้ำหนัก R', min: 0, max: 1000000 },
-  { key: 'nWeight', label: 'น้ำหนัก N', min: 0, max: 1000000 },
-]
-async function toggleCustomConfig() {
-  customConfigOpen.value = !customConfigOpen.value
-  if (!customConfigOpen.value || customConfig.value) return
-  customConfigBusy.value = true
-  try {
-    customConfig.value = await $fetch<CustomGachaConfig>('/api/gacha/custom-config')
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'โหลดกติกาตู้ปรับแต่งไม่สำเร็จ'
-  } finally { customConfigBusy.value = false }
-}
-async function saveCustomConfig() {
-  if (!customConfig.value || customConfigBusy.value) return
-  customConfigBusy.value = true
-  errorMessage.value = ''
-  successMessage.value = ''
-  try {
-    const result = await $fetch<{config: CustomGachaConfig, message: string}>('/api/gacha/custom-config', {
-      method: 'POST', body: customConfig.value,
-    })
-    customConfig.value = result.config
-    successMessage.value = result.message
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'บันทึกกติกาตู้ปรับแต่งไม่สำเร็จ'
-  } finally { customConfigBusy.value = false }
 }
 
 const pools = ref<GachaPool[]>([])
@@ -84,8 +38,9 @@ function defaultEndTime() {
 }
 
 function setPools(value: GachaPool[], preserveDrafts = false) {
-  pools.value = value
-  endTimes.value = Object.fromEntries(value.map((pool) => {
+  const visiblePools = value.filter(pool => !isGachaScheduleFollower(pool.id))
+  pools.value = visiblePools
+  endTimes.value = Object.fromEntries(visiblePools.map((pool) => {
     const configuredEndTime = toInputDateTime(pool.endTime)
     return [
       pool.id,
@@ -111,8 +66,13 @@ async function loadSchedule() {
   }
 }
 
-async function changeSchedule(pool: GachaPool, action: 'open' | 'close') {
-  if (action === 'close' && !window.confirm(`ยืนยันปิดตู้ "${pool.name}" (ID ${pool.id}) ทันทีหรือไม่?`)) return false
+async function changeSchedule(pool: GachaPool, action: 'open' | 'close' | 'sync') {
+  if (action === 'close') {
+    const linkedPoolNotice = getGachaScheduleFollowers(pool.id).length
+      ? ' ตู้ร่างปกติ ID 4 และกิจกรรมเงินครามจะปิดตามด้วย'
+      : ''
+    if (!window.confirm(`ยืนยันปิดตู้ "${pool.name}" (ID ${pool.id}) ทันทีหรือไม่?${linkedPoolNotice}`)) return false
+  }
 
   scheduleGeneration += 1
   savingPoolId.value = pool.id
@@ -127,7 +87,13 @@ async function changeSchedule(pool: GachaPool, action: 'open' | 'close') {
         ...(action === 'open' ? { endTime: endTimes.value[pool.id] } : {}),
       },
     })
-    pools.value = pools.value.map((item: GachaPool) => item.id === result.id ? result : item)
+    const followerIds = getGachaScheduleFollowers(result.id)
+    pools.value = pools.value.map((item: GachaPool) => {
+      if (item.id === result.id) return result
+      return followerIds.includes(item.id)
+        ? { ...item, beginTime: result.beginTime, endTime: result.endTime, active: result.active }
+        : item
+    })
     successMessage.value = `${result.name}: ${result.message}`
     return true
   } catch (error) {
@@ -139,6 +105,7 @@ async function changeSchedule(pool: GachaPool, action: 'open' | 'close') {
 }
 
 async function togglePool(pool: GachaPool, event: Event) {
+  if (isGachaScheduleFollower(pool.id)) return
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
 
@@ -178,7 +145,7 @@ onBeforeUnmount(() => {
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div>
         <h1 class="h3 mb-1">จัดการตู้กาชาเรทอัพ</h1>
-        <p class="text-body-secondary mb-0">ติ๊กช่องเพื่อเปิดตู้ทันที โดยตู้จะปิดตามเวลาที่กำหนด</p>
+        <p class="text-body-secondary mb-0">แสดงเฉพาะตู้หลัก ตู้ที่ผูกให้เปิด–ปิดตามจะไม่แสดงซ้ำ · จัดการตัวละครและเรทได้จากหน้าย่อยของแต่ละตู้</p>
       </div>
       <button class="btn btn-outline-secondary" type="button" :disabled="loading || savingPoolId !== null" @click="loadSchedule">
         รีเฟรช
@@ -216,35 +183,29 @@ onBeforeUnmount(() => {
                   type="checkbox"
                   role="switch"
                   :checked="pool.active"
-                  :disabled="savingPoolId !== null"
+                  :disabled="savingPoolId !== null || isGachaScheduleFollower(pool.id)"
                   @change="togglePool(pool, $event)"
                 >
                 <label class="form-check-label" :for="`gacha-active-${pool.id}`">
-                  {{ pool.active ? 'เปิดอยู่' : 'เปิดตู้ทันที' }}
+                  {{ pool.id === 24
+                    ? (pool.active ? 'ตู้หลักเปิดอยู่' : 'เปิดตู้ร่างเทพหลักทันที')
+                    : pool.active ? 'เปิดอยู่' : 'เปิดตู้ทันที' }}
                 </label>
               </div>
             </div>
 
-            <div v-if="pool.id === 10000" class="mb-3">
-              <p class="small text-primary">ตู้ปรับแต่งแยก Type 10000 · เรทและการันตีไม่ใช้ร่วมกับถังซาน</p>
-              <button class="btn btn-sm btn-outline-primary" type="button" :disabled="customConfigBusy" @click="toggleCustomConfig">
-                {{ customConfigOpen ? 'ซ่อนกติกาตู้' : 'ตั้งค่าราคา ตั๋ว การันตี และเรทระดับคุณภาพ' }}
+            <div v-if="getGachaScheduleFollowers(pool.id).length" class="alert alert-info py-2">
+              <p class="small mb-2">
+                ตู้ร่างเทพ ID {{ pool.id }} เป็นตัวควบคุมหลัก: ตู้ร่างปกติ ID 4 และกิจกรรมเงินคราม ID 18, 19, 126 จะเปิด–ปิดตามกัน
+              </p>
+              <button
+                class="btn btn-sm btn-outline-primary"
+                type="button"
+                :disabled="savingPoolId !== null"
+                @click="changeSchedule(pool, 'sync')"
+              >
+                ซิงก์ตู้ร่างปกติและกิจกรรมตามสถานะตู้หลัก
               </button>
-              <div v-if="customConfigOpen" class="mt-3">
-                <p v-if="customConfigBusy" class="small" role="status">กำลังโหลดหรือบันทึก...</p>
-                <div v-if="customConfig" class="row g-2">
-                  <div v-for="field in customConfigFields" :key="field.key" class="col-12 col-md-6">
-                    <label class="form-label small" :for="`custom-${field.key}`">{{ field.label }}</label>
-                    <input :id="`custom-${field.key}`" v-model.number="customConfig[field.key]" class="form-control form-control-sm"
-                      type="number" :min="field.min" :max="field.max" step="1" :disabled="customConfigBusy">
-                  </div>
-                  <p class="small text-body-secondary mb-0">
-                    น้ำหนักระดับคุณภาพหารด้วยผลรวมคือโอกาสสุ่มปกติ ส่วนเรทตัวละครปรับในหน้าจัดการตัวละครและเรท การันตีแยกจากเรทปกติ
-                    ถ้าเลือก ID ตั๋วเดียวกับตู้อื่น จะใช้จำนวนตั๋วในกระเป๋าร่วมกัน
-                  </p>
-                  <div><button class="btn btn-sm btn-primary" type="button" :disabled="customConfigBusy" @click="saveCustomConfig">บันทึกกติกาตู้ปรับแต่ง</button></div>
-                </div>
-              </div>
             </div>
 
             <dl class="small mb-3 gacha-pool-schedule">
@@ -260,6 +221,13 @@ onBeforeUnmount(() => {
 
             <div class="border-top pt-3">
               <NuxtLink
+                v-if="pool.id === 10000"
+                class="btn btn-sm btn-outline-primary me-2 mb-2"
+                to="/gacha-custom-config"
+              >
+                ตั้งค่ากติกาและน้ำหนักเรท
+              </NuxtLink>
+              <NuxtLink
                 class="btn btn-sm btn-outline-primary"
                 :to="{ path: '/page/gacha-characters', query: { drawType: pool.type } }"
               >
@@ -267,7 +235,7 @@ onBeforeUnmount(() => {
               </NuxtLink>
             </div>
 
-            <div v-if="!pool.active" class="row align-items-end g-2">
+            <div v-if="!pool.active && !isGachaScheduleFollower(pool.id)" class="row align-items-end g-2">
               <div class="col">
                 <label class="form-label" :for="`gacha-end-time-${pool.id}`">กำหนดเวลาปิดหลังเปิด</label>
                 <input

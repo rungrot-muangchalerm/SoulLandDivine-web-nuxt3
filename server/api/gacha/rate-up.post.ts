@@ -9,6 +9,11 @@ import {
   parseLocalDateTime,
   updateGachaPoolSchedule,
 } from '../../utils/gacha-rate-up'
+import {
+  getGachaScheduleControllerId,
+  getGachaScheduleFollowers,
+  isGachaScheduleFollower,
+} from '../../../utils/gacha-schedule-links'
 
 interface RateUpRequest {
   action?: unknown
@@ -29,19 +34,26 @@ export default defineEventHandler(async (event) => withGachaWriteLock(async () =
 
   const body = await readBody<RateUpRequest>(event)
   const action = body?.action
-  if (action !== 'open' && action !== 'close') {
-    throw createError({ statusCode: 400, statusMessage: 'คำสั่งเปิดหรือปิดตู้ไม่ถูกต้อง' })
+  if (action !== 'open' && action !== 'close' && action !== 'sync') {
+    throw createError({ statusCode: 400, statusMessage: 'คำสั่งเปิด ปิด หรือซิงก์ตู้ไม่ถูกต้อง' })
   }
   const poolId = body.poolId
   if (typeof poolId !== 'number' || !Number.isSafeInteger(poolId) || poolId < 1) {
     throw createError({ statusCode: 400, statusMessage: 'กรุณาเลือกตู้กาชาที่ต้องการจัดการ' })
+  }
+  if (isGachaScheduleFollower(poolId)) {
+    throw createError({ statusCode: 409, statusMessage: `ตู้ ID ${poolId} เปิด–ปิดตามตู้หลัก ID ${getGachaScheduleControllerId(poolId)}` })
+  }
+  if (action === 'sync' && getGachaScheduleFollowers(poolId).length === 0) {
+    throw createError({ statusCode: 400, statusMessage: 'ตู้ที่เลือกไม่มีตู้ที่ต้องซิงก์ตาม' })
   }
 
   const xml = await fetchDrawTimeXml()
   const previous = getGachaPool(xml, poolId)
   const now = new Date()
   let beginTime = previous.beginTime
-  let endTime: string
+  let endTime = previous.endTime
+  let xmlContent = xml
 
   if (action === 'open') {
     if (typeof body.endTime !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(body.endTime)) {
@@ -53,14 +65,15 @@ export default defineEventHandler(async (event) => withGachaWriteLock(async () =
     }
     beginTime = formatLocalDateTime(now)
     endTime = formatLocalDateTime(end)
-  } else {
+    xmlContent = updateGachaPoolSchedule(xml, poolId, beginTime, endTime)
+  } else if (action === 'close') {
     endTime = formatLocalDateTime(new Date(now.getTime() - 1000))
     // A missing start date means permanent in the game server's legacy model.
     // Use a complete past interval even when this pool was never opened before.
     beginTime = formatLocalDateTime(new Date(now.getTime() - 2000))
+    xmlContent = updateGachaPoolSchedule(xml, poolId, beginTime, endTime)
   }
 
-  const xmlContent = updateGachaPoolSchedule(xml, poolId, beginTime, endTime)
   const response = await fetchGameAdminApi('/api/gacha/time', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -91,6 +104,10 @@ export default defineEventHandler(async (event) => withGachaWriteLock(async () =
 
   return {
     ...getGachaPool(xmlContent, poolId),
-    message: action === 'open' ? 'บันทึกเปิดตู้และส่งอัปเดตเข้าเกมแล้ว' : 'บันทึกปิดตู้และส่งอัปเดตเข้าเกมแล้ว',
+    message: action === 'open'
+      ? 'บันทึกเปิดตู้และส่งอัปเดตเข้าเกมแล้ว'
+      : action === 'close'
+        ? 'บันทึกปิดตู้และส่งอัปเดตเข้าเกมแล้ว'
+        : 'ซิงก์ตู้ร่างปกติและกิจกรรมให้ตรงกับตู้ร่างเทพแล้ว',
   }
 }))

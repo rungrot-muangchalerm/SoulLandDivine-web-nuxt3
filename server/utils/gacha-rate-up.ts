@@ -1,4 +1,5 @@
 import { fetchGameAdminApi } from './game-admin-api'
+import { getGachaScheduleControllerId } from '../../utils/gacha-schedule-links'
 
 export interface GachaPool {
   id: number
@@ -52,7 +53,7 @@ const gachaPoolNames: Record<number, string> = {
   1: 'รับสมัครหายาก',
   2: 'รับสมัครเพื่อน',
   3: 'ฮ่าวเทียนจุติ',
-  4: 'รับสมัครธีม — อาหยิน',
+  4: 'รับสมัครธีม — อาหยิน (ตามตู้ร่างเทพ ID 24)',
   5: 'รับสมัครธีม — เชียนเริ่นเสวี่ย',
   6: 'รับสมัครธีม — แม่มดสมุทร',
   7: 'รับสมัครธีม — ถังเลี่ย',
@@ -69,7 +70,7 @@ const gachaPoolNames: Record<number, string> = {
   20: 'รับสมัครธีมหลัก — หม่าหงจวิ้น',
   21: 'รับสมัครธีมหลัก — เสวี่ยเปิง',
   23: 'รับสมัครธีมหลัก — อวี้เสี่ยวกัง',
-  24: 'รับสมัครธีมหลัก — อาหยิน',
+  24: 'รับสมัครธีมหลัก — อาหยินร่างเทพ (ตัวควบคุม)',
   25: 'รับสมัครธีมหลัก — มุกสีม่วง',
   26: 'รับสมัครธีมหลัก — เฟิงเสี้ยวเทียน',
   27: 'รับสมัครธีมหลัก — นิ่งหรงหรง',
@@ -184,6 +185,9 @@ function setAttribute(tag: string, name: string, value: string) {
 }
 
 export function updateGachaPoolSchedule(xml: string, poolId: number, beginTime: string, endTime: string) {
+  if (getGachaScheduleControllerId(poolId) !== poolId) {
+    throw createError({ statusCode: 409, statusMessage: `ตู้ ID ${poolId} ถูกควบคุมตามตู้หลัก ID ${getGachaScheduleControllerId(poolId)}` })
+  }
   const matches = classTags(xml).filter((match) => Number(attributes(match[0]).id) === poolId)
   if (matches.length !== 1) {
     throw createError({ statusCode: 400, statusMessage: 'ไม่พบตู้กาชาที่เลือก' })
