@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  getGachaScheduleCloseNotice,
+  getGachaScheduleDescription,
   getGachaScheduleFollowers,
   isGachaScheduleFollower,
 } from '~/utils/gacha-schedule-links'
@@ -68,9 +70,7 @@ async function loadSchedule() {
 
 async function changeSchedule(pool: GachaPool, action: 'open' | 'close' | 'sync') {
   if (action === 'close') {
-    const linkedPoolNotice = getGachaScheduleFollowers(pool.id).length
-      ? ' ตู้ร่างปกติ ID 4 และกิจกรรมเงินครามจะปิดตามด้วย'
-      : ''
+    const linkedPoolNotice = getGachaScheduleCloseNotice(pool.id)
     if (!window.confirm(`ยืนยันปิดตู้ "${pool.name}" (ID ${pool.id}) ทันทีหรือไม่?${linkedPoolNotice}`)) return false
   }
 
@@ -187,8 +187,8 @@ onBeforeUnmount(() => {
                   @change="togglePool(pool, $event)"
                 >
                 <label class="form-check-label" :for="`gacha-active-${pool.id}`">
-                  {{ pool.id === 24
-                    ? (pool.active ? 'ตู้หลักเปิดอยู่' : 'เปิดตู้ร่างเทพหลักทันที')
+                  {{ getGachaScheduleFollowers(pool.id).length
+                    ? (pool.active ? 'ตู้หลักเปิดอยู่' : 'เปิดตู้หลักทันที')
                     : pool.active ? 'เปิดอยู่' : 'เปิดตู้ทันที' }}
                 </label>
               </div>
@@ -196,7 +196,7 @@ onBeforeUnmount(() => {
 
             <div v-if="getGachaScheduleFollowers(pool.id).length" class="alert alert-info py-2">
               <p class="small mb-2">
-                ตู้ร่างเทพ ID {{ pool.id }} เป็นตัวควบคุมหลัก: ตู้ร่างปกติ ID 4 และกิจกรรมเงินคราม ID 18, 19, 126 จะเปิด–ปิดตามกัน
+                {{ getGachaScheduleDescription(pool.id) }}
               </p>
               <button
                 class="btn btn-sm btn-outline-primary"
@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
                 :disabled="savingPoolId !== null"
                 @click="changeSchedule(pool, 'sync')"
               >
-                ซิงก์ตู้ร่างปกติและกิจกรรมตามสถานะตู้หลัก
+                ซิงก์ตู้และกิจกรรมที่ผูกตามสถานะตู้หลัก
               </button>
             </div>
 
