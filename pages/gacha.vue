@@ -187,14 +187,14 @@ onBeforeUnmount(() => {
                   @change="togglePool(pool, $event)"
                 >
                 <label class="form-check-label" :for="`gacha-active-${pool.id}`">
-                  {{ getGachaScheduleFollowers(pool.id).length
+                  {{ getGachaScheduleDescription(pool.id)
                     ? (pool.active ? 'ตู้หลักเปิดอยู่' : 'เปิดตู้หลักทันที')
                     : pool.active ? 'เปิดอยู่' : 'เปิดตู้ทันที' }}
                 </label>
               </div>
             </div>
 
-            <div v-if="getGachaScheduleFollowers(pool.id).length" class="alert alert-info py-2">
+            <div v-if="getGachaScheduleDescription(pool.id)" class="alert alert-info py-2">
               <p class="small mb-2">
                 {{ getGachaScheduleDescription(pool.id) }}
               </p>

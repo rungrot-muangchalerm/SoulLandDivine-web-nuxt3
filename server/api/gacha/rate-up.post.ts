@@ -11,7 +11,7 @@ import {
 } from '../../utils/gacha-rate-up'
 import {
   getGachaScheduleControllerId,
-  getGachaScheduleFollowers,
+  getGachaScheduleDescription,
   isGachaScheduleFollower,
 } from '../../../utils/gacha-schedule-links'
 
@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => withGachaWriteLock(async () =
   if (isGachaScheduleFollower(poolId)) {
     throw createError({ statusCode: 409, statusMessage: `ตู้ ID ${poolId} เปิด–ปิดตามตู้หลัก ID ${getGachaScheduleControllerId(poolId)}` })
   }
-  if (action === 'sync' && getGachaScheduleFollowers(poolId).length === 0) {
+  if (action === 'sync' && !getGachaScheduleDescription(poolId)) {
     throw createError({ statusCode: 400, statusMessage: 'ตู้ที่เลือกไม่มีตู้ที่ต้องซิงก์ตาม' })
   }
 
