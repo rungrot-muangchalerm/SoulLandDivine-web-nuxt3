@@ -121,13 +121,27 @@ function rechargeBannerFilename(values: Record<string, string>) {
   return tabIcon ? `${tabIcon}_EN.png` : undefined
 }
 
+const rechargeBannerFoldersByFilename: Record<string, string> = {
+  'recharge_tab1_recharge_tab_pic_ad_17_EN.png': 'ayin',
+  'recharge_tab1_recharge_tab_pic_ad_18_EN.png': 'ayin',
+  'recharge_tab4_recharge_tab_pic_ad_66_EN.png': 'ayin',
+  'recharge_tab3_recharge_tab_pic_ad_50_EN.png': 'mubai',
+  'recharge_tab7_recharge_tab_pic_ad_137_EN.png': 'mubai',
+  'recharge_tab1_recharge_tab_pic_ad_23_EN.png': 'qianrenxue',
+  'recharge_tab1_recharge_tab_pic_ad_24_EN.png': 'qianrenxue',
+  'recharge_tab6_recharge_tab_pic_ad_124_EN.png': 'tangsan',
+  'recharge_tab2_recharge_tab_pic_ad_31_EN.png': 'tangsan',
+}
+
 const rechargeBannerHashes = new Map<string, string>()
 
 function rechargeBannerImage(values: Record<string, string>) {
   const filename = rechargeBannerFilename(values)
   if (!filename) return undefined
 
-  const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', filename)
+  const folder = rechargeBannerFoldersByFilename[filename]
+  const relativePath = folder ? `${folder}/${filename}` : filename
+  const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', relativePath)
   if (!existsSync(bannerPath)) return undefined
 
   let bannerGroupKey = rechargeBannerHashes.get(bannerPath)
@@ -135,7 +149,7 @@ function rechargeBannerImage(values: Record<string, string>) {
     bannerGroupKey = createHash('sha256').update(readFileSync(bannerPath)).digest('hex')
     rechargeBannerHashes.set(bannerPath, bannerGroupKey)
   }
-  return { imageUrl: `/recharge-banners/${filename}`, bannerGroupKey }
+  return { imageUrl: `/recharge-banners/${relativePath}`, bannerGroupKey }
 }
 
 export const activityScheduleConfigs: ActivityScheduleConfig[] = [
