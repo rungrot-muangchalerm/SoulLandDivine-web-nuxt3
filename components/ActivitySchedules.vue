@@ -336,7 +336,7 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
     if (activity.giftType === 44) await loadSchedules()
     successMessage.value = active
       ? activity.durationDays
-        ? `${activity.name}: ตั้งเปิด ${activity.durationDays} วัน เริ่ม ${activity.fields.ShowStart || ''} ถึง ${activity.fields.ShowEnd || ''}`
+        ? `${activity.name}: เปิดทันที ${activity.durationDays} วัน เริ่ม ${activity.fields.ShowStart || ''} ถึง ${activity.fields.ShowEnd || ''}`
         : `${activity.name}: เปิดตลอดแล้ว`
       : `${activity.name}: ปิดกิจกรรมแล้ว`
   } catch (error) {
