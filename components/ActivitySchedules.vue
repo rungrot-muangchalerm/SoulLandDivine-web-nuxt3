@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { buildActivityScheduleBatchUpdates } from '~/utils/activity-schedule-batch'
 import {
   getActivityOverrideFields,
   getGachaLinkedRechargeActivityMessage,
@@ -203,7 +204,7 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
     checkbox.checked = isGroupEnabled(group)
     return
   }
-  if (!active && !window.confirm(`ยืนยันปิด "${group.name}" ทันทีหรือไม่?`)) {
+  if (!active && !window.confirm('ยืนยันปิด "' + group.name + '" ทันทีหรือไม่?')) {
     checkbox.checked = isGroupEnabled(group)
     return
   }
@@ -211,7 +212,6 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
   const key = group.key
   errorMessage.value = ''
   successMessage.value = ''
-  let openedCount = 0
 
   try {
     savingKey.value = key
@@ -221,45 +221,52 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
     if (rows.length === 0) {
       throw new Error('กิจกรรมในกลุ่มนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง')
     }
+
     for (const activity of rows) {
       if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
-        throw new Error(`กิจกรรม ID ${activity.id} ถูกล็อกไว้ ห้ามปิดระบบ`)
+        throw new Error('กิจกรรม ID ' + activity.id + ' ถูกล็อกไว้ ห้ามปิดระบบ')
       }
       if (isDirty(activity)) {
-        throw new Error(`กรุณาบันทึกตารางเวลาของ "${activity.name}" ที่แก้ไขค้างไว้ก่อน`)
+        throw new Error('กรุณาบันทึกตารางเวลาของ "' + activity.name + '" ที่แก้ไขค้างไว้ก่อน')
       }
-
-      let fields: Record<string, string>
-      if (active && activity.configId === 'recharge-tabs' && activity.durationDays) {
-        const result = await $fetch<{
-          configured: boolean
-          durationDays?: number
-          fields?: Record<string, string>
-        }>('/api/activities/open', {
-          method: 'POST',
-          body: { configId: activity.configId, id: activity.id },
-        })
-        if (!result.configured || !result.fields || !result.durationDays) {
-          throw new Error(`"${activity.name}" ยังไม่มีระยะเวลาเปิดที่กำหนดไว้`)
-        }
-        fields = result.fields
-        activity.durationDays = result.durationDays
-      } else {
-        fields = getActivityOverrideFields(activity.configId, active, new Date())
-        await $fetch('/api/activities/schedule', {
-          method: 'POST',
-          body: { configId: activity.configId, id: activity.id, fields },
-        })
-      }
-
-      activity.fields = { ...activity.fields, ...fields }
-      drafts.value[rowKey(activity)] = { ...activity.fields }
-      openedCount++
     }
+
+    const updates = buildActivityScheduleBatchUpdates(rows, active, new Date(), getActivityOverrideFields)
+    const result = await $fetch<{
+      configured: boolean
+      id?: number
+      results?: Array<{
+        rowId: number
+        configured: boolean
+        durationDays?: number | null
+        fields: Record<string, string>
+      }>
+    }>('/api/activities/schedule/batch', {
+      method: 'POST',
+      body: { configId: 'recharge-tabs', updates },
+    })
+
+    const savedRows = result.results
+      ? rows.map(activity => result.results!.find(saved => saved.rowId === activity.id))
+      : []
+    if (!result.configured || savedRows.length !== rows.length || savedRows.some(saved => !saved || !saved.configured)) {
+      const unconfigured = rows.find(activity => activity.id === result.id)
+      throw new Error(unconfigured
+        ? '"' + unconfigured.name + '" ยังไม่มีระยะเวลาเปิดที่กำหนดไว้'
+        : 'บันทึกตารางเวลากิจกรรมทั้งกลุ่มไม่สำเร็จ')
+    }
+
+    rows.forEach((activity, index) => {
+      const saved = savedRows[index]!
+      activity.fields = { ...activity.fields, ...saved.fields }
+      if (saved.durationDays) activity.durationDays = saved.durationDays
+      drafts.value[rowKey(activity)] = { ...activity.fields }
+    })
+
     if (group.key === 'gift-44') await loadSchedules()
     successMessage.value = active
-      ? `เปิด "${group.name}" ทันทีแล้ว (${openedCount} ชุดกิจกรรม)`
-      : `ปิด "${group.name}" แล้ว (${openedCount} ชุดกิจกรรม)`
+      ? 'เปิด "' + group.name + '" ทันทีแล้ว (' + rows.length + ' ชุดกิจกรรม)'
+      : 'ปิด "' + group.name + '" แล้ว (' + rows.length + ' ชุดกิจกรรม)'
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'เปิดกิจกรรมไม่สำเร็จ'
     checkbox.checked = isGroupEnabled(group)
@@ -267,7 +274,6 @@ async function setGroupActivity(group: { key: string; name: string; giftTypes: n
     savingKey.value = ''
   }
 }
-
 async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return

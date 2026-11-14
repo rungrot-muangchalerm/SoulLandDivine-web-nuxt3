@@ -515,7 +515,7 @@ export async function fetchActivitySchedules() {
   )
 }
 
-export async function saveActivitySchedule(configId: string, rowId: number, fields: Record<string, string>) {
+function validateActivityScheduleFields(configId: string, rowId: number, fields: Record<string, string>) {
   const config = activityScheduleConfigs.find((item) => item.id === configId)
   if (!config) {
     throw createError({ statusCode: 400, statusMessage: 'ไม่พบประเภทกิจกรรมที่ต้องการแก้ไข' })
@@ -527,17 +527,21 @@ export async function saveActivitySchedule(configId: string, rowId: number, fiel
   }
   for (const [key, value] of Object.entries(fields)) {
     if (typeof value !== 'string' || value.length > 128 || /[\u0000-\u001f]/.test(value)) {
-      throw createError({ statusCode: 400, statusMessage: `ค่า ${key} ไม่ถูกต้อง` })
+      throw createError({ statusCode: 400, statusMessage: 'ค่า ' + key + ' ไม่ถูกต้อง' })
     }
     if (value === '' && !isOptionalScheduleField(configId, key)) {
-      throw createError({ statusCode: 400, statusMessage: `ไม่สามารถเว้นค่า ${key} ว่างได้` })
+      throw createError({ statusCode: 400, statusMessage: 'ไม่สามารถเว้นค่า ' + key + ' ว่างได้' })
     }
     if (value !== '' && !isValidScheduleValue(configId, key, value)) {
-      throw createError({ statusCode: 400, statusMessage: `รูปแบบค่า ${key} ไม่ถูกต้อง` })
+      throw createError({ statusCode: 400, statusMessage: 'รูปแบบค่า ' + key + ' ไม่ถูกต้อง' })
     }
   }
+  return config
+}
 
-  const response = await fetchGameAdminApi(`/api/activities/config/${configId}/${rowId}`, {
+export async function saveActivitySchedule(configId: string, rowId: number, fields: Record<string, string>) {
+  validateActivityScheduleFields(configId, rowId, fields)
+  const response = await fetchGameAdminApi('/api/activities/config/' + configId + '/' + rowId, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(fields),
@@ -551,6 +555,87 @@ export async function saveActivitySchedule(configId: string, rowId: number, fiel
   }
 }
 
+export interface ActivityScheduleBatchUpdate {
+  id: number
+  fields?: Record<string, string>
+  openForConfiguredDuration?: boolean
+}
+
+export interface ActivityScheduleBatchItemResult {
+  rowId: number
+  configured: boolean
+  durationDays?: number | null
+  fields: Record<string, string>
+}
+
+export type ActivityScheduleBatchResponse =
+  | { configured: false; id?: number }
+  | { configured: true; results: ActivityScheduleBatchItemResult[] }
+
+export async function saveActivitySchedules(configId: string, updates: ActivityScheduleBatchUpdate[]): Promise<ActivityScheduleBatchResponse> {
+  if (!activityScheduleConfigs.some((item) => item.id === configId)) {
+    throw createError({ statusCode: 400, statusMessage: 'ไม่พบประเภทกิจกรรมที่ต้องการแก้ไข' })
+  }
+  if (!Array.isArray(updates) || updates.length === 0 || updates.length > 250) {
+    throw createError({ statusCode: 400, statusMessage: 'จำนวนกิจกรรมที่ส่งมาไม่ถูกต้อง' })
+  }
+
+  const rowIds = new Set<number>()
+  const adminUpdates = updates.map((update) => {
+    if (!update || !Number.isSafeInteger(update.id) || update.id < 1 || rowIds.has(update.id)) {
+      throw createError({ statusCode: 400, statusMessage: 'ID กิจกรรมในชุดต้องไม่ซ้ำและต้องถูกต้อง' })
+    }
+    rowIds.add(update.id)
+
+    if (update.openForConfiguredDuration === true) {
+      if (configId !== 'recharge-tabs' || (update.fields && Object.keys(update.fields).length > 0)) {
+        throw createError({ statusCode: 400, statusMessage: 'การเปิดตามระยะเวลาที่กำหนดรองรับเฉพาะกิจกรรมเติมเงิน' })
+      }
+      return { rowId: update.id, openForConfiguredDuration: true }
+    }
+
+    if (!isStringRecord(update.fields) || Object.keys(update.fields).length === 0) {
+      throw createError({ statusCode: 400, statusMessage: 'ข้อมูลตารางเวลาของกิจกรรม ID ' + update.id + ' ไม่ถูกต้อง' })
+    }
+    validateActivityScheduleFields(configId, update.id, update.fields)
+    return { rowId: update.id, fields: update.fields }
+  })
+
+  const response = await fetchGameAdminApi('/api/activities/config/' + configId + '/batch', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(adminUpdates),
+  })
+  const result = await response.json() as {
+    code?: unknown
+    configured?: unknown
+    id?: unknown
+    message?: unknown
+    results?: unknown
+  }
+  if (result.code === 2 && result.configured === false) {
+    return { configured: false, ...(typeof result.id === 'number' ? { id: result.id } : {}) }
+  }
+  if (result.code !== 1 || !Array.isArray(result.results)) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: typeof result.message === 'string' ? result.message : 'Game AdminAPI บันทึกตารางเวลากิจกรรมทั้งกลุ่มไม่สำเร็จ',
+    })
+  }
+
+  const results = result.results as ActivityScheduleBatchItemResult[]
+  if (results.length !== updates.length || results.some(item =>
+    !item
+    || !Number.isSafeInteger(item.rowId)
+    || typeof item.configured !== 'boolean'
+    || !isStringRecord(item.fields)
+    || (item.durationDays != null && (!Number.isSafeInteger(item.durationDays) || item.durationDays < 1))
+  )) {
+    throw createError({ statusCode: 502, statusMessage: 'Game AdminAPI ส่งผลลัพธ์ตารางเวลากิจกรรมไม่ครบถ้วน' })
+  }
+
+  return { configured: true, results }
+}
 export async function openRechargeTabForConfiguredDuration(rowId: number) {
   if (!Number.isSafeInteger(rowId) || rowId < 1) {
     throw createError({ statusCode: 400, statusMessage: 'ID กิจกรรมไม่ถูกต้อง' })

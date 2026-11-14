@@ -2,12 +2,20 @@ const permanentEnd = '9999-12-31 23:59:59'
 const closedCampTime = '0:00:00:00'
 
 export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 13, 22]
-export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [18, 19, 25, 126]
+export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [
+  18, 19, 24, 25, 27, 32, 34, 46, 53, 56, 109, 121, 126, 128, 131, 132, 137, 141,
+  144, 146, 148, 149, 151, 158, 160, 161, 164, 166, 901, 902, 903, 999,
+]
 
 const gachaLinkedRechargeActivityInfo: Record<number, { gachaId: number; activityName: string; gachaName: string }> = {
   18: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
   19: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
   25: { gachaId: 5, activityName: 'กิจกรรมเซียนเริ่นเสวี่ย', gachaName: 'เซียนเริ่นเสวี่ย' },
+  34: { gachaId: 7, activityName: 'เติมเงินรายวันชุด 5', gachaName: 'ถังเลี่ย' },
+  109: { gachaId: 12, activityName: 'เติมเงินรายวันชุด 9', gachaName: 'ไป๋เฉินเซียง' },
+  146: { gachaId: 12, activityName: 'กิจกรรมซื้อเจ็ดวัน (หม่าหงจวิ้น)', gachaName: 'ไป๋เฉินเซียง' },
+  46: { gachaId: 9, activityName: 'เติมเงินรายวัน', gachaName: 'ยูเรเซีย' },
+  56: { gachaId: 11, activityName: 'เติมเงินรายวันชุด 8', gachaName: 'ปีศาจทะเล' },
   126: { gachaId: 24, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
 }
 
