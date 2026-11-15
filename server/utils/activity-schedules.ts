@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fetchGameAdminApi } from './game-admin-api'
@@ -18,10 +17,9 @@ export interface ActivityScheduleConfig {
 }
 
 export interface ActivityScheduleRow {
-  exclusiveGroup: boolean
   giftType?: number
+  giftTypeLabel?: string
   subType?: number
-  groupName?: string
   id: number
   name: string
   configId: string
@@ -29,7 +27,6 @@ export interface ActivityScheduleRow {
   fields: Record<string, string>
   durationDays?: number
   imageUrl: string
-  bannerGroupKey?: string
   canOpenForever: boolean
 }
 
@@ -154,25 +151,17 @@ const rechargeBannerFoldersByFilename: Record<string, string> = {
   'recharge_tab5_recharge_tab_pic_ad_2001_EN.png': 'seven-day-purchase/no-gacha',
 }
 
-const rechargeBannerHashes = new Map<string, string>()
-
 function rechargeBannerImage(values: Record<string, string>) {
   const filename = rechargeBannerFilename(values)
   if (!filename) return undefined
 
   const folder = rechargeBannerFoldersByFilename[filename]
-  const relativePath = folder ? `${folder}/${filename}` : filename
+  const relativePath = folder ? folder + '/' + filename : filename
   const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', relativePath)
   if (!existsSync(bannerPath)) return undefined
 
-  let bannerGroupKey = rechargeBannerHashes.get(bannerPath)
-  if (!bannerGroupKey) {
-    bannerGroupKey = createHash('sha256').update(readFileSync(bannerPath)).digest('hex')
-    rechargeBannerHashes.set(bannerPath, bannerGroupKey)
-  }
-  return { imageUrl: `/recharge-banners/${relativePath}`, bannerGroupKey }
+  return { imageUrl: '/recharge-banners/' + relativePath }
 }
-
 export const activityScheduleConfigs: ActivityScheduleConfig[] = [
   {
     id: 'recharge-tabs',
@@ -420,11 +409,16 @@ function rowName(configId: string, values: Record<string, string>) {
   }
 
   const giftType = Number(values.GiftType)
-  if (giftType && giftTypeNames[giftType]) {
-    const detail = values.SubType ? ` · ชุด ${values.SubType}` : ''
-    return `${giftTypeNames[giftType]}${detail} (ID ${values.id})`
+  if (configId === 'recharge-tabs' && giftType) {
+    const descriptor = values.name || values.CEHUA || values.beizhu
+    const title = descriptor ? descriptor.trim() : 'กิจกรรม'
+    const detail = values.SubType ? ' · รอบ ' + values.SubType : ''
+    return title + detail + ' (ID ' + values.id + ')'
   }
-  const activityTypeNames: Record<string, string> = {
+  if (giftType && giftTypeNames[giftType]) {
+    const detail = values.SubType ? ' · ชุด ' + values.SubType : ''
+    return giftTypeNames[giftType] + detail + ' (ID ' + values.id + ')'
+  }  const activityTypeNames: Record<string, string> = {
     101: 'เช็คอินกิจกรรม',
     102: 'เช็คอินเซิร์ฟใหม่',
     103: 'รางวัลพลังรบ',
@@ -475,18 +469,16 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
     const banner = rechargeBannerImage(values)
     return {
       id: Number(values.id),
-      exclusiveGroup: values.ExclusiveGroup === '1',
       name: rowName(config.id, values),
       ...(Number(values.GiftType) > 0 ? {
         giftType: Number(values.GiftType),
         subType: Number(values.SubType) || undefined,
-        groupName: giftTypeNames[Number(values.GiftType)] || `กิจกรรมประเภท ${values.GiftType}`,
+        giftTypeLabel: giftTypeNames[Number(values.GiftType)] || ('กิจกรรมประเภท ' + values.GiftType),
       } : {}),
       configId: config.id,
       configTitle: config.title,
       ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),
       imageUrl: banner?.imageUrl || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
-      ...(banner ? { bannerGroupKey: banner.bannerGroupKey } : {}),
       canOpenForever: true,
       fields: {
         ...Object.fromEntries(config.fields

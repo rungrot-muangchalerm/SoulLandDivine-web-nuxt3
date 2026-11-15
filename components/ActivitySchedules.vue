@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { buildActivityScheduleBatchUpdates } from '~/utils/activity-schedule-batch'
 import {
   getActivityOverrideFields,
   getGachaLinkedRechargeActivityMessage,
-  getGachaLinkedRechargeActivityNotice,
   isGachaLinkedRechargeActivity,
   isProtectedRechargeActivity,
   isActivityAlwaysOpen,
@@ -25,10 +23,9 @@ interface ScheduleConfig {
 }
 
 interface ScheduleRow {
-  exclusiveGroup: boolean
   giftType?: number
+  giftTypeLabel?: string
   subType?: number
-  groupName?: string
   id: number
   name: string
   configId: string
@@ -36,46 +33,23 @@ interface ScheduleRow {
   fields: Record<string, string>
   durationDays?: number
   imageUrl?: string
-  bannerGroupKey?: string
   canOpenForever: boolean
 }
 
-type ActivityKind = 'all' | 'permanent' | 'scheduled' | 'theme-boss'
+type ActivityKind = 'all' | 'permanent' | 'scheduled'
+
+const props = defineProps<{ activityId?: number }>()
+const isDetailView = computed(() => props.activityId !== undefined)
 
 const route = useRoute()
 const activityKind = ref<ActivityKind>('all')
-const activeGroupKey = computed(() => typeof route.params.group === 'string' ? route.params.group : '')
 watch(() => route.query.kind, (kind) => {
   activityKind.value = kind === 'permanent'
     || kind === 'scheduled'
-    || kind === 'theme-boss'
     ? kind
     : 'all'
 }, { immediate: true })
 
-function groupKey(activity: ScheduleRow) {
-  if (activity.giftType === 44) return 'gift-44'
-  if (activity.giftType === 11 && activity.bannerGroupKey) {
-    return `banner-${activity.bannerGroupKey}`
-  }
-  if (activity.giftType) {
-    const categoryBannerKey = activities.value.find(item => item.giftType === activity.giftType)?.bannerGroupKey
-    if (categoryBannerKey) return `banner-${categoryBannerKey}`
-  }
-  if (activity.bannerGroupKey) return `banner-${activity.bannerGroupKey}`
-  return activity.giftType ? `gift-${activity.giftType}` : `config-${activity.configId}`
-}
-function isInGroup(activity: ScheduleRow, key: string) {
-  if (groupKey(activity) === key) return true
-  const legacyGiftType = /^gift-(\d+)$/.exec(key)
-  return Boolean(legacyGiftType && activity.giftType === Number(legacyGiftType[1]))
-}
-function groupName(rows: ScheduleRow[]) {
-  if (rows.length && rows.every(activity => activity.giftType === 11)) {
-    return [...new Set(rows.map(activity => activity.name))].join(' / ')
-  }
-  return [...new Set(rows.map(activity => activity.groupName || activity.configTitle))].join(' / ')
-}
 function isPermanentActivity(activity: ScheduleRow) {
   return isProtectedRechargeActivity(activity.configId, activity.id)
     || isActivityAlwaysOpen(activity.configId, activity.fields)
@@ -83,20 +57,7 @@ function isPermanentActivity(activity: ScheduleRow) {
 function matchesActivityKind(activity: ScheduleRow) {
   if (activityKind.value === 'permanent') return isPermanentActivity(activity)
   if (activityKind.value === 'scheduled') return !isPermanentActivity(activity)
-  if (activityKind.value === 'theme-boss') return activity.giftType === 11
   return true
-}
-function activityGroupRoute(key: string) {
-  return {
-    path: `/activities/${key}`,
-    query: activityKind.value === 'all' ? {} : { kind: activityKind.value },
-  }
-}
-function activityListRoute() {
-  return {
-    path: '/activities',
-    query: activityKind.value === 'all' ? {} : { kind: activityKind.value },
-  }
 }
 const allConfigsId = 'all'
 const configs = ref<ScheduleConfig[]>([])
@@ -104,51 +65,34 @@ const activities = ref<ScheduleRow[]>([])
 const drafts = ref<Record<string, Record<string, string>>>({})
 const selectedConfigId = ref(allConfigsId)
 const search = ref('')
-const page = ref(1)
-const pageSize = 25
 const loading = ref(false)
 const savingKey = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
+const selectedActivity = computed(() => isDetailView.value
+  ? activities.value.find((activity) => activity.id === props.activityId)
+  : undefined)
+const selectedActivityConfig = computed(() => selectedActivity.value
+  ? configs.value.find((config) => config.id === selectedActivity.value?.configId)
+  : undefined)
 const configRows = computed(() => activities.value
   .filter(matchesActivityKind)
-  .filter((activity) => !activeGroupKey.value || isInGroup(activity, activeGroupKey.value))
   .filter((activity) => selectedConfigId.value === allConfigsId || activity.configId === selectedConfigId.value)
   .filter((activity) => {
     const query = search.value.trim().toLocaleLowerCase()
-    return !query || `${activity.id} ${activity.name} ${Object.values(activity.fields).join(' ')}`
-      .toLocaleLowerCase()
-      .includes(query)
+    const searchable = [
+      activity.id,
+      activity.name,
+      activity.giftType,
+      activity.giftTypeLabel,
+      activity.subType,
+      ...Object.values(activity.fields),
+    ].join(' ')
+    return !query || searchable.toLocaleLowerCase().includes(query)
   }))
-const groups = computed(() => {
-  const grouped = new Map<string, { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[]; imageUrl?: string }>()
-  for (const activity of configRows.value) {
-    const key = groupKey(activity)
-    let group = grouped.get(key)
-    if (!group) {
-      group = { key, name: '', giftTypes: [], rows: [], imageUrl: activity.imageUrl }
-      grouped.set(key, group)
-    }
-    group.rows.push(activity)
-    group.name = groupName(group.rows)
-    if (activity.giftType && !group.giftTypes.includes(activity.giftType)) group.giftTypes.push(activity.giftType)
-  }
-  return [...grouped.values()]
-})
-const currentGroupName = computed(() => {
-  const rows = activities.value.filter(activity => isInGroup(activity, activeGroupKey.value))
-  return rows.length ? groupName(rows) : undefined
-})
-const resultCount = computed(() => activeGroupKey.value ? configRows.value.length : groups.value.length)
-const pageCount = computed(() => Math.max(1, Math.ceil(resultCount.value / pageSize)))
-const visibleRows = computed(() => configRows.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-const visibleGroups = computed(() => groups.value.slice((page.value - 1) * pageSize, page.value * pageSize))
-
-watch([selectedConfigId, search, activeGroupKey, activityKind], () => {
-  page.value = 1
-})
+const resultCount = computed(() => configRows.value.length)
 
 async function loadSchedules() {
   loading.value = true
@@ -179,101 +123,6 @@ function rowKey(activity: ScheduleRow) {
   return `${activity.configId}:${activity.id}`
 }
 
-function gachaLinkedActivityNotices(rows: ScheduleRow[]) {
-  return [...new Set(rows
-    .map(row => getGachaLinkedRechargeActivityNotice(row.configId, row.id))
-    .filter((notice): notice is string => Boolean(notice)))].join(' · ')
-}
-
-function isGroupEnabled(group: { rows: ScheduleRow[] }) {
-  const manageableRows = group.rows.filter(activity => !isGachaLinkedRechargeActivity(activity.configId, activity.id))
-  return manageableRows.some(activity => isActivityEnabled(activity))
-}
-
-async function setGroupActivity(group: { key: string; name: string; giftTypes: number[]; rows: ScheduleRow[] }, active: boolean, event: Event) {
-  const checkbox = event.target
-  if (!(checkbox instanceof HTMLInputElement)) return
-  if (savingKey.value) return
-  const manageableRows = group.rows.filter(row => !isGachaLinkedRechargeActivity(row.configId, row.id))
-  if (
-    active
-    && manageableRows.some(row => row.exclusiveGroup && row.giftType !== 11)
-    && group.key !== 'gift-44'
-  ) {
-    errorMessage.value = 'กิจกรรมนี้เปิดได้ครั้งละรอบ กรุณาเลือกชุดในหน้าจัดการกิจกรรม'
-    checkbox.checked = isGroupEnabled(group)
-    return
-  }
-  if (!active && !window.confirm('ยืนยันปิด "' + group.name + '" ทันทีหรือไม่?')) {
-    checkbox.checked = isGroupEnabled(group)
-    return
-  }
-
-  const key = group.key
-  errorMessage.value = ''
-  successMessage.value = ''
-
-  try {
-    savingKey.value = key
-    const rows = active && group.key === 'gift-44'
-      ? activities.value.filter(activity => activity.configId === 'recharge-tabs' && activity.id === 130)
-      : manageableRows
-    if (rows.length === 0) {
-      throw new Error('กิจกรรมในกลุ่มนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง')
-    }
-
-    for (const activity of rows) {
-      if (!active && isProtectedRechargeActivity(activity.configId, activity.id)) {
-        throw new Error('กิจกรรม ID ' + activity.id + ' ถูกล็อกไว้ ห้ามปิดระบบ')
-      }
-      if (isDirty(activity)) {
-        throw new Error('กรุณาบันทึกตารางเวลาของ "' + activity.name + '" ที่แก้ไขค้างไว้ก่อน')
-      }
-    }
-
-    const updates = buildActivityScheduleBatchUpdates(rows, active, new Date(), getActivityOverrideFields)
-    const result = await $fetch<{
-      configured: boolean
-      id?: number
-      results?: Array<{
-        rowId: number
-        configured: boolean
-        durationDays?: number | null
-        fields: Record<string, string>
-      }>
-    }>('/api/activities/schedule/batch', {
-      method: 'POST',
-      body: { configId: 'recharge-tabs', updates },
-    })
-
-    const savedRows = result.results
-      ? rows.map(activity => result.results!.find(saved => saved.rowId === activity.id))
-      : []
-    if (!result.configured || savedRows.length !== rows.length || savedRows.some(saved => !saved || !saved.configured)) {
-      const unconfigured = rows.find(activity => activity.id === result.id)
-      throw new Error(unconfigured
-        ? '"' + unconfigured.name + '" ยังไม่มีระยะเวลาเปิดที่กำหนดไว้'
-        : 'บันทึกตารางเวลากิจกรรมทั้งกลุ่มไม่สำเร็จ')
-    }
-
-    rows.forEach((activity, index) => {
-      const saved = savedRows[index]!
-      activity.fields = { ...activity.fields, ...saved.fields }
-      if (saved.durationDays) activity.durationDays = saved.durationDays
-      drafts.value[rowKey(activity)] = { ...activity.fields }
-    })
-
-    if (group.key === 'gift-44') await loadSchedules()
-    successMessage.value = active
-      ? 'เปิด "' + group.name + '" ทันทีแล้ว (' + rows.length + ' ชุดกิจกรรม)'
-      : 'ปิด "' + group.name + '" แล้ว (' + rows.length + ' ชุดกิจกรรม)'
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : 'เปิดกิจกรรมไม่สำเร็จ'
-    checkbox.checked = isGroupEnabled(group)
-  } finally {
-    savingKey.value = ''
-  }
-}
 async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, event: Event) {
   const checkbox = event.target
   if (!(checkbox instanceof HTMLInputElement)) return
@@ -333,7 +182,6 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
     }
     activity.fields = { ...activity.fields, ...fields }
     drafts.value[key] = { ...activity.fields }
-    if (activity.giftType === 44) await loadSchedules()
     successMessage.value = active
       ? activity.durationDays
         ? `${activity.name}: เปิดทันที ${activity.durationDays} วัน เริ่ม ${activity.fields.ShowStart || ''} ถึง ${activity.fields.ShowEnd || ''}`
@@ -523,9 +371,17 @@ onMounted(loadSchedules)
   <section class="container-fluid">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div>
-        <NuxtLink v-if="activeGroupKey" :to="activityListRoute()" class="d-inline-block mb-2">← กิจกรรมทั้งหมด</NuxtLink>
-        <h1 class="h3 mb-1">{{ activeGroupKey ? (currentGroupName || 'ไม่พบกิจกรรม') : 'กิจกรรมทั้งหมด' }}</h1>
-        <p class="text-body-secondary mb-0">{{ activeGroupKey ? 'เลือกชุดกิจกรรมเพื่อจัดการเวลาเปิด–ปิด' : 'เลือกกิจกรรมเพื่อจัดการชุดและรอบทั้งหมด' }}</p>
+        <NuxtLink v-if="isDetailView" to="/activities" class="small text-decoration-none d-inline-flex align-items-center gap-1 mb-2">
+          <i class="fa-solid fa-arrow-left" aria-hidden="true" />
+          กลับไปหน้ากิจกรรม
+        </NuxtLink>
+        <h1 class="h3 mb-1">{{ isDetailView ? (selectedActivity?.name || 'รายละเอียดกิจกรรม') : 'กิจกรรมทั้งหมด' }}</h1>
+        <p v-if="isDetailView && selectedActivity" class="text-body-secondary mb-0">
+          {{ selectedActivity.configTitle }} · ID {{ selectedActivity.id }}<span v-if="selectedActivity.subType !== undefined"> · SubType {{ selectedActivity.subType }}</span>
+        </p>
+        <p v-else-if="!isDetailView" class="text-body-secondary mb-0">
+          จัดการแต่ละกิจกรรมแยกกัน · เปิด/ปิดด่วนจากการ์ด และตั้งเวลาในหน้ารายละเอียด
+        </p>
       </div>
       <button class="btn btn-outline-secondary" type="button" :disabled="loading || savingKey !== ''" @click="loadSchedules">
         {{ loading ? 'กำลังโหลด...' : 'โหลดข้อมูลใหม่' }}
@@ -535,147 +391,96 @@ onMounted(loadSchedules)
     <div v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</div>
     <div v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
 
-    <div class="row g-2 mb-3">
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="activity-kind">หมวดเวลาเปิด</label>
-        <select id="activity-kind" v-model="activityKind" class="form-select" :disabled="loading">
-          <option value="all">กิจกรรมทั้งหมด</option>
-          <option value="permanent">กิจกรรมถาวร</option>
-          <option value="scheduled">กิจกรรมตามกำหนดเวลา</option>
-          <option v-if="!activeGroupKey" value="theme-boss">บอสธีม</option>
-        </select>
+    <template v-if="!isDetailView">
+      <div class="row g-2 mb-3">
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="activity-kind">หมวดเวลาเปิด</label>
+          <select id="activity-kind" v-model="activityKind" class="form-select" :disabled="loading">
+            <option value="all">กิจกรรมทั้งหมด</option>
+            <option value="permanent">กิจกรรมถาวร</option>
+            <option value="scheduled">กิจกรรมตามกำหนดเวลา</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
+          <select id="activity-config" v-model="selectedConfigId" class="form-select" :disabled="loading">
+            <option :value="allConfigsId">ทั้งหมด</option>
+            <option v-for="config in configs" :key="config.id" :value="config.id">
+              {{ config.title }}
+            </option>
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label" for="activity-search">ค้นหาชื่อหรือ ID</label>
+          <input id="activity-search" v-model="search" class="form-control" type="search" placeholder="เช่น เรือพาย, เรือมังกร, 33">
+        </div>
       </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
-        <select id="activity-config" v-model="selectedConfigId" class="form-select" :disabled="loading">
-          <option :value="allConfigsId">ทั้งหมด</option>
-          <option v-for="config in configs" :key="config.id" :value="config.id">
-            {{ config.title }}
-          </option>
-        </select>
-      </div>
-      <div class="col-12 col-md-3">
-        <label class="form-label" for="activity-search">ค้นหาชื่อหรือ ID</label>
-        <input id="activity-search" v-model="search" class="form-control" type="search" placeholder="เช่น เรือพาย, เรือมังกร, 33">
-      </div>
-    </div>
 
-    <p v-if="selectedConfig" class="small text-body-secondary">{{ selectedConfig.description }}</p>
-    <div v-if="!loading && configRows.length" class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-      <span class="small text-body-secondary">พบ {{ resultCount }} {{ activeGroupKey ? 'ชุดกิจกรรม' : 'กิจกรรม' }}</span>
-      <nav v-if="pageCount > 1" aria-label="หน้ารายการกิจกรรม">
-        <ul class="pagination pagination-sm mb-0">
-          <li class="page-item" :class="{ disabled: page <= 1 }">
-            <button class="page-link" type="button" :disabled="page <= 1" @click="page--">ก่อนหน้า</button>
-          </li>
-          <li class="page-item disabled"><span class="page-link">{{ page }} / {{ pageCount }}</span></li>
-          <li class="page-item" :class="{ disabled: page >= pageCount }">
-            <button class="page-link" type="button" :disabled="page >= pageCount" @click="page++">ถัดไป</button>
-          </li>
-        </ul>
-      </nav>
-    </div>
+      <p v-if="selectedConfig" class="small text-body-secondary">{{ selectedConfig.description }}</p>
+      <p v-if="!loading && configRows.length" class="small text-body-secondary mb-2">
+        พบ {{ resultCount }} กิจกรรม
+      </p>
+    </template>
 
     <div v-if="loading" class="alert alert-info">กำลังโหลดตารางเวลากิจกรรม...</div>
-    <div v-else-if="!configRows.length" class="alert alert-secondary">ไม่พบกิจกรรมในหมวดนี้ หรือไม่ตรงกับคำค้นหา</div>
-    <div v-else-if="!activeGroupKey" class="row g-3">
-      <div v-for="group in visibleGroups" :key="group.key" class="col-12 col-md-6 col-xl-4">
-        <article class="card h-100 activity-group-card">
-          <NuxtLink :to="activityGroupRoute(group.key)" class="text-decoration-none text-reset">
-            <img v-if="group.imageUrl" :src="group.imageUrl" :alt="group.name" class="card-img-top activity-card-image" loading="lazy">
-            <div class="card-body">
-              <h2 class="h5">{{ group.name }}</h2>
-              <p v-if="group.rows.some(row => row.exclusiveGroup && row.giftType !== 11)" class="small text-warning mb-2">เปิดได้ครั้งละรอบ — เลือกชุดในหน้าจัดการกิจกรรม</p>
-              <p v-if="group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))" class="small text-warning mb-2">กลุ่มนี้มีกิจกรรมที่ล็อกให้เปิดตลอด</p>
-              <p v-if="group.rows.some(row => isGachaLinkedRechargeActivity(row.configId, row.id))" class="small text-info mb-2">{{ gachaLinkedActivityNotices(group.rows) }}</p>
-              <p class="text-body-secondary mb-2">{{ group.rows.length }} ชุดกิจกรรม<span v-if="group.giftTypes.length"> · GiftType {{ group.giftTypes.join(', ') }}</span></p>
-            </div>
-          </NuxtLink>
-          <div
-            v-if="(!group.rows.some(row => row.exclusiveGroup && row.giftType !== 11) || group.key === 'gift-44') && group.rows.some(row => !isGachaLinkedRechargeActivity(row.configId, row.id))"
-            class="activity-group-toggle form-check form-switch mb-0"
-          >
-            <input
-              :id="`group-active-${group.key}`"
-              class="form-check-input"
-              type="checkbox"
-              role="switch"
-              :checked="isGroupEnabled(group)"
-              :disabled="savingKey !== '' || group.rows.some(row => isProtectedRechargeActivity(row.configId, row.id))"
-              @change="setGroupActivity(group, ($event.target as HTMLInputElement).checked, $event)"
-            >
-            <label class="visually-hidden" :for="`group-active-${group.key}`">เปิดหรือปิดกิจกรรม {{ group.name }}</label>
-          </div>
-          <div class="card-body flex-grow-0 pt-0 mt-auto d-flex justify-content-end">
-            <NuxtLink :to="activityGroupRoute(group.key)" class="btn btn-primary">จัดการกิจกรรม →</NuxtLink>
-          </div>
-        </article>
-      </div>
+    <div v-else-if="isDetailView && !selectedActivity" class="alert alert-secondary" role="status">
+      ไม่พบกิจกรรม ID {{ props.activityId }} หรือกิจกรรมนี้ถูกควบคุมผ่านหน้าตู้กาชา
     </div>
-    <div v-else class="row g-3">
-      <div v-for="activity in visibleRows" :key="rowKey(activity)" class="col-12 col-xl-6">
-        <article class="card h-100">
-          <img
-            v-if="activity.imageUrl"
-            :src="activity.imageUrl"
-            :alt="`ภาพกิจกรรม ${activity.name}`"
-            class="card-img-top activity-card-image"
-            loading="lazy"
-          >
-          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-              <h2 class="h6 mb-1">{{ activity.name }}</h2>
-              <p v-if="activity.exclusiveGroup && activity.giftType !== 11 && activity.giftType !== 44" class="small mb-1">เปิดได้ครั้งละรอบ ระบบจะปฏิเสธช่วงเวลาที่ซ้อนกับชุดอื่น</p>
-              <p v-if="activity.giftType === 44" class="small mb-1">{{ activity.id === 130 ? 'ชุดเปิดทันที — เมื่อเปิดจะอัปเดตเวลา และปิดชุดที่มีช่วงเวลาซ้อนกัน' : 'ชุดตั้งเวลา — กำหนดวันเริ่มและวันจบด้านล่าง' }}</p>
-              <p v-if="isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="small text-info mb-1">{{ getGachaLinkedRechargeActivityNotice(activity.configId, activity.id) }}</p>
-              <div class="small text-body-secondary">{{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span></div>
-            </div>
-            <div v-if="activity.canOpenForever && !(activity.giftType === 44 && activity.id !== 130) && !isGachaLinkedRechargeActivity(activity.configId, activity.id)" class="form-check form-switch mb-0">
-              <input
-                :id="`activity-active-${rowKey(activity)}`"
-                class="form-check-input"
-                type="checkbox"
-                role="switch"
-                :checked="isActivityEnabled(activity)"
-                :disabled="savingKey !== '' || isProtectedRechargeActivity(activity.configId, activity.id)"
-                @change="setActivityAlwaysOpen(activity, ($event.target as HTMLInputElement).checked, $event)"
-              >
-              <label class="form-check-label" :for="`activity-active-${rowKey(activity)}`">
-                {{ activityToggleLabel(activity) }}
-              </label>
-            </div>
-            <span v-else class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>
+
+    <div v-else-if="isDetailView && selectedActivity" class="row">
+      <div class="col-12">
+        <article class="card">
+          <div v-if="selectedActivity.imageUrl" class="activity-detail-image-wrap">
+            <img
+              :src="selectedActivity.imageUrl"
+              :alt="'ภาพกิจกรรม ' + selectedActivity.name"
+              class="activity-detail-image"
+            >
           </div>
           <div class="card-body">
-            <div class="row g-2">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+              <span class="badge" :class="formatClass(selectedActivity)">{{ scheduleStatus(selectedActivity) }}</span>
+              <span v-if="selectedActivity.giftType !== undefined" class="badge text-bg-secondary">
+                GiftType {{ selectedActivity.giftType }}
+              </span>
+              <span v-if="selectedActivity.giftTypeLabel" class="small text-body-secondary">
+                {{ selectedActivity.giftTypeLabel }}
+              </span>
+            </div>
+
+            <div class="row g-3">
               <div
-                v-for="field in configs.find((config) => config.id === activity.configId)?.fields.filter((item) => item.key in activity.fields)"
+                v-for="field in selectedActivityConfig?.fields.filter((item) => item.key in selectedActivity.fields)"
                 :key="field.key"
-                class="col-12"
+                class="col-12 col-lg-6"
               >
-                <label class="form-label small mb-1" :for="`activity-${activity.configId}-${activity.id}-${field.key}`">
+                <label class="form-label small mb-1" :for="'activity-' + selectedActivity.configId + '-' + selectedActivity.id + '-' + field.key">
                   {{ field.label }}
                 </label>
                 <input
-                  :id="`activity-${activity.configId}-${activity.id}-${field.key}`"
-                  v-model="drafts[rowKey(activity)][field.key]"
-                  class="form-control form-control-sm"
+                  :id="'activity-' + selectedActivity.configId + '-' + selectedActivity.id + '-' + field.key"
+                  v-model="drafts[rowKey(selectedActivity)][field.key]"
+                  class="form-control"
                   type="text"
                   maxlength="128"
-                  :disabled="savingKey !== '' || isGachaLinkedRechargeActivity(activity.configId, activity.id)"
-                  :aria-describedby="`activity-format-${activity.configId}-${field.key}`"
+                  :disabled="savingKey !== '' || isGachaLinkedRechargeActivity(selectedActivity.configId, selectedActivity.id)"
+                  :aria-describedby="'activity-format-' + selectedActivity.configId + '-' + field.key"
                 >
-                <div :id="`activity-format-${activity.configId}-${field.key}`" class="form-text">{{ field.format }}</div>
+                <div :id="'activity-format-' + selectedActivity.configId + '-' + field.key" class="form-text">
+                  {{ field.format }}
+                </div>
               </div>
             </div>
-            <div class="d-flex justify-content-end mt-3">
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-4">
+              <NuxtLink to="/activities" class="btn btn-outline-secondary">ยกเลิก</NuxtLink>
               <button
-                class="btn btn-sm btn-primary"
+                class="btn btn-primary"
                 type="button"
-                :disabled="!isDirty(activity) || savingKey !== '' || isGachaLinkedRechargeActivity(activity.configId, activity.id)"
-                @click="saveSchedule(activity)"
+                :disabled="!isDirty(selectedActivity) || savingKey !== '' || isGachaLinkedRechargeActivity(selectedActivity.configId, selectedActivity.id)"
+                @click="saveSchedule(selectedActivity)"
               >
-                {{ savingKey === rowKey(activity) ? 'กำลังบันทึก...' : 'บันทึกตารางเวลา' }}
+                {{ savingKey === rowKey(selectedActivity) ? 'กำลังบันทึก...' : 'บันทึกตารางเวลา' }}
               </button>
             </div>
           </div>
@@ -683,36 +488,161 @@ onMounted(loadSchedules)
       </div>
     </div>
 
-    <nav v-if="!loading && configRows.length && pageCount > 1" class="d-flex justify-content-center mt-3" aria-label="การแบ่งหน้ารายการกิจกรรมด้านล่าง">
-      <ul class="pagination pagination-sm mb-0">
-        <li class="page-item" :class="{ disabled: page <= 1 }">
-          <button class="page-link" type="button" :disabled="page <= 1" @click="page--">ก่อนหน้า</button>
-        </li>
-        <li class="page-item disabled"><span class="page-link">{{ page }} / {{ pageCount }}</span></li>
-        <li class="page-item" :class="{ disabled: page >= pageCount }">
-          <button class="page-link" type="button" :disabled="page >= pageCount" @click="page++">ถัดไป</button>
-        </li>
-      </ul>
-    </nav>
+    <div v-else-if="!configRows.length" class="alert alert-secondary">
+      ไม่พบกิจกรรมที่ตรงกับตัวกรองหรือคำค้นหา
+    </div>
+
+    <div v-else-if="!isDetailView" class="row g-3">
+      <div v-for="activity in configRows" :key="rowKey(activity)" class="col-12 col-xl-6">
+        <article class="card h-100 activity-card">
+          <div class="activity-card-media" :class="{ 'activity-card-media--empty': !activity.imageUrl }">
+            <img
+              v-if="activity.imageUrl"
+              :src="activity.imageUrl"
+              :alt="'ภาพกิจกรรม ' + activity.name"
+              class="activity-card-image"
+              loading="lazy"
+            >
+            <div class="activity-card-overlay">
+              <div class="activity-card-overlay-top">
+                <div
+                  v-if="activity.canOpenForever && !isGachaLinkedRechargeActivity(activity.configId, activity.id)"
+                  class="form-check form-switch activity-card-toggle mb-0"
+                >
+                  <input
+                    :id="'activity-active-' + rowKey(activity)"
+                    class="form-check-input"
+                    type="checkbox"
+                    role="switch"
+                    :checked="isActivityEnabled(activity)"
+                    :disabled="savingKey !== '' || isProtectedRechargeActivity(activity.configId, activity.id)"
+                    @change="setActivityAlwaysOpen(activity, ($event.target as HTMLInputElement).checked, $event)"
+                  >
+                  <label class="form-check-label" :for="'activity-active-' + rowKey(activity)">
+                    {{ activityToggleLabel(activity) }}
+                  </label>
+                </div>
+                <span v-else class="badge" :class="formatClass(activity)">{{ scheduleStatus(activity) }}</span>
+              </div>
+
+              <div class="activity-card-overlay-bottom">
+                <div class="activity-card-meta">
+                  <h2 class="activity-card-title mb-1">{{ activity.name }}</h2>
+                  <div class="activity-card-detail">
+                    {{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span>
+                  </div>
+                  <div v-if="activity.giftType !== undefined" class="d-flex flex-wrap align-items-center gap-1 mt-1">
+                    <span class="badge text-bg-light text-dark">GiftType {{ activity.giftType }}</span>
+                    <span v-if="activity.giftTypeLabel" class="activity-card-detail">{{ activity.giftTypeLabel }}</span>
+                  </div>
+                </div>
+                <NuxtLink :to="'/activities/' + activity.id" class="btn btn-sm btn-light activity-card-manage">
+                  จัดการ
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
   </section>
 </template>
 
 <style scoped>
+.activity-card-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--bs-card-inner-border-radius);
+  background-color: var(--bs-tertiary-bg);
+}
+
 .activity-card-image {
+  display: block;
   width: 100%;
   height: auto;
   object-fit: contain;
   background-color: var(--bs-tertiary-bg);
 }
 
-.activity-group-card {
-  position: relative;
+.activity-card-media--empty {
+  min-height: 180px;
 }
 
-.activity-group-toggle {
+.activity-card-overlay {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 2;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .75rem;
+  color: #fff;
+  background: linear-gradient(180deg, rgba(0, 0, 0, .62) 0%, rgba(0, 0, 0, .08) 38%, rgba(0, 0, 0, .76) 100%);
+}
+
+.activity-card-overlay-top {
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.activity-card-toggle {
+  padding: .25rem .55rem;
+  border-radius: .5rem;
+  color: #fff;
+  background: rgba(0, 0, 0, .72);
+}
+
+.activity-card-toggle .form-check-input {
+  float: none;
+  margin-left: 0;
+  margin-right: .35rem;
+}
+
+.activity-card-toggle .form-check-label {
+  font-size: .8rem;
+}
+
+.activity-card-overlay-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem;
+  min-width: 0;
+}
+
+.activity-card-meta {
+  min-width: 0;
+  flex: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+
+.activity-card-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: .95rem;
+  font-weight: 700;
+}
+
+.activity-card-detail {
+  color: rgba(255, 255, 255, .92);
+  font-size: .75rem;
+}
+
+.activity-card-manage {
+  flex: 0 0 auto;
+}
+
+.activity-detail-image-wrap {
+  background-color: var(--bs-tertiary-bg);
+}
+
+.activity-detail-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 </style>
