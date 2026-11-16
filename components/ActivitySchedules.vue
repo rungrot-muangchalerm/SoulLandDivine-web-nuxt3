@@ -8,6 +8,7 @@ import {
   isActivityAlwaysOpen,
   isActivityForceClosed,
 } from '~/utils/activity-schedule-overrides'
+import { isVisibleInActivityManagement } from '~/utils/activity-schedule-visibility.mjs'
 
 interface ScheduleField {
   key: string
@@ -101,7 +102,8 @@ async function loadSchedules() {
   try {
     const result = await $fetch<{ configs: ScheduleConfig[]; activities: ScheduleRow[] }>('/api/activities')
     const managedActivities = result.activities.filter(
-      activity => !isGachaLinkedRechargeActivity(activity.configId, activity.id),
+      activity => isVisibleInActivityManagement(activity)
+        && !isGachaLinkedRechargeActivity(activity.configId, activity.id),
     )
     configs.value = result.configs
     activities.value = managedActivities
