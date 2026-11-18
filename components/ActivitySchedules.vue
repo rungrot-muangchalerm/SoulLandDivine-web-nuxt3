@@ -6,7 +6,11 @@ import {
   getBossLinkedRechargeActivityNotice,
   getBossLinkedRechargeActivities,
   getBossLinkedRechargeParentId,
+  getSuperSalesLinkedShreklandActivities,
+  getSuperSalesLinkedShreklandParentId,
+  getSuperSalesLinkedShreklandActivityNotice,
   isBossLinkedRechargeActivity,
+  isSuperSalesLinkedShreklandActivity,
   isControlledRechargeActivity,
   isProtectedRechargeActivity,
   isActivityAlwaysOpen,
@@ -82,6 +86,8 @@ const selectedActivity = computed(() => isDetailView.value
   ? activities.value.find((activity) => activity.id === props.activityId)
     ?? linkedActivities.value.find((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id)
       && activity.id === props.activityId)
+    ?? linkedActivities.value.find((activity) => isSuperSalesLinkedShreklandActivity(activity.configId, activity.id)
+      && activity.id === props.activityId)
   : undefined)
 const selectedActivityConfig = computed(() => selectedActivity.value
   ? configs.value.find((config) => config.id === selectedActivity.value?.configId)
@@ -93,7 +99,10 @@ const configRows = computed(() => sortActivitiesById(activities.value
 const resultCount = computed(() => configRows.value.length)
 
 function bossFollowersFor(activity: ScheduleRow) {
-  return getBossLinkedRechargeActivities('recharge-tabs', activity.id, linkedActivities.value)
+  return [
+    ...getBossLinkedRechargeActivities('recharge-tabs', activity.id, linkedActivities.value),
+    ...getSuperSalesLinkedShreklandActivities('recharge-tabs', activity.id, linkedActivities.value),
+  ]
 }
 
 async function loadSchedules() {
@@ -118,7 +127,7 @@ async function loadSchedules() {
     ]))
     // The linked children are hidden from the list but remain available
     // as read-only detail pages. Initialize their input drafts safely.
-    for (const child of result.activities.filter((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id))) {
+    for (const child of result.activities.filter((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id) || isSuperSalesLinkedShreklandActivity(activity.configId, activity.id))) {
       drafts.value[rowKey(child)] = { ...child.fields }
     }
   } catch (error) {
@@ -436,7 +445,18 @@ onMounted(loadSchedules)
               class="btn btn-outline-primary btn-sm mb-3"
             >
               กลับไปจัดการบอสธีมหลัก ID {{ getBossLinkedRechargeParentId(selectedActivity.configId, selectedActivity.id) }}
-            </NuxtLink>            <div v-if="getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
+            </NuxtLink>
+            <NuxtLink
+              v-if="getSuperSalesLinkedShreklandParentId(selectedActivity.configId, selectedActivity.id) !== undefined"
+              :to="'/activities/' + getSuperSalesLinkedShreklandParentId(selectedActivity.configId, selectedActivity.id)"
+              class="btn btn-outline-primary btn-sm mb-3"
+            >
+              กลับไปจัดการ Super Sales หลัก ID {{ getSuperSalesLinkedShreklandParentId(selectedActivity.configId, selectedActivity.id) }}
+            </NuxtLink>
+            <div v-if="getSuperSalesLinkedShreklandActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
+              {{ getSuperSalesLinkedShreklandActivityNotice(selectedActivity.configId, selectedActivity.id) }}
+            </div>
+            <div v-if="getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
               {{ getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id) }}
             </div>
             <div class="row g-3">

@@ -1,7 +1,7 @@
 const permanentEnd = '9999-12-31 23:59:59'
 const closedCampTime = '0:00:00:00'
 
-export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 8, 9]
+export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 8]
 export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [
   32, 33, 241, 25, 27, 31, 243, 34, 35, 43, 46, 47, 53, 54, 56, 57, 79, 109, 110, 117, 121,
   126, 127, 128, 131, 271, 133, 137, 272, 144, 145, 146, 147, 148, 149, 150, 151, 157, 158,
@@ -131,12 +131,54 @@ export function getBossLinkedRechargeActivityNotice(configId: string, id: number
   return 'เปิด–ปิดตามกิจกรรมบอสธีม ID ' + bossParentByFollowerActivityId[id] + ' เท่านั้น'
 }
 
+/** Super Sales parents ordered by increasing Shrekland cumulative-score ceiling.
+ * Periods 3 and 4 tie at 100000 points; preserve their period order.
+ * The child ID is never a standalone activity controller.
+ */
+export const SUPER_SALES_SHREKLAND_LINKS = [
+  { superSalesId: 207, shreklandId: 269, period: 1, maxScore: 15000 },
+  { superSalesId: 212, shreklandId: 270, period: 2, maxScore: 30000 },
+  { superSalesId: 216, shreklandId: 279, period: 3, maxScore: 50000 },
+  { superSalesId: 220, shreklandId: 280, period: 4, maxScore: 100000 },
+  { superSalesId: 222, shreklandId: 281, period: 5, maxScore: 100000 },
+] as const
+
+const superSalesParentByShreklandId: Record<number, number> = Object.fromEntries(
+  SUPER_SALES_SHREKLAND_LINKS.map(link => [link.shreklandId, link.superSalesId]),
+)
+
+export function getSuperSalesLinkedShreklandParentId(configId: string, childId: number): number | undefined {
+  return configId === 'recharge-tabs' ? superSalesParentByShreklandId[childId] : undefined
+}
+
+export function isSuperSalesLinkedShreklandActivity(configId: string, id: number) {
+  return getSuperSalesLinkedShreklandParentId(configId, id) !== undefined
+}
+
+export function getSuperSalesLinkedShreklandActivityNotice(configId: string, id: number) {
+  const parentId = getSuperSalesLinkedShreklandParentId(configId, id)
+  return parentId !== undefined
+    ? 'เปิด–ปิดตามกิจกรรม Super Sales ID ' + parentId + ' เท่านั้น'
+    : undefined
+}
+
+export function getSuperSalesLinkedShreklandActivities<T extends { id: number; configId: string }>(
+  configId: string,
+  parentId: number,
+  activities: readonly T[],
+): T[] {
+  if (configId !== 'recharge-tabs') return []
+  return activities.filter(activity => activity.configId === 'recharge-tabs'
+    && superSalesParentByShreklandId[activity.id] === parentId)
+}
 export function isControlledRechargeActivity(configId: string, id: number) {
   return isGachaLinkedRechargeActivity(configId, id) || isBossLinkedRechargeActivity(configId, id)
+    || isSuperSalesLinkedShreklandActivity(configId, id)
 }
 
 export function getControlledRechargeActivityMessage(configId: string, id: number) {
   return getBossLinkedRechargeActivityNotice(configId, id)
+    ?? getSuperSalesLinkedShreklandActivityNotice(configId, id)
     ?? getGachaLinkedRechargeActivityMessage(configId, id)
 }
 

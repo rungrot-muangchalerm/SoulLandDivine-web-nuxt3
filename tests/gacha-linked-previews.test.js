@@ -211,7 +211,7 @@ test('Luosha Land activity 1123 is exclusively controlled by poison gacha 103', 
 
 
 test('ThemeBoss ID 10–20 stay independently schedulable; relocated Ayin tabs 32 and 33 follow Gacha 42', () => {
-  assert.deepEqual(overrides.PROTECTED_RECHARGE_ACTIVITY_IDS, [1, 6, 7, 8, 9])
+  assert.deepEqual(overrides.PROTECTED_RECHARGE_ACTIVITY_IDS, [1, 6, 7, 8])
   for (let rowId = 10; rowId <= 20; rowId++) {
     assert.equal(overrides.isProtectedRechargeActivity('recharge-tabs', rowId), false, 'ThemeBoss row ' + rowId + ' must not be permanent')
     assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', rowId), false, 'ThemeBoss row ' + rowId + ' must not be Gacha-linked')
