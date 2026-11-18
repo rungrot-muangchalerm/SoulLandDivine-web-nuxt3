@@ -1,21 +1,21 @@
 const permanentEnd = '9999-12-31 23:59:59'
 const closedCampTime = '0:00:00:00'
 
-export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 13, 22]
+export const PROTECTED_RECHARGE_ACTIVITY_IDS = [1, 6, 7, 8, 9]
 export const GACHA_LINKED_RECHARGE_ACTIVITY_IDS = [
-  18, 19, 24, 25, 27, 31, 32, 34, 35, 43, 46, 47, 53, 54, 56, 57, 79, 109, 110, 117, 121,
-  126, 127, 128, 131, 132, 133, 137, 141, 144, 145, 146, 147, 148, 149, 150, 151, 157, 158,
-  160, 161, 163, 164, 166, 901, 902, 903, 999, 1124,
+  32, 33, 241, 25, 27, 31, 243, 34, 35, 43, 46, 47, 53, 54, 56, 57, 79, 109, 110, 117, 121,
+  126, 127, 128, 131, 271, 133, 137, 272, 144, 145, 146, 147, 148, 149, 150, 151, 157, 158,
+  160, 260, 163, 164, 166, 901, 902, 903, 242, 1123, 1124,
 ]
 
 const gachaLinkedRechargeActivityInfo: Record<number, { gachaId: number; activityName: string; gachaName: string }> = {
-  18: { gachaId: 42, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
-  19: { gachaId: 42, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
-  24: { gachaId: 6, activityName: 'เติมเงินรายวัน', gachaName: 'แม่มดสมุทร' },
+  32: { gachaId: 42, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
+  33: { gachaId: 42, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
+  241: { gachaId: 6, activityName: 'เติมเงินรายวัน', gachaName: 'แม่มดสมุทร' },
   25: { gachaId: 44, activityName: 'กิจกรรมเซียนเริ่นเสวี่ย', gachaName: 'เซียนเริ่นเสวี่ย' },
   27: { gachaId: 44, activityName: '天使祈福', gachaName: 'เซียนเริ่นเสวี่ย' },
   31: { gachaId: 6, activityName: '深海之声', gachaName: 'แม่มดสมุทร' },
-  32: { gachaId: 41, activityName: 'ตรีศูลเทพสมุทร', gachaName: 'ถังซานร่างเทพ' },
+  243: { gachaId: 41, activityName: 'ตรีศูลเทพสมุทร', gachaName: 'ถังซานร่างเทพ' },
   34: { gachaId: 7, activityName: 'เติมเงินรายวันชุด 5', gachaName: 'ถังเลี่ย' },
   35: { gachaId: 7, activityName: '烈阳祝福', gachaName: 'ถังเลี่ย' },
   43: { gachaId: 8, activityName: '海龙宝藏', gachaName: 'มังกรสมุทร' },
@@ -34,10 +34,10 @@ const gachaLinkedRechargeActivityInfo: Record<number, { gachaId: number; activit
   127: { gachaId: 15, activityName: '昊天密藏', gachaName: 'ถังเซียว' },
   128: { gachaId: 40, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ตู้ ID 40' },
   131: { gachaId: 41, activityName: 'กิจกรรมถังซาน', gachaName: 'ถังซานร่างเทพ' },
-  132: { gachaId: 19, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'หนิงจื่อ' },
+  271: { gachaId: 19, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'หนิงจื่อ' },
   133: { gachaId: 19, activityName: '星鱼寄礼', gachaName: 'หนิงจื่อ' },
   137: { gachaId: 42, activityName: 'กิจกรรมเงินคราม', gachaName: 'อาหยินร่างเทพ' },
-  141: { gachaId: 103, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'พิษสิ้นชีพสงัด' },
+  272: { gachaId: 103, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'พิษสิ้นชีพสงัด' },
   144: { gachaId: 21, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'เสวี่ยเปิง' },
   145: { gachaId: 21, activityName: '七日领取', gachaName: 'เสวี่ยเปิง' },
   146: { gachaId: 12, activityName: 'กิจกรรมซื้อเจ็ดวัน (หม่าหงจวิ้น)', gachaName: 'ไป๋เฉินเซียง' },
@@ -49,14 +49,15 @@ const gachaLinkedRechargeActivityInfo: Record<number, { gachaId: number; activit
   157: { gachaId: 26, activityName: '七日领取', gachaName: 'เฟิงเซี่ยวเทียน' },
   158: { gachaId: 26, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'เฟิงเซี่ยวเทียน' },
   160: { gachaId: 44, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'เซียนเริ่นเสวี่ย' },
-  161: { gachaId: 27, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ตู้ ID 27' },
+  260: { gachaId: 27, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ตู้ ID 27' },
   163: { gachaId: 29, activityName: '七日领取', gachaName: 'ไต้เว่ยซือ' },
   164: { gachaId: 29, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ไต้เว่ยซือ' },
   166: { gachaId: 28, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ตู้ ID 28' },
   901: { gachaId: 99, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'โหลวเกา' },
   902: { gachaId: 99, activityName: '角色新程', gachaName: 'โหลวเกา' },
   903: { gachaId: 98, activityName: 'กิจกรรมซื้อเจ็ดวัน', gachaName: 'ตู้ ID 98' },
-  999: { gachaId: 8, activityName: 'เติมเงินรายวันชุด 2006', gachaName: 'มังกรสมุทร' },
+  242: { gachaId: 8, activityName: 'เติมเงินรายวันชุด 2006', gachaName: 'มังกรสมุทร' },
+  1123: { gachaId: 103, activityName: 'ดินแดนหลัวช่า', gachaName: 'พิษสิ้นชีพสงัด' },
   1124: { gachaId: 103, activityName: '教皇殿', gachaName: 'พิษสิ้นชีพสงัด' },
 }
 
@@ -84,6 +85,59 @@ export function getGachaLinkedRechargeActivityNotice(configId: string, id: numbe
       ? `เปิด–ปิดตามตู้หลักอาหยินร่างเทพ ID 42 เท่านั้น (ตู้ร่างปกติ ID 4 จะตามด้วย)`
       : `เปิด–ปิดตามตู้กาชา${linkedActivity.gachaName} ID ${linkedActivity.gachaId} เท่านั้น`
     : undefined
+}
+
+
+export const BOSS_LINKED_RECHARGE_ACTIVITY_IDS = [255, 29, 239, 21, 22, 257, 23, 240, 38, 256, 258]
+const bossParentByFollowerActivityId: Record<number, number> = {
+  255: 10,
+  29: 11,
+  239: 12,
+  21: 13,
+  22: 14,
+  257: 15,
+  23: 16,
+  240: 17,
+  38: 18,
+  256: 19,
+  258: 20,
+}
+
+/** Resolve actual follower activities from the full API result, not the
+ * independently manageable list (which intentionally hides followers).
+ * Same mapping powers the disabled child controls and the parent previews.
+ */
+export function getBossLinkedRechargeActivities<T extends { id: number; configId: string }>(
+  configId: string,
+  bossId: number,
+  activities: readonly T[],
+): T[] {
+  if (configId !== 'recharge-tabs' || !Number.isSafeInteger(bossId)) return []
+  return activities.filter(
+    activity => activity.configId === 'recharge-tabs'
+      && bossParentByFollowerActivityId[activity.id] === bossId,
+  )
+}
+
+export function getBossLinkedRechargeParentId(configId: string, childId: number): number | undefined {
+  return configId === 'recharge-tabs' ? bossParentByFollowerActivityId[childId] : undefined
+}
+export function isBossLinkedRechargeActivity(configId: string, id: number) {
+  return configId === 'recharge-tabs' && bossParentByFollowerActivityId[id] !== undefined
+}
+
+export function getBossLinkedRechargeActivityNotice(configId: string, id: number) {
+  if (!isBossLinkedRechargeActivity(configId, id)) return undefined
+  return 'เปิด–ปิดตามกิจกรรมบอสธีม ID ' + bossParentByFollowerActivityId[id] + ' เท่านั้น'
+}
+
+export function isControlledRechargeActivity(configId: string, id: number) {
+  return isGachaLinkedRechargeActivity(configId, id) || isBossLinkedRechargeActivity(configId, id)
+}
+
+export function getControlledRechargeActivityMessage(configId: string, id: number) {
+  return getBossLinkedRechargeActivityNotice(configId, id)
+    ?? getGachaLinkedRechargeActivityMessage(configId, id)
 }
 
 export function getActivityOverrideFields(

@@ -2,13 +2,18 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import {
   getActivityOverrideFields,
-  getGachaLinkedRechargeActivityMessage,
-  isGachaLinkedRechargeActivity,
+  getControlledRechargeActivityMessage,
+  getBossLinkedRechargeActivityNotice,
+  getBossLinkedRechargeActivities,
+  getBossLinkedRechargeParentId,
+  isBossLinkedRechargeActivity,
+  isControlledRechargeActivity,
   isProtectedRechargeActivity,
   isActivityAlwaysOpen,
   isActivityForceClosed,
 } from '~/utils/activity-schedule-overrides'
 import { isVisibleInActivityManagement } from '~/utils/activity-schedule-visibility.mjs'
+import { sortActivitiesById } from '~/utils/activity-id-sort.mjs'
 
 interface ScheduleField {
   key: string
@@ -37,13 +42,13 @@ interface ScheduleRow {
   canOpenForever: boolean
 }
 
-type ActivityKind = 'all' | 'permanent' | 'scheduled'
+
 
 const props = defineProps<{ activityId?: number }>()
 const isDetailView = computed(() => props.activityId !== undefined)
 
 const route = useRoute()
-const activityKind = ref<ActivityKind>('all')
+const { activityKind, selectedConfigId, configs, loading } = useActivityListFilters()
 watch(() => route.query.kind, (kind) => {
   activityKind.value = kind === 'permanent'
     || kind === 'scheduled'
@@ -61,12 +66,13 @@ function matchesActivityKind(activity: ScheduleRow) {
   return true
 }
 const allConfigsId = 'all'
-const configs = ref<ScheduleConfig[]>([])
+
 const activities = ref<ScheduleRow[]>([])
+const linkedActivities = ref<ScheduleRow[]>([])
 const drafts = ref<Record<string, Record<string, string>>>({})
-const selectedConfigId = ref(allConfigsId)
-const search = ref('')
-const loading = ref(false)
+
+
+
 const savingKey = ref('')
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -74,26 +80,21 @@ const successMessage = ref('')
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
 const selectedActivity = computed(() => isDetailView.value
   ? activities.value.find((activity) => activity.id === props.activityId)
+    ?? linkedActivities.value.find((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id)
+      && activity.id === props.activityId)
   : undefined)
 const selectedActivityConfig = computed(() => selectedActivity.value
   ? configs.value.find((config) => config.id === selectedActivity.value?.configId)
   : undefined)
-const configRows = computed(() => activities.value
+const configRows = computed(() => sortActivitiesById(activities.value
   .filter(matchesActivityKind)
   .filter((activity) => selectedConfigId.value === allConfigsId || activity.configId === selectedConfigId.value)
-  .filter((activity) => {
-    const query = search.value.trim().toLocaleLowerCase()
-    const searchable = [
-      activity.id,
-      activity.name,
-      activity.giftType,
-      activity.giftTypeLabel,
-      activity.subType,
-      ...Object.values(activity.fields),
-    ].join(' ')
-    return !query || searchable.toLocaleLowerCase().includes(query)
-  }))
+))
 const resultCount = computed(() => configRows.value.length)
+
+function bossFollowersFor(activity: ScheduleRow) {
+  return getBossLinkedRechargeActivities('recharge-tabs', activity.id, linkedActivities.value)
+}
 
 async function loadSchedules() {
   loading.value = true
@@ -103,8 +104,9 @@ async function loadSchedules() {
     const result = await $fetch<{ configs: ScheduleConfig[]; activities: ScheduleRow[] }>('/api/activities')
     const managedActivities = result.activities.filter(
       activity => isVisibleInActivityManagement(activity)
-        && !isGachaLinkedRechargeActivity(activity.configId, activity.id),
+        && !isControlledRechargeActivity(activity.configId, activity.id),
     )
+    linkedActivities.value = result.activities
     configs.value = result.configs
     activities.value = managedActivities
     if (selectedConfigId.value !== allConfigsId && !configs.value.some((config) => config.id === selectedConfigId.value)) {
@@ -114,6 +116,11 @@ async function loadSchedules() {
       `${item.configId}:${item.id}`,
       { ...item.fields },
     ]))
+    // The linked children are hidden from the list but remain available
+    // as read-only detail pages. Initialize their input drafts safely.
+    for (const child of result.activities.filter((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id))) {
+      drafts.value[rowKey(child)] = { ...child.fields }
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'โหลดตารางเวลากิจกรรมไม่สำเร็จ'
   } finally {
@@ -130,8 +137,8 @@ async function setActivityAlwaysOpen(activity: ScheduleRow, active: boolean, eve
   if (!(checkbox instanceof HTMLInputElement)) return
 
   const key = rowKey(activity)
-  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
-    errorMessage.value = getGachaLinkedRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
+  if (isControlledRechargeActivity(activity.configId, activity.id)) {
+    errorMessage.value = getControlledRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
     checkbox.checked = isActivityEnabled(activity)
     return
   }
@@ -262,8 +269,8 @@ function changedFields(activity: ScheduleRow): Record<string, string> {
 }
 
 async function saveSchedule(activity: ScheduleRow) {
-  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
-    errorMessage.value = getGachaLinkedRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
+  if (isControlledRechargeActivity(activity.configId, activity.id)) {
+    errorMessage.value = getControlledRechargeActivityMessage(activity.configId, activity.id) ?? 'กิจกรรมนี้ถูกควบคุมตามตู้กาชาที่เกี่ยวข้อง'
     return
   }
   const fields = changedFields(activity)
@@ -292,7 +299,7 @@ async function saveSchedule(activity: ScheduleRow) {
 
 function scheduleStatus(activity: ScheduleRow) {
   const fields = activity.fields
-  if (isGachaLinkedRechargeActivity(activity.configId, activity.id)) {
+  if (isControlledRechargeActivity(activity.configId, activity.id)) {
     const startDate = parseScheduleDate(fields.ShowStart || '')
     const endDate = parseScheduleDate(fields.ShowEnd || '')
     if (!startDate || !endDate) return 'หมดเวลา'
@@ -385,39 +392,12 @@ onMounted(loadSchedules)
           จัดการแต่ละกิจกรรมแยกกัน · เปิด/ปิดด่วนจากการ์ด และตั้งเวลาในหน้ารายละเอียด
         </p>
       </div>
-      <button class="btn btn-outline-secondary" type="button" :disabled="loading || savingKey !== ''" @click="loadSchedules">
-        {{ loading ? 'กำลังโหลด...' : 'โหลดข้อมูลใหม่' }}
-      </button>
     </div>
 
     <div v-if="errorMessage" class="alert alert-danger" role="alert">{{ errorMessage }}</div>
     <div v-if="successMessage" class="alert alert-success" role="status">{{ successMessage }}</div>
 
     <template v-if="!isDetailView">
-      <div class="row g-2 mb-3">
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="activity-kind">หมวดเวลาเปิด</label>
-          <select id="activity-kind" v-model="activityKind" class="form-select" :disabled="loading">
-            <option value="all">กิจกรรมทั้งหมด</option>
-            <option value="permanent">กิจกรรมถาวร</option>
-            <option value="scheduled">กิจกรรมตามกำหนดเวลา</option>
-          </select>
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
-          <select id="activity-config" v-model="selectedConfigId" class="form-select" :disabled="loading">
-            <option :value="allConfigsId">ทั้งหมด</option>
-            <option v-for="config in configs" :key="config.id" :value="config.id">
-              {{ config.title }}
-            </option>
-          </select>
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label" for="activity-search">ค้นหาชื่อหรือ ID</label>
-          <input id="activity-search" v-model="search" class="form-control" type="search" placeholder="เช่น เรือพาย, เรือมังกร, 33">
-        </div>
-      </div>
-
       <p v-if="selectedConfig" class="small text-body-secondary">{{ selectedConfig.description }}</p>
       <p v-if="!loading && configRows.length" class="small text-body-secondary mb-2">
         พบ {{ resultCount }} กิจกรรม
@@ -450,6 +430,15 @@ onMounted(loadSchedules)
               </span>
             </div>
 
+            <NuxtLink
+              v-if="getBossLinkedRechargeParentId(selectedActivity.configId, selectedActivity.id) !== undefined"
+              :to="'/activities/' + getBossLinkedRechargeParentId(selectedActivity.configId, selectedActivity.id)"
+              class="btn btn-outline-primary btn-sm mb-3"
+            >
+              กลับไปจัดการบอสธีมหลัก ID {{ getBossLinkedRechargeParentId(selectedActivity.configId, selectedActivity.id) }}
+            </NuxtLink>            <div v-if="getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
+              {{ getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id) }}
+            </div>
             <div class="row g-3">
               <div
                 v-for="field in selectedActivityConfig?.fields.filter((item) => item.key in selectedActivity.fields)"
@@ -465,7 +454,7 @@ onMounted(loadSchedules)
                   class="form-control"
                   type="text"
                   maxlength="128"
-                  :disabled="savingKey !== '' || isGachaLinkedRechargeActivity(selectedActivity.configId, selectedActivity.id)"
+                  :disabled="savingKey !== '' || isControlledRechargeActivity(selectedActivity.configId, selectedActivity.id)"
                   :aria-describedby="'activity-format-' + selectedActivity.configId + '-' + field.key"
                 >
                 <div :id="'activity-format-' + selectedActivity.configId + '-' + field.key" class="form-text">
@@ -479,19 +468,20 @@ onMounted(loadSchedules)
               <button
                 class="btn btn-primary"
                 type="button"
-                :disabled="!isDirty(selectedActivity) || savingKey !== '' || isGachaLinkedRechargeActivity(selectedActivity.configId, selectedActivity.id)"
+                :disabled="!isDirty(selectedActivity) || savingKey !== '' || isControlledRechargeActivity(selectedActivity.configId, selectedActivity.id)"
                 @click="saveSchedule(selectedActivity)"
               >
                 {{ savingKey === rowKey(selectedActivity) ? 'กำลังบันทึก...' : 'บันทึกตารางเวลา' }}
               </button>
             </div>
           </div>
+          <ActivityLinkedPreviews :activities="bossFollowersFor(selectedActivity)" />
         </article>
       </div>
     </div>
 
     <div v-else-if="!configRows.length" class="alert alert-secondary">
-      ไม่พบกิจกรรมที่ตรงกับตัวกรองหรือคำค้นหา
+      ไม่พบกิจกรรมที่ตรงกับตัวกรอง
     </div>
 
     <div v-else-if="!isDetailView" class="row g-3">
@@ -508,7 +498,7 @@ onMounted(loadSchedules)
             <div class="activity-card-overlay">
               <div class="activity-card-overlay-top">
                 <div
-                  v-if="activity.canOpenForever && !isGachaLinkedRechargeActivity(activity.configId, activity.id)"
+                  v-if="activity.canOpenForever && !isControlledRechargeActivity(activity.configId, activity.id)"
                   class="form-check form-switch activity-card-toggle mb-0"
                 >
                   <input
@@ -533,6 +523,9 @@ onMounted(loadSchedules)
                   <div class="activity-card-detail">
                     {{ activity.configTitle }} · ID {{ activity.id }}<span v-if="activity.subType !== undefined"> · SubType {{ activity.subType }}</span>
                   </div>
+                  <div v-if="getBossLinkedRechargeActivityNotice(activity.configId, activity.id)" class="small activity-card-detail">
+                    {{ getBossLinkedRechargeActivityNotice(activity.configId, activity.id) }}
+                  </div>
                   <div v-if="activity.giftType !== undefined" class="d-flex flex-wrap align-items-center gap-1 mt-1">
                     <span class="badge text-bg-light text-dark">GiftType {{ activity.giftType }}</span>
                     <span v-if="activity.giftTypeLabel" class="activity-card-detail">{{ activity.giftTypeLabel }}</span>
@@ -544,6 +537,7 @@ onMounted(loadSchedules)
               </div>
             </div>
           </div>
+          <ActivityLinkedPreviews :activities="bossFollowersFor(activity)" />
         </article>
       </div>
     </div>

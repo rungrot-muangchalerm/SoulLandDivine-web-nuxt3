@@ -335,3 +335,211 @@
     font-size: 0.75rem;
   }
 }
+
+
+/* Header adapts to the space remaining beside the sidebar. */
+.admin-shell .admin-topbar {
+  container-name: admin-topbar;
+  container-type: inline-size;
+}
+
+.admin-topbar-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.admin-topbar-primary {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.6rem;
+}
+
+.admin-brand-copy {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.admin-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  gap: 0.5rem;
+}
+
+.admin-topbar-server {
+  width: clamp(8.5rem, 16vw, 13rem);
+  min-width: 0;
+}
+
+.admin-topbar-server .form-select {
+  min-height: 2.5rem;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-topbar-account {
+  min-width: 0;
+  max-width: 12rem;
+}
+
+.admin-topbar-user-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.5rem;
+}
+
+.admin-topbar-user-label {
+  display: block;
+  min-width: 0;
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-topbar-fullscreen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  white-space: nowrap;
+}
+
+.admin-topbar-menu-button {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+}
+
+@container admin-topbar (max-width: 720px) {
+  .admin-topbar-content {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.5rem;
+  }
+
+  .admin-topbar-primary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .admin-topbar-actions {
+    display: contents;
+  }
+
+  .admin-topbar-account {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .admin-topbar-server {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: none;
+  }
+
+  .admin-topbar-fullscreen {
+    display: none;
+  }
+
+  .admin-brand-title {
+    font-size: 0.85rem;
+  }
+}
+
+@container admin-topbar (max-width: 440px) {
+  .admin-topbar-content {
+    column-gap: 0.4rem;
+  }
+
+  .admin-topbar-primary {
+    gap: 0.4rem;
+  }
+
+  .admin-brand-mark {
+    display: none;
+  }
+
+  .admin-brand-title {
+    font-size: 0.78rem;
+  }
+
+  .admin-topbar-user-button {
+    padding-inline: 0.55rem;
+  }
+
+  .admin-topbar-user-label {
+    max-width: 5rem;
+    font-size: 0.78rem;
+  }
+}
+
+
+/* The Activities toolbar is part of the shared topbar, but only on /activities. */
+.admin-topbar-content--activities {
+  grid-template-columns: minmax(9rem, 1fr) minmax(16rem, 22rem) auto;
+}
+
+.admin-topbar-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.admin-topbar-filter {
+  min-width: 0;
+}
+
+.admin-shell .admin-topbar-filters .form-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.5rem;
+  text-overflow: ellipsis;
+  font-size: 0.82rem;
+}
+
+@container admin-topbar (max-width: 1040px) {
+  .admin-topbar-content--activities {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-topbar-filters {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@container admin-topbar (max-width: 720px) {
+  .admin-topbar-content--activities.admin-topbar-content--with-server .admin-topbar-filters {
+    grid-row: 3;
+  }
+}
+
+@container admin-topbar (max-width: 440px) {
+  .admin-topbar-filters {
+    gap: 0.35rem;
+  }
+
+  .admin-shell .admin-topbar-filters .form-select {
+    padding-inline-start: 0.5rem;
+    font-size: 0.75rem;
+  }
+}

@@ -10,6 +10,7 @@ npm-debug.log*
 legacy
 /icons_renamed
 /key/
+tests/
 
 # Generated game configuration data; review selected tables before tracking seed data.
 /database/game-config-seed.sql

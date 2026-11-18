@@ -11,6 +11,9 @@ interface GameServer {
   name: string
 }
 
+const route = useRoute()
+const isActivityListPage = computed(() => route.path === '/activities')
+const { activityKind, selectedConfigId, configs, loading } = useActivityListFilters()
 const servers = ref<GameServer[]>([])
 const selectedServer = useCookie('selectedServer', { default: () => '' })
 const passwordDialogVisible = ref(false)
@@ -99,37 +102,66 @@ onMounted(async () => {
 
 <template>
   <header class="navbar navbar-dark bg-dark admin-topbar">
-    <div class="container-fluid gap-2">
-      <select
-        v-if="channel === '*'"
-        v-model="selectedServer"
-        class="form-select form-select-sm w-auto"
-        aria-label="เลือกเซิร์ฟเวอร์"
-      >
-        <option value="">เลือกเซิร์ฟเวอร์</option>
-        <option v-for="server in servers" :key="server.id" :value="String(server.id)">
-          {{ server.name }}
-        </option>
-      </select>
-      <div class="admin-brand mb-0 me-auto text-truncate">
-        <span class="admin-brand-mark" aria-hidden="true">DS</span>
-        <span class="text-truncate">
-          <span class="admin-brand-title">ระบบจัดการ GM Douluo Continent</span>
-          <span v-if="channel !== '*'" class="admin-brand-context">{{ channelName }}</span>
-        </span>
+    <div class="admin-topbar-content" :class="{ 'admin-topbar-content--activities': isActivityListPage, 'admin-topbar-content--with-server': channel === '*' }">
+      <div class="admin-topbar-primary">
+        <div class="admin-brand">
+          <span class="admin-brand-mark" aria-hidden="true">DS</span>
+          <span class="admin-brand-copy">
+            <span class="admin-brand-title">ระบบจัดการ GM Douluo Continent</span>
+            <span v-if="channel !== '*'" class="admin-brand-context">{{ channelName }}</span>
+          </span>
+        </div>
       </div>
-      <div class="d-flex align-items-center gap-2">
-        <button class="btn btn-outline-light btn-sm admin-toolbar-button" type="button" aria-label="เต็มหน้าจอ" @click="toggleFullscreen">
-          {{ fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ' }}
+      <div v-if="isActivityListPage" class="admin-topbar-filters" role="group" aria-label="ตัวกรองกิจกรรม">
+        <div class="admin-topbar-filter">
+          <label class="visually-hidden" for="activity-kind">หมวดเวลาเปิด</label>
+          <select id="activity-kind" v-model="activityKind" class="form-select form-select-sm" aria-label="หมวดเวลาเปิด" :disabled="loading">
+            <option value="all">กิจกรรมทั้งหมด</option>
+            <option value="permanent">กิจกรรมถาวร</option>
+            <option value="scheduled">กิจกรรมตามกำหนดเวลา</option>
+          </select>
+        </div>
+        <div class="admin-topbar-filter">
+          <label class="visually-hidden" for="activity-config">ประเภทข้อมูลกิจกรรม</label>
+          <select id="activity-config" v-model="selectedConfigId" class="form-select form-select-sm" aria-label="ประเภทข้อมูลกิจกรรม" :disabled="loading">
+            <option value="all">ประเภททั้งหมด</option>
+            <option v-for="config in configs" :key="config.id" :value="config.id">{{ config.title }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="admin-topbar-actions">
+        <div v-if="channel === '*'" class="admin-topbar-server">
+          <select
+            v-model="selectedServer"
+            class="form-select form-select-sm"
+            aria-label="เลือกเซิร์ฟเวอร์"
+          >
+            <option value="">เลือกเซิร์ฟเวอร์</option>
+            <option v-for="server in servers" :key="server.id" :value="String(server.id)">
+              {{ server.name }}
+            </option>
+          </select>
+        </div>
+        <button
+          class="btn btn-outline-light btn-sm admin-toolbar-button admin-topbar-fullscreen"
+          type="button"
+          :aria-label="fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ'"
+          :title="fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ'"
+          @click="toggleFullscreen"
+        >
+          <i :class="fullscreen ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" aria-hidden="true" />
+          <span class="admin-topbar-fullscreen-label">{{ fullscreen ? 'ออกจากเต็มจอ' : 'เต็มหน้าจอ' }}</span>
         </button>
-        <div class="dropdown">
+        <div class="dropdown admin-topbar-account">
           <button
-            class="btn btn-outline-light dropdown-toggle admin-toolbar-button"
+            class="btn btn-outline-light dropdown-toggle admin-toolbar-button admin-topbar-user-button"
             type="button"
             data-bs-toggle="dropdown"
             aria-expanded="false"
+            :title="username"
           >
-            {{ username }}
+            <i class="fa-regular fa-circle-user" aria-hidden="true" />
+            <span class="admin-topbar-user-label">{{ username }}</span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><button class="dropdown-item" type="button" @click="openPasswordDialog">เปลี่ยนรหัสผ่าน</button></li>

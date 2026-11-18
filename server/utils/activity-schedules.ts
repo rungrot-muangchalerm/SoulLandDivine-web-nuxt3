@@ -118,7 +118,24 @@ function rechargeBannerFilename(values: Record<string, string>) {
   return tabIcon ? `${tabIcon}_EN.png` : undefined
 }
 
+/** ThemeBoss must use exactly the sprite name used by the Unity recharge
+ * activity tab. A shared GiftType fallback silently showed the same boss
+ * artwork for every missing sprite, misrepresenting the in-game activity.
+ */
+function themeBossSpriteUrl(configId: string, values: Record<string, string>): string | undefined {
+  if (configId !== 'recharge-tabs' || Number(values.GiftType) !== 11) return undefined
+  const filename = rechargeBannerFilename(values)
+  if (!filename || !/^[A-Za-z0-9_-]+\.png$/.test(filename)) return undefined
+  return '/recharge-banners/' + filename
+}
 const rechargeBannerFoldersByFilename: Record<string, string> = {
+  // Boss-linked ThemePass banners stored in the original event folder.
+  // Without this mapping these children are absent from /api/activities,
+  // so their linked thumbnails cannot render on the parent boss cards.
+
+
+
+
   'recharge_tab1_recharge_tab_pic_ad_17_EN.png': 'ayin',
   'recharge_tab1_recharge_tab_pic_ad_18_EN.png': 'ayin',
   'recharge_tab4_recharge_tab_pic_ad_66_EN.png': 'ayin',
@@ -158,7 +175,10 @@ function rechargeBannerImage(values: Record<string, string>) {
   const folder = rechargeBannerFoldersByFilename[filename]
   const relativePath = folder ? folder + '/' + filename : filename
   const bannerPath = resolve(process.cwd(), '..', 'recharge-banners', relativePath)
-  if (!existsSync(bannerPath)) return undefined
+  // Deployed Nuxt serves the public/ copy (many legacy event icons are
+  // flattened here). The source archive may use a different folder.
+  const publicBannerPath = resolve(process.cwd(), 'public', 'recharge-banners', relativePath)
+  if (!existsSync(bannerPath) && !existsSync(publicBannerPath)) return undefined
 
   return { imageUrl: '/recharge-banners/' + relativePath }
 }
@@ -478,7 +498,7 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
       configId: config.id,
       configTitle: config.title,
       ...(Number.isSafeInteger(durationDays) && durationDays > 0 ? { durationDays } : {}),
-      imageUrl: banner?.imageUrl || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
+      imageUrl: themeBossSpriteUrl(config.id, values) || banner?.imageUrl || `/activity-banners/${activityBannerId(config.id, values)}.webp`,
       canOpenForever: true,
       fields: {
         ...Object.fromEntries(config.fields
@@ -503,7 +523,8 @@ export async function fetchActivitySchedules() {
   }))).flat().filter(activity =>
     activity.fields.TabAtlas?.trim()
     && activity.fields.TabIcon?.trim()
-    && rechargeBannerImage(activity.fields)
+    // Theme Boss has a public fallback image when its original banner is missing.
+    && (activity.giftType === 11 || rechargeBannerImage(activity.fields))
   )
 }
 

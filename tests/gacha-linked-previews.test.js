@@ -38,11 +38,11 @@ test('standalone pools do not receive unrelated activity previews', () => {
   assert.deepEqual(links.getGachaScheduleActivities(10000), [])
 })
 
-test('poison gacha 103 controls theme recruitment pool 18 and activity 141', () => {
+test('poison gacha 103 controls theme recruitment pool 18 and activity 272', () => {
   assert.equal(links.getGachaScheduleControllerId(18), 103)
   assert.deepEqual(links.getGachaScheduleFollowers(103), [18])
   assert.deepEqual(links.getGachaScheduleActivities(18), [])
-  assert.deepEqual(links.getGachaScheduleActivities(103), [1124, 141])
+  assert.deepEqual(links.getGachaScheduleActivities(103), [1123, 1124, 272])
 })
 
 test('Lougao gacha 99 controls theme pool 25 and linked activities', () => {
@@ -52,8 +52,8 @@ test('Lougao gacha 99 controls theme pool 25 and linked activities', () => {
   assert.deepEqual(links.getGachaScheduleActivities(99), [121, 150, 901, 902])
 })
 
-test('Sea Witch gacha 6 controls daily recharge activity 24 and Deep Sea Voice activity 31', () => {
-  assert.deepEqual(links.getGachaScheduleActivities(6), [24, 31])
+test('Sea Witch gacha 6 controls daily recharge activity 241 and Deep Sea Voice activity 31', () => {
+  assert.deepEqual(links.getGachaScheduleActivities(6), [241, 31])
   assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', 31), true)
   assert.match(overrides.getGachaLinkedRechargeActivityMessage('recharge-tabs', 31), /ID 6/)
   assert.match(overrides.getGachaLinkedRechargeActivityNotice('recharge-tabs', 31), /แม่มดสมุทร ID 6/)
@@ -79,8 +79,8 @@ test('Bai Chenxiang gacha 12 controls Mahongjun gacha 20 and linked activities',
   assert.match(overrides.getGachaLinkedRechargeActivityNotice('recharge-tabs', 146), /ID 12/)
 })
 
-test('Sea Dragon gacha 8 controls recharge set 2006 activity 999', () => {
-  assert.deepEqual(links.getGachaScheduleActivities(8), [43, 999])
+test('Sea Dragon gacha 8 controls recharge set 2006 activity 242', () => {
+  assert.deepEqual(links.getGachaScheduleActivities(8), [43, 242])
 })
 
 test('theme gacha 9 controls daily recharge activity 46 and Limo Treasure activity 47', () => {
@@ -108,17 +108,17 @@ test('deity recruitment pool 42 controls the Ayin group and hides retired pool 2
   assert.equal(links.getGachaScheduleControllerId(4), 42)
   assert.deepEqual(links.getGachaScheduleFollowers(42), [4])
   assert.deepEqual(links.getGachaScheduleActivities(24), [])
-  assert.deepEqual(links.getGachaScheduleActivities(42), [18, 19, 126, 137, 151])
+  assert.deepEqual(links.getGachaScheduleActivities(42), [32, 33, 126, 137, 151])
   assert.equal(links.isGachaSchedulePoolHidden(24), true)
 })
 
 const type16PoolByActivityId = new Map([
-  [18, 42], [27, 5], [31, 6], [35, 7], [43, 8], [47, 9], [54, 10], [57, 11],
+  [32, 42], [27, 5], [31, 6], [35, 7], [43, 8], [47, 9], [54, 10], [57, 11],
   [110, 12], [117, 13], [127, 15], [79, 17], [133, 19], [145, 21], [147, 23],
   [150, 25], [157, 26], [163, 29], [902, 99], [1124, 103],
 ])
 const type16ControllerByActivityId = new Map([
-  [18, 42], [27, 44], [31, 6], [35, 7], [43, 8], [47, 9], [54, 43], [57, 11],
+  [32, 42], [27, 44], [31, 6], [35, 7], [43, 8], [47, 9], [54, 43], [57, 11],
   [110, 12], [117, 13], [127, 15], [79, 17], [133, 19], [145, 21], [147, 23],
   [150, 99], [157, 26], [163, 29], [902, 99], [1124, 103],
 ])
@@ -181,7 +181,7 @@ test('Activities page hides every Gacha-linked activity regardless of GiftType',
   for (const activityId of linkedIds) {
     assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', activityId), true, 'linked activity ' + activityId + ' is hidden')
   }
-  for (const dailyRechargeId of [24, 34, 46, 56, 109, 999]) {
+  for (const dailyRechargeId of [241, 34, 46, 56, 109, 242]) {
     assert.ok(linkedIds.includes(dailyRechargeId), 'daily recharge activity ' + dailyRechargeId + ' is linked')
     assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', dailyRechargeId), true)
   }
@@ -193,8 +193,32 @@ test('Activities page hides every Gacha-linked activity regardless of GiftType',
   const component = readFileSync(componentFile, 'utf8')
   assert.ok(component.includes('const managedActivities = result.activities.filter('))
   assert.ok(component.includes('isVisibleInActivityManagement(activity)'))
-  assert.ok(component.includes('!isGachaLinkedRechargeActivity(activity.configId, activity.id)'))
+  assert.ok(component.includes('!isControlledRechargeActivity(activity.configId, activity.id)'))
   assert.ok(component.includes('activities.value = managedActivities'))
   assert.ok(component.includes('drafts.value = Object.fromEntries(managedActivities.map('))
   assert.ok(!component.includes('isHiddenGachaLinkedType16Activity'))
+})
+
+
+test('Luosha Land activity 1123 is exclusively controlled by poison gacha 103', () => {
+  assert.deepEqual(links.getGachaScheduleActivities(103), [1123, 1124, 272])
+  assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', 1123), true)
+  assert.match(overrides.getGachaLinkedRechargeActivityMessage('recharge-tabs', 1123), /ID 103/)
+  assert.match(overrides.getGachaLinkedRechargeActivityNotice('recharge-tabs', 1123), /ID 103/)
+  assert.match(links.getGachaScheduleDescription(103), /ID 1123/)
+  assert.match(links.getGachaScheduleCloseNotice(103), /ID 1123/)
+})
+
+
+test('ThemeBoss ID 10–20 stay independently schedulable; relocated Ayin tabs 32 and 33 follow Gacha 42', () => {
+  assert.deepEqual(overrides.PROTECTED_RECHARGE_ACTIVITY_IDS, [1, 6, 7, 8, 9])
+  for (let rowId = 10; rowId <= 20; rowId++) {
+    assert.equal(overrides.isProtectedRechargeActivity('recharge-tabs', rowId), false, 'ThemeBoss row ' + rowId + ' must not be permanent')
+    assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', rowId), false, 'ThemeBoss row ' + rowId + ' must not be Gacha-linked')
+  }
+  for (const rowId of [32, 33]) {
+    assert.equal(overrides.isGachaLinkedRechargeActivity('recharge-tabs', rowId), true)
+    assert.match(overrides.getGachaLinkedRechargeActivityNotice('recharge-tabs', rowId), /ID 42/)
+    assert.ok(links.getGachaScheduleActivities(42).includes(rowId))
+  }
 })
