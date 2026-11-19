@@ -83,9 +83,13 @@ const successMessage = ref('')
 
 const selectedConfig = computed(() => configs.value.find((config) => config.id === selectedConfigId.value))
 const selectedActivity = computed(() => isDetailView.value
-  ? activities.value.find((activity) => activity.id === props.activityId)
+  ? (route.query.config === "recharge-time"
+    ? linkedActivities.value.find((activity) => activity.configId === "recharge-time" && activity.id === props.activityId)
+    : undefined)
+    ?? activities.value.find((activity) => activity.id === props.activityId)
     ?? linkedActivities.value.find((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id)
       && activity.id === props.activityId)
+
     ?? linkedActivities.value.find((activity) => isSuperSalesLinkedShreklandActivity(activity.configId, activity.id)
       && activity.id === props.activityId)
   : undefined)
@@ -127,9 +131,6 @@ async function loadSchedules() {
     ]))
     // The linked children are hidden from the list but remain available
     // as read-only detail pages. Initialize their input drafts safely.
-    for (const child of result.activities.filter((activity) => isBossLinkedRechargeActivity(activity.configId, activity.id) || isSuperSalesLinkedShreklandActivity(activity.configId, activity.id))) {
-      drafts.value[rowKey(child)] = { ...child.fields }
-    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : 'โหลดตารางเวลากิจกรรมไม่สำเร็จ'
   } finally {
@@ -456,8 +457,8 @@ onMounted(loadSchedules)
             <div v-if="getSuperSalesLinkedShreklandActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
               {{ getSuperSalesLinkedShreklandActivityNotice(selectedActivity.configId, selectedActivity.id) }}
             </div>
-            <div v-if="getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
-              {{ getBossLinkedRechargeActivityNotice(selectedActivity.configId, selectedActivity.id) }}
+            <div v-if="getControlledRechargeActivityMessage(selectedActivity.configId, selectedActivity.id)" class="alert alert-info py-2 small">
+              {{ getControlledRechargeActivityMessage(selectedActivity.configId, selectedActivity.id) }}
             </div>
             <div class="row g-3">
               <div

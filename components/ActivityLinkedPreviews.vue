@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 
 interface LinkedActivity {
+  configId?: string
   id: number
   name: string
   imageUrl?: string
@@ -9,25 +10,25 @@ interface LinkedActivity {
 
 defineProps<{ activities: LinkedActivity[] }>()
 
-const brokenImages = ref<Record<number, boolean>>({})
+const brokenImages = ref<Record<string, boolean>>({})
 </script>
 
 <template>
   <section v-if="activities.length" class="boss-linked-section" role="group" aria-label="กิจกรรมพ่วง">
     <div class="boss-linked-heading">
       <span>กิจกรรมพ่วง</span>
-      <span class="boss-linked-description">เปิด–ปิดตามบอสหลัก</span>
+      <span class="boss-linked-description">เปิด–ปิดตามกิจกรรมหลัก</span>
     </div>
     <div class="boss-linked-previews">
       <NuxtLink
         v-for="activity in activities"
-        :key="activity.id"
+        :key="(activity.configId ?? 'recharge-tabs') + ':' + activity.id"
         class="linked-thumb linked-activity"
-        :to="'/activities/' + activity.id"
-        :title="activity.name + ' · ID ' + activity.id + ' · เปิด–ปิดตามบอสหลัก'"
+        :to="{ path: '/activities/' + activity.id, query: activity.configId === 'recharge-time' ? { config: 'recharge-time' } : {} }"
+        :title="activity.name + ' · ID ' + activity.id + ' · เปิด–ปิดตามกิจกรรมหลัก'"
         :aria-label="'ดูรายละเอียดกิจกรรมพ่วง ' + activity.name + ' ID ' + activity.id"
       >
-        <img v-if="activity.imageUrl && !brokenImages[activity.id]" :src="activity.imageUrl" :alt="activity.name" loading="lazy" @error="brokenImages[activity.id] = true">
+        <img v-if="activity.imageUrl && !brokenImages[(activity.configId ?? 'recharge-tabs') + ':' + activity.id]" :src="activity.imageUrl" :alt="activity.name" loading="lazy" @error="brokenImages[(activity.configId ?? 'recharge-tabs') + ':' + activity.id] = true">
         <span v-else class="linked-placeholder">{{ activity.name }}</span>
         <span class="linked-caption">ID {{ activity.id }}</span>
       </NuxtLink>

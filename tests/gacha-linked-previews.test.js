@@ -222,3 +222,43 @@ test('ThemeBoss ID 10–20 stay independently schedulable; relocated Ayin tabs 3
     assert.ok(links.getGachaScheduleActivities(42).includes(rowId))
   }
 })
+
+test('Summer Day is independent and does not show unverified supporting activities', () => {
+  const overrideText = readFileSync(new URL('../utils/activity-schedule-overrides.ts', import.meta.url), 'utf8')
+  const page = readFileSync(new URL('../components/ActivitySchedules.vue', import.meta.url), 'utf8')
+  const server = readFileSync(new URL('../server/utils/activity-schedules.ts', import.meta.url), 'utf8')
+  const route = readFileSync(new URL('../server/api/activities/index.get.ts', import.meta.url), 'utf8')
+  assert.equal(overrides.isControlledRechargeActivity('recharge-time', 1), false)
+  assert.equal(overrides.isControlledRechargeActivity('recharge-time', 3), false)
+  assert.doesNotMatch(page, /ActivityDiceSales|getIslandHighDiceSupportingActivities|isIslandHighDiceSupporter/)
+  assert.doesNotMatch(overrideText, /ISLAND_HIGH_DICE_SUPPORTERS|getIslandHighDiceSupportingActivities/)
+  assert.doesNotMatch(server, /isIslandHighDiceSupporter/)
+  assert.doesNotMatch(route, /config.id === 'recharge-time'/)
+})
+test('all 21 dice products are real sale entries in the original configuration', () => {
+  const packs = readFileSync(new URL('../../SoulLandDivine-server/RuntimeData/Data/XML/Recharge/RechargeGiftItem.xml', import.meta.url), 'utf8')
+  const mall = readFileSync(new URL('../../SoulLandDivine-server/RuntimeData/Data/XML/Recharge/CarnivalMall.xml', import.meta.url), 'utf8')
+  for (let id = 6301; id <= 6309; id++) {
+    const line = packs.split('\n').find(row => row.includes('id="' + id + '"'))
+    assert.ok(line && /GiftType="24" SubType="1"/.test(line) && /402[012]:2:/.test(line), 'pack ' + id)
+  }
+  for (let id = 1; id <= 12; id++) {
+    const line = mall.split('\n').find(row => row.includes('id="' + id + '"'))
+    assert.ok(line && /402[012]:2:/.test(line) && /Price="503:1:/.test(line), 'mall item ' + id)
+  }
+})
+test('Super Sales never auto-links to Summer Day without a real dice product', () => {
+  const tabs = readFileSync(new URL('../../SoulLandDivine-server/RuntimeData/Data/XML/Recharge/RechargeGiftTab.xml', import.meta.url), 'utf8')
+  const gifts = readFileSync(new URL('../../SoulLandDivine-server/RuntimeData/Data/XML/Recharge/RechargeGiftItem.xml', import.meta.url), 'utf8')
+  const milestones = readFileSync(new URL('../../SoulLandDivine-server/RuntimeData/Data/XML/Recharge/NewRechargeGift.xml', import.meta.url), 'utf8')
+  const salesRows = tabs.split('\n').filter(row => /<class /.test(row) && /GiftType="39"/.test(row))
+  const saleProducts = gifts.split('\n').filter(row => /<class /.test(row) && /GiftType="39"/.test(row))
+  const milestoneRows = milestones.split('\n').filter(row => /<class /.test(row) && /Reward="/.test(row))
+  assert.equal(salesRows.length, 22)
+  assert.equal(saleProducts.length, 207)
+  for (const row of [...saleProducts, ...milestoneRows]) {
+    const reward = row.match(/Reward="([^"]+)"/)?.[1] || ''
+    assert.ok(!reward.split('|').some(item => /^402[012]:2:/.test(item)), 'Super Sales incorrectly supplies dice: ' + row)
+  }
+  const overrideText = readFileSync(new URL('../utils/activity-schedule-overrides.ts', import.meta.url), 'utf8')
+})

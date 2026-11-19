@@ -514,20 +514,15 @@ export function parseActivitySchedule(config: ActivityScheduleConfig, xml: strin
 }
 
 export async function fetchActivitySchedules() {
-  const bannerConfig = activityScheduleConfigs.find(config => config.id === 'recharge-tabs')
-  if (!bannerConfig) return []
-
-  return (await Promise.all([bannerConfig].map(async (config) => {
-    const response = await fetchGameAdminApi(`/api/activities/config/${config.id}`)
-    return parseActivitySchedule(config, await response.text())
-  }))).flat().filter(activity =>
+  const config = activityScheduleConfigs.find(item => item.id === 'recharge-tabs')
+  if (!config) return []
+  const response = await fetchGameAdminApi('/api/activities/config/recharge-tabs')
+  return parseActivitySchedule(config, await response.text()).filter(activity =>
     activity.fields.TabAtlas?.trim()
     && activity.fields.TabIcon?.trim()
-    // Theme Boss has a public fallback image when its original banner is missing.
     && (activity.giftType === 11 || rechargeBannerImage(activity.fields))
   )
 }
-
 function validateActivityScheduleFields(configId: string, rowId: number, fields: Record<string, string>) {
   const config = activityScheduleConfigs.find((item) => item.id === configId)
   if (!config) {
