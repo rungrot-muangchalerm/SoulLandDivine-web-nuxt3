@@ -12,6 +12,14 @@ export interface CardDefinition {
 export function matchesHeroEquipmentJob(heroJob: number | null | undefined, equipmentJob: number | null | undefined): boolean {
   return Number.isInteger(heroJob) && Number.isInteger(equipmentJob) && heroJob === equipmentJob
 }
+// Keep the HuntingBase dungeon progression first, regardless of API/catalog ordering.
+export function sortDungeonRings<T extends { id: string; huntingBaseId?: number; isDungeonRing?: boolean }>(items: readonly T[]): T[] {
+  return [...items].sort((a, b) => {
+    if (!!a.isDungeonRing !== !!b.isDungeonRing) return a.isDungeonRing ? -1 : 1
+    return (a.huntingBaseId ?? Number.MAX_SAFE_INTEGER) - (b.huntingBaseId ?? Number.MAX_SAFE_INTEGER)
+      || Number(a.id) - Number(b.id)
+  })
+}
 // Card definitions contain only JSON fields. JSON serialization unwraps
 // nested Vue reactive proxies, which structuredClone(toRaw(...)) cannot do.
 export function cloneCardDefinition(value: CardDefinition): CardDefinition {

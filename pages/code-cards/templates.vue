@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { CARD_TALENTS, matchesHeroEquipmentJob, normalizeCardEquipmentStars, cloneCardDefinition, type CardDefinition } from '~/utils/code-card'
+import { CARD_TALENTS, matchesHeroEquipmentJob, normalizeCardEquipmentStars, cloneCardDefinition, sortDungeonRings, type CardDefinition } from '~/utils/code-card'
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; rewardType: string; effect?: string; slot?: string; job?: number | null; star?: number; quality?: number | null; elementIds?: string[]; description?: string }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements: Asset[]; boneAffixes: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
 type Template = { id: string; name: string; definition: CardDefinition }
@@ -32,6 +32,7 @@ const ssrHeroOptions = computed(() => {
   return options(matching)
 })
 const selectedHero = computed(() => catalog.value?.heroes.find(x => x.id === draft.value.heroId))
+const sortedRingOptions = computed(() => sortDungeonRings(catalog.value?.rings ?? []))
 function equipmentOptions(index: number) {
   if (index === 0) return options(catalog.value!.weapons)
   const heroJob = selectedHero.value?.job
@@ -125,7 +126,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
         <details open><summary>วงแหวนวิญญาณ · 10 วง</summary>
           <div v-for="(ring, i) in draft.rings" :key="i" class="ring-entry">
             <div class="ring-editor">
-              <label>วง {{ i + 1 }}<select v-model="ring.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกสัตว์วิญญาณ</option><option v-for="x in options(catalog.rings)" :key="x.id" :value="x.id">{{ x.name }}</option></select></label>
+              <label>วง {{ i + 1 }}<select v-model="ring.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกสัตว์วิญญาณ</option><option v-for="x in options(sortedRingOptions)" :key="x.id" :value="x.id">{{ x.name }}</option></select></label>
               <label>อายุ (ปี)<input  :value="ring.year || ''" type="number" @input="ring.year = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="1" max="1000000" class="form-control"></label>
             </div>
             <div v-if="ringElementOptions(ring).length" class="ring-elements">
