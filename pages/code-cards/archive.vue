@@ -1,44 +1,33 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import type { CardDefinition } from '~/utils/code-card'
+import { ARCHIVE_PAGE_SIZE } from '~/utils/code-card-archive'
+
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; backgroundUrl?: string; frameUrl?: string; star?: number; elementIds?: string[] }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements?: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
-type Batch = { id: string; name: string; quantity: number; used: number; created_at: string }
 type Issued = { id: string; code: string; status: string; definition: CardDefinition; redeemedUid?: number; redeemedAt?: string }
-const route = useRoute()
+type ArchivePage = { page: number; total: number; cards: Issued[] }
+
 const { data: catalog, error: catalogError } = await useFetch<Catalog>('/api/code-cards/catalog')
-const { data: batches, refresh: reloadBatches } = await useFetch<Batch[]>('/api/code-cards/batches')
-const batchId = ref(typeof route.query.batchId === 'string' ? route.query.batchId : '')
-const issued = ref<Issued[]>([])
-const PAGE_SIZE = 12
 const currentPage = ref(1)
-const pageCount = computed(() => Math.max(1, Math.ceil(issued.value.length / PAGE_SIZE)))
-const visibleCards = computed(() => issued.value.slice((currentPage.value - 1) * PAGE_SIZE, currentPage.value * PAGE_SIZE))
-const busy = ref(false)
-const failure = ref('')
-async function loadBatch() {
-  if (busy.value) return
-  busy.value = true; failure.value = ''
-  try {
-    issued.value = batchId.value ? await $fetch<Issued[]>('/api/code-cards/cards', { query: { batchId: batchId.value } }) : []
-    currentPage.value = 1
-  } catch (error: any) {
-    issued.value = []; currentPage.value = 1
-    failure.value = error?.data?.statusMessage || error?.message || 'โหลดคลังบัตรไม่สำเร็จ'
-  } finally { busy.value = false }
-}
-watch(() => route.query.batchId, value => { if (typeof value === 'string' && value !== batchId.value) { batchId.value = value; void loadBatch() } })
-if (batchId.value) await loadBatch()
+const { data: archive, status, error: archiveError, refresh: reloadArchive } = await useFetch<ArchivePage>('/api/code-cards/archive', {
+  query: { page: currentPage },
+})
+const PAGE_SIZE = ARCHIVE_PAGE_SIZE
+const pageCount = computed(() => Math.max(1, Math.ceil((archive.value?.total ?? 0) / PAGE_SIZE)))
+const visibleCards = computed(() => archive.value?.cards ?? [])
+const busy = computed(() => status.value === 'pending')
+const failure = computed(() => archiveError.value?.data?.statusMessage || archiveError.value?.message || '')
+
 function exportCsv() {
-  if (!issued.value.length) return
+  if (!visibleCards.value.length) return
   const quote = (value: unknown) => '"' + String(value ?? '').replaceAll('"','""') + '"'
-  const rows = [['code','status','redeemed_uid','redeemed_at'], ...issued.value.map(c => [c.code,c.status,c.redeemedUid,c.redeemedAt])]
+  const rows = [['code','status','redeemed_uid','redeemed_at'], ...visibleCards.value.map(c => [c.code,c.status,c.redeemedUid,c.redeemedAt])]
   const blob = new Blob(['\uFEFF' + rows.map(r => r.map(quote).join(',')).join('\r\n')], { type:'text/csv;charset=utf-8' })
   const url=URL.createObjectURL(blob)
-  const a=document.createElement('a'); a.href=url; a.download='code-cards-'+batchId.value+'.csv'; a.click()
+  const a=document.createElement('a'); a.href=url; a.download='code-cards-page-'+currentPage.value+'.csv'; a.click()
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
-async function refresh() { await reloadBatches(); await loadBatch() }
 </script>
 <template>
   <div class="cards-page">
@@ -47,15 +36,14 @@ async function refresh() { await reloadBatches(); await loadBatch() }
     <div v-if="catalogError" role="alert" class="alert alert-danger">โหลดข้อมูลเกมไม่สำเร็จ</div>
     <div v-if="failure" role="alert" class="alert alert-danger">{{ failure }}</div>
     <section class="history-panel">
-      <div class="panel-heading"><h2>ชุดโค้ดที่เจนไว้</h2><button class="btn btn-sm btn-outline-light" :disabled="busy" @click="refresh">รีเฟรชสถานะ</button></div>
-      <label>เลือกชุดบัตร<select v-model="batchId" class="form-select" :disabled="busy" @change="loadBatch"><option value="">— เลือกชุดบัตร —</option><option v-for="b in batches" :key="b.id" :value="b.id">{{ b.name }} · {{ b.quantity }} ใบ · ใช้แล้ว {{ b.used }} · {{ new Date(b.created_at).toLocaleString('th-TH') }}</option></select></label>
-      <div v-if="issued.length" class="issued-actions"><button class="btn btn-outline-light btn-sm" @click="exportCsv">ส่งออก CSV</button><span>{{ issued.length }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
+      <div class="panel-heading"><h2>บัตรทั้งหมดที่เจนไว้</h2><button class="btn btn-sm btn-outline-light" :disabled="busy" @click="reloadArchive">รีเฟรชสถานะ</button></div>
+      <div v-if="archive?.total" class="issued-actions"><button class="btn btn-outline-light btn-sm" @click="exportCsv">ส่งออก CSV หน้านี้</button><span>ทั้งหมด {{ archive.total }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
     </section>
     <div v-if="catalog && visibleCards.length" class="card-gallery">
       <CodeCardArchiveItem v-for="card in visibleCards" :key="card.id" :card="card" :catalog="catalog" />
     </div>
-    <p v-else-if="!busy && !issued.length" class="empty-state">เลือกชุดบัตรที่เจนไว้เพื่อดูคลังบัตร</p>
-    <nav v-if="issued.length > PAGE_SIZE" class="gallery-pagination" aria-label="หน้าคลังบัตร">
+    <p v-else-if="!busy && !archive?.total" class="empty-state">ยังไม่มีบัตรที่เจนไว้</p>
+    <nav v-if="pageCount > 1" class="gallery-pagination" aria-label="หน้าคลังบัตร">
       <button type="button" class="btn btn-outline-light btn-sm" :disabled="currentPage <= 1" @click="currentPage--">ก่อนหน้า</button>
       <span>หน้า {{ currentPage }} / {{ pageCount }}</span>
       <button type="button" class="btn btn-outline-light btn-sm" :disabled="currentPage >= pageCount" @click="currentPage++">ถัดไป</button>
