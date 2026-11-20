@@ -34,11 +34,11 @@ function queueAutosave(id: string, json: string) {
     if (templateId.value !== id || definitionJson.value !== json) return
     autoSaveStatus.value = 'กำลังบันทึกการเปลี่ยนแปลง…'
     try {
-      await $fetch('/api/code-cards/templates', { method: 'POST', body: { id, definition: JSON.parse(json) } })
+      const result = await $fetch<{ id: string; updatedReady: number }>('/api/code-cards/templates', { method: 'POST', body: { id, definition: JSON.parse(json) } })
       if (templateId.value !== id) return
       lastSavedTemplate.value = { id, json }
       await reloadTemplates()
-      autoSaveStatus.value = definitionJson.value === json ? 'บันทึกการเปลี่ยนแปลงแล้ว' : 'มีการแก้ไขเพิ่มเติม'
+      autoSaveStatus.value = definitionJson.value === json ? (result.updatedReady ? 'บันทึกและอัปเดตรางวัลบัตรพร้อมใช้ ' + result.updatedReady + ' ใบแล้ว' : 'บันทึกการเปลี่ยนแปลงแล้ว') : 'มีการแก้ไขเพิ่มเติม'
     } catch (error: any) {
       if (templateId.value === id) {
         autoSaveStatus.value = 'บันทึกอัตโนมัติไม่สำเร็จ กรุณากดบันทึกแม่แบบอีกครั้ง'
@@ -133,11 +133,11 @@ async function save() {
   if (autoSaveTimer) clearTimeout(autoSaveTimer)
   await saveQueue
   const json = definitionJson.value
-  const result = await $fetch<{ id: string }>('/api/code-cards/templates', { method: 'POST', body: { id: templateId.value || undefined, definition: JSON.parse(json) } })
+  const result = await $fetch<{ id: string; updatedReady: number }>('/api/code-cards/templates', { method: 'POST', body: { id: templateId.value || undefined, definition: JSON.parse(json) } })
   templateId.value = result.id
   lastSavedTemplate.value = { id: result.id, json }
   await reloadTemplates()
-  autoSaveStatus.value = 'บันทึกแม่แบบแล้ว'
+  autoSaveStatus.value = result.updatedReady ? 'บันทึกแม่แบบและอัปเดตรางวัลบัตรพร้อมใช้ ' + result.updatedReady + ' ใบแล้ว' : 'บันทึกแม่แบบแล้ว'
 }
 async function generate() {
   await task(async () => {

@@ -39,7 +39,7 @@ function exportCsv() {
       <div class="panel-heading"><h2>บัตรทั้งหมดที่เจนไว้</h2><button class="btn btn-sm btn-outline-light" :disabled="busy" @click="reloadArchive">รีเฟรชสถานะ</button></div>
       <div v-if="archive?.total" class="issued-actions"><button class="btn btn-outline-light btn-sm" :disabled="busy || !visibleCards.length" @click="exportCsv">ส่งออก CSV หน้านี้</button><span>ทั้งหมด {{ archive.total }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
     </section>
-    <p v-if="archive?.total" class="archive-preview-note">ภาพจากแม่แบบปัจจุบันจะอัปเดตเมื่อแก้แม่แบบและรีเฟรชคลังบัตร · รางวัลคงตามข้อมูลตอนเจน</p>
+    <p v-if="archive?.total" class="archive-preview-note">บัตรพร้อมใช้จะอัปเดตภาพและรางวัลตามแม่แบบล่าสุด · บัตรที่ใช้แล้วเก็บประวัติเดิม</p>
     <div v-if="catalog && visibleCards.length" class="card-gallery">
       <CodeCardArchiveItem v-for="card in visibleCards" :key="card.id" :card="card" :catalog="catalog" />
     </div>

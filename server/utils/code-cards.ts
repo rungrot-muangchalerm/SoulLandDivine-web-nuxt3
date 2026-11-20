@@ -93,3 +93,44 @@ export async function generateCards(event: H3Event, templateId: string, quantity
     throw error
   } finally { connection.release() }
 }
+
+/**
+ * Save the editable template and synchronize gift payloads for codes that
+ * have not yet been redeemed. The game's code redemption transaction locks the
+ * same code row; redeemed codes and dispatched emails must remain immutable.
+ */
+export async function updateCardTemplate(id: string, definition: ReturnType<typeof cardInput>, username: string) {
+  const connection = await getGameDatabase().getConnection()
+  try {
+    await connection.beginTransaction()
+    await connection.execute(
+      'INSERT INTO character_card_templates (id,name,definition_json,created_by) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),definition_json=VALUES(definition_json)',
+      [id, definition.name, JSON.stringify(definition), username],
+    )
+    // Issuing a new batch locks the template row first, so this transaction
+    // cannot race a batch created from an older template.
+    const [ready] = await connection.execute<RowDataPacket[]>(
+      "SELECT c.id FROM character_card_codes c JOIN character_card_batches b ON b.id=c.batch_id WHERE b.template_id=? AND c.status='ready' AND c.redeemed_uid IS NULL AND c.email_uid IS NULL LIMIT 1 FOR UPDATE",
+      [id],
+    )
+    let updatedReady = 0
+    if (ready.length) {
+      let rewards: string
+      try { rewards = buildCardRewards(definition) } catch (error) {
+        throw createError({ statusCode: 400, statusMessage: 'แม่แบบยังไม่พร้อมสำหรับโค้ดที่ออกไว้: ' + (error as Error).message })
+      }
+      const [result] = await connection.execute(
+        "UPDATE character_card_codes c JOIN character_card_batches b ON b.id=c.batch_id SET c.reward_string=?,c.snapshot_json=? WHERE b.template_id=? AND c.status='ready' AND c.redeemed_uid IS NULL AND c.email_uid IS NULL",
+        [rewards, JSON.stringify(definition), id],
+      )
+      updatedReady = (result as { affectedRows: number }).affectedRows
+    }
+    await connection.commit()
+    return updatedReady
+  } catch (error) {
+    await connection.rollback()
+    throw error
+  } finally {
+    connection.release()
+  }
+}

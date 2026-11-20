@@ -42,15 +42,15 @@ test('actual template POST handler upserts a single changed field under its orig
   globalThis.readBody = async event => event.body
   globalThis.recordOperationLog = async () => {}
   const database = new Map()
-  globalThis.getGameDatabase = () => ({ execute: async (sql, params) => {
-    assert.match(sql, /ON DUPLICATE KEY UPDATE name=VALUES\(name\),definition_json=VALUES\(definition_json\)/)
-    const [id, name, json] = params
-    database.set(id, { name, definition: JSON.parse(json) })
-    return [[], []]
-  } })
+  globalThis.updateCardTemplate = async (id, definition, username) => {
+    assert.equal(username, 'tester')
+    database.set(id, { name: definition.name, definition })
+    return 0
+  }
+
   let source = read('server/api/code-cards/templates.post.ts')
   source = source.replace(/^import \{ (?:cardAdmin|recordOperationLog|getGameDatabase)[^\n]+\n/gm, '')
-    .replace(/^import \{ cardAdmin, cardInput \}[^\n]+\n/gm, '')
+    .replace(/^import \{ cardAdmin, cardInput, updateCardTemplate \}[^\n]+\n/gm, '')
   const { default: handler } = await loadTs(source)
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   const event = definition => ({ body: { id, definition }, node: { req: { socket: { remoteAddress: '127.0.0.1' } } } })
