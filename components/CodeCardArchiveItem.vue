@@ -4,7 +4,7 @@ import type { CardDefinition } from '~/utils/code-card'
 
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; backgroundUrl?: string; frameUrl?: string; star?: number; elementIds?: string[] }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements?: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
-type Issued = { id: string; code: string; status: string; definition: CardDefinition; redeemedUid?: number | null; redeemedAt?: string | null }
+type Issued = { id: string; code: string; status: string; definition: CardDefinition; previewDefinition?: CardDefinition; redeemedUid?: number | null; redeemedAt?: string | null }
 defineProps<{ card: Issued; catalog: Catalog }>()
 const preview = ref<{ download: () => Promise<void> } | null>(null)
 const downloading = ref(false)
@@ -21,11 +21,11 @@ async function downloadCard() {
 <template>
   <article class="archive-card">
     <div class="artwork">
-      <CodeCardPreview ref="preview" :definition="card.definition" :code="card.code" :catalog="catalog" />
+      <CodeCardPreview ref="preview" :definition="card.previewDefinition ?? card.definition" :code="card.code" :catalog="catalog" />
     </div>
     <div class="archive-card-info">
       <div class="archive-card-heading">
-        <strong class="hero-name">{{ card.definition.name }}</strong>
+        <strong class="hero-name">{{ card.previewDefinition?.name ?? card.definition.name }}</strong>
         <span class="card-status" :class="{ redeemed: card.status === 'used' }">{{ card.status === 'used' ? 'ใช้แล้ว' : 'พร้อมใช้' }}</span>
       </div>
       <div class="code-line">{{ card.code }}</div>

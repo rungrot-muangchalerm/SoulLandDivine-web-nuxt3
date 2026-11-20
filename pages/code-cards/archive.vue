@@ -5,7 +5,7 @@ import { ARCHIVE_PAGE_SIZE } from '~/utils/code-card-archive'
 
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; backgroundUrl?: string; frameUrl?: string; star?: number; elementIds?: string[] }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements?: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
-type Issued = { id: string; code: string; status: string; definition: CardDefinition; redeemedUid?: number; redeemedAt?: string }
+type Issued = { id: string; code: string; status: string; definition: CardDefinition; previewDefinition?: CardDefinition; redeemedUid?: number; redeemedAt?: string }
 type ArchivePage = { page: number; total: number; cards: Issued[] }
 
 const { data: catalog, error: catalogError } = await useFetch<Catalog>('/api/code-cards/catalog')
@@ -39,6 +39,7 @@ function exportCsv() {
       <div class="panel-heading"><h2>บัตรทั้งหมดที่เจนไว้</h2><button class="btn btn-sm btn-outline-light" :disabled="busy" @click="reloadArchive">รีเฟรชสถานะ</button></div>
       <div v-if="archive?.total" class="issued-actions"><button class="btn btn-outline-light btn-sm" :disabled="busy || !visibleCards.length" @click="exportCsv">ส่งออก CSV หน้านี้</button><span>ทั้งหมด {{ archive.total }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
     </section>
+    <p v-if="archive?.total" class="archive-preview-note">ภาพจากแม่แบบปัจจุบันจะอัปเดตเมื่อแก้แม่แบบและรีเฟรชคลังบัตร · รางวัลคงตามข้อมูลตอนเจน</p>
     <div v-if="catalog && visibleCards.length" class="card-gallery">
       <CodeCardArchiveItem v-for="card in visibleCards" :key="card.id" :card="card" :catalog="catalog" />
     </div>
@@ -68,6 +69,7 @@ p { color:#9dafc0; margin:0; }
 .issued-actions { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; margin-top:13px; font-size:.85rem; color:#aebccd; min-width:0; }
 .issued-actions span { overflow-wrap:anywhere; }
 .issued-actions .btn { min-height:44px; }
+.archive-preview-note { font-size:.82rem; margin:0 0 14px; color:#aebccd; }
 .card-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:clamp(12px,2vw,18px); align-items:start; min-width:0; }
 .gallery-pagination { display:flex; justify-content:center; align-items:center; gap:12px; min-width:0; padding:24px 0; color:#cad8e4; }
 .gallery-pagination span { text-align:center; min-width:0; }

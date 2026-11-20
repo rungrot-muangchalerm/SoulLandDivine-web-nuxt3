@@ -132,7 +132,7 @@ test('archive is a paged responsive card gallery, not a full-width single previe
 test('each archived code uses its own real canvas and per-card PNG download', () => {
   const source = read('components/CodeCardArchiveItem.vue')
   assert.match(source, /<CodeCardPreview/)
-  assert.match(source, /:definition="card.definition"/)
+  assert.match(source, /:definition="card.previewDefinition \?\? card.definition"/)
   assert.match(source, /:code="card.code"/)
   assert.match(source, /@click="downloadCard"/)
   assert.match(source, /preview\.value\?\.download\(\)/)

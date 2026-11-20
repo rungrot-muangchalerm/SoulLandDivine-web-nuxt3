@@ -18,7 +18,7 @@ test('archive endpoint checks admin and uses bounded server pagination over ALL 
   const route = readFileSync(new URL('../server/api/code-cards/archive.get.ts', import.meta.url), 'utf8')
   assert.match(route, /await cardAdmin\(event\)/)
   assert.match(route, /FROM character_card_codes c JOIN character_card_batches b/)
-  assert.match(route, /ORDER BY b\.created_at DESC, c\.id DESC LIMIT \? OFFSET \?/)
+  assert.match(route, /ORDER BY CASE WHEN c\.status = 'used' THEN 1 ELSE 0 END ASC, b\.created_at DESC, c\.id DESC LIMIT \? OFFSET \?/)
   assert.match(route, /decryptCardCode/)
   assert.match(route, /normalizeArchivePage/)
   assert.doesNotMatch(route, /WHERE batch_id=\?/)
