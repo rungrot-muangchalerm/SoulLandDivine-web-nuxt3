@@ -11,7 +11,6 @@ const templateId = ref('')
 const quantity = ref(1)
 const selected = computed(() => templates.value?.find(x => x.id === templateId.value))
 const definition = computed(() => selected.value?.definition)
-const preview = ref<{ download: () => Promise<void> }>()
 const busy = ref(false)
 const message = ref('')
 const failure = ref('')
@@ -35,7 +34,7 @@ async function generate() {
 </script>
 <template>
   <div class="cards-page">
-    <header class="page-heading"><div><div class="eyebrow">CHARACTER COLLECTION</div><h1>เจนโค้ดตัวละคร</h1><p>เลือกแม่แบบที่บันทึกไว้ แล้วสร้างโค้ดใช้ได้ครั้งเดียว</p></div><button class="btn btn-outline-light" :disabled="!definition || busy" @click="preview?.download()">ดาวน์โหลดตัวอย่าง PNG</button></header>
+    <header class="page-heading"><div><div class="eyebrow">CHARACTER COLLECTION</div><h1>เจนโค้ดตัวละคร</h1><p>เลือกแม่แบบที่บันทึกไว้ แล้วสร้างโค้ดใช้ได้ครั้งเดียว</p></div></header>
     <nav class="card-tabs" aria-label="เมนูบัตร"><NuxtLink to="/code-cards" aria-current="page">เจนโค้ด</NuxtLink><NuxtLink to="/code-cards/templates">สร้างแม่แบบ</NuxtLink><NuxtLink to="/code-cards/archive">คลังบัตรโค้ด</NuxtLink></nav>
     <div v-if="catalogError" role="alert" class="alert alert-danger">โหลดข้อมูลเกมไม่สำเร็จ</div>
     <div v-if="failure" role="alert" class="alert alert-danger">{{ failure }}</div>
@@ -55,7 +54,7 @@ async function generate() {
         <NuxtLink class="editor-link" to="/code-cards/templates">สร้างหรือแก้ไขแม่แบบ</NuxtLink>
         <NuxtLink class="editor-link" to="/code-cards/archive">เปิดคลังบัตรโค้ด</NuxtLink>
       </section>
-      <section class="preview-panel"><CodeCardPreview v-if="catalog && definition" ref="preview" :definition="definition" :catalog="catalog"/><div v-else class="empty-preview">เลือกแม่แบบทางซ้ายเพื่อแสดงบัตรตัวอย่าง</div></section>
+      <section class="preview-panel"><CodeCardPreview download-overlay v-if="catalog && definition" :definition="definition" :catalog="catalog"/><div v-else class="empty-preview">เลือกแม่แบบทางซ้ายเพื่อแสดงบัตรตัวอย่าง</div></section>
     </div>
   </div>
 </template>

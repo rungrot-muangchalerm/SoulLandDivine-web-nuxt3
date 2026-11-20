@@ -3,7 +3,7 @@ import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { CardDefinition } from '~/utils/code-card'
 import { CARD_TALENTS, cloneCardDefinition } from '~/utils/code-card'
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; backgroundUrl?: string; frameUrl?: string; star?: number; elementIds?: string[] }
-const props = defineProps<{ definition: CardDefinition; code?: string; catalog: { heroes: Asset[]; equipment: Asset[]; weapons: Asset[]; rings: Asset[]; ringElements?: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> } }>()
+const props = defineProps<{ definition: CardDefinition; code?: string; downloadOverlay?: boolean; catalog: { heroes: Asset[]; equipment: Asset[]; weapons: Asset[]; rings: Asset[]; ringElements?: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> } }>()
 const canvas = ref<HTMLCanvasElement>()
 let revision = 0
 const asset = (list: Asset[], id: string) => list.find(x => x.id === id)
@@ -89,9 +89,24 @@ async function download() {
 defineExpose({ download })
 </script>
 <template>
-  <canvas ref="canvas" width="1400" height="880" class="code-card-canvas" role="img" :aria-label="`${definition.name} ${CARD_TALENTS[definition.talent]} ${definition.talentValue} อุปกรณ์ 5 ชิ้น วงแหวน 10 วง ${code || 'ตัวอย่าง'}`" />
+  <div class="code-card-preview">
+    <canvas ref="canvas" width="1400" height="880" class="code-card-canvas" role="img" :aria-label="`${definition.name} ${CARD_TALENTS[definition.talent]} ${definition.talentValue} อุปกรณ์ 5 ชิ้น วงแหวน 10 วง ${code || 'ตัวอย่าง'}`" />
+    <button
+      v-if="downloadOverlay"
+      type="button"
+      class="download-overlay"
+      aria-label="ดาวน์โหลด PNG"
+      title="ดาวน์โหลด PNG"
+      @click.stop="download"
+    ><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+  </div>
 </template>
 <style scoped>
+.code-card-preview { position: relative; min-width: 0; }
+.download-overlay { position: absolute; top: 12px; right: 12px; z-index: 2; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #bfa772; border-radius: 50%; background: rgba(12, 26, 41, .9); color: #f3d998; cursor: pointer; box-shadow: 0 2px 14px #0008; }
+.download-overlay:hover { background: #1b3449; color: #fff; }
+.download-overlay:focus-visible { outline: 3px solid #70cbf4; outline-offset: 2px; }
+@media print { .download-overlay { display: none; } }
 .code-card-canvas { width: 100%; height: auto; display: block; border-radius: 14px; box-shadow: 0 20px 55px #0005; }
 @media print { .code-card-canvas { border-radius: 0; box-shadow: none; max-height: 95vh; object-fit: contain; } }
 </style>

@@ -19,7 +19,6 @@ const issued = ref<Issued[]>([])
 const selectedCodeId = ref('')
 const selected = computed(() => issued.value.find(x => x.id === selectedCodeId.value))
 const previewCard = computed(() => catalog.value ? normalizeCardEquipmentStars(draft.value, catalog.value.equipment) : draft.value)
-const preview = ref<{ download: () => Promise<void> }>()
 const busy = ref(false)
 const message = ref('')
 const failure = ref('')
@@ -109,7 +108,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
 
 <template>
   <div class="cards-page">
-    <header class="page-heading"><div><div class="eyebrow">CHARACTER COLLECTION</div><h1>สร้างแม่แบบบัตร</h1><p>จัดตัวละครและไอเทม ก่อนบันทึกเป็นแม่แบบ</p></div><button class="btn btn-outline-light" :disabled="!catalog" @click="preview?.download()">ดาวน์โหลด PNG</button></header>
+    <header class="page-heading"><div><div class="eyebrow">CHARACTER COLLECTION</div><h1>สร้างแม่แบบบัตร</h1><p>จัดตัวละครและไอเทม ก่อนบันทึกเป็นแม่แบบ</p></div></header>
     <nav class="card-tabs" aria-label="เมนูบัตร"><NuxtLink to="/code-cards">เจนโค้ด</NuxtLink><NuxtLink to="/code-cards/templates" aria-current="page">สร้างแม่แบบ</NuxtLink><NuxtLink to="/code-cards/archive">คลังบัตรโค้ด</NuxtLink></nav>
     <div v-if="catalogError" role="alert" class="alert alert-danger">โหลดข้อมูลเกมไม่สำเร็จ</div>
     <div v-if="failure" role="alert" class="alert alert-danger">{{ failure }}</div>
@@ -144,7 +143,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
         <p class="config-note">พรสวรรค์ ออฟกระดูก ดาว และระดับเสริมเป็นข้อมูลบิลด์บนบัตร รางวัลที่แลกได้คือตัวละคร 1 ตัว อาวุธลับ อุปกรณ์ 4 ชิ้น และวงแหวน 10 วงตามอายุที่เลือก ไม่ปรับสเตตัสตัวละครเดิมอัตโนมัติ</p>
         <button class="btn btn-outline-light w-100" :disabled="busy" @click="task(async () => { await save(); message = 'บันทึกแม่แบบแล้ว' })">บันทึกแม่แบบ</button>
       </section>
-      <section class="preview-panel"><CodeCardPreview ref="preview" :definition="previewCard" :catalog="catalog" /></section>
+      <section class="preview-panel"><CodeCardPreview download-overlay :definition="previewCard" :catalog="catalog" /></section>
     </div>
   </div>
 </template>
