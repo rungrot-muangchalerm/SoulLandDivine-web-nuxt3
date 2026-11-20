@@ -50,13 +50,13 @@ async function draw() {
     box(x, 48, 139, 137, i === 0 ? '#6ecae3' : '#c3a05b')
     fit(equipmentImages[i], x + 9, 53, 121, 116)
     if (!equipmentImages[i]) text(i === 0 ? 'อาวุธลับ' : `อุปกรณ์ ${i}`, x + 69, 123, 18, '#93a8bb', 'center')
-    text(`+${card.equipment[i].level}`, x + 125, 75, 22, '#93dcf1', 'right')
+    if (card.equipment[i].id && card.equipment[i].level > 0) text(`+${card.equipment[i].level}`, x + 125, 75, 22, '#93dcf1', 'right')
     text('★'.repeat(i === 0 ? 0 : (equips[i]?.star ?? 0)), x + 69, 180, 20, '#edca75', 'center')
   }
-  text(CARD_TALENTS[card.talent], 490, 254, 26)
+  if (card.talent) text(CARD_TALENTS[card.talent], 490, 254, 26)
   ctx.fillStyle = '#253c50'; ctx.fillRect(630, 230, 605, 20)
   const bar = ctx.createLinearGradient(630, 0, 1235, 0); bar.addColorStop(0, '#287fa4'); bar.addColorStop(1, '#64e8c0'); ctx.fillStyle = bar; ctx.fillRect(630, 230, 605 * Math.min(1, card.talentValue / 35), 20)
-  text(String(card.talentValue), 1310, 255, 32, '#8ce8d0', 'right')
+  if (card.talentValue > 0) text(String(card.talentValue), 1310, 255, 32, '#8ce8d0', 'right')
   text('ออฟกระดูก', 490, 313, 25, '#d5bd88')
   card.boneAffixes.slice(0, 6).forEach((line, i) => text(`• ${line}`, 498, 349 + i * 32, 22, '#c1cdd7', 'left', 797))
   if (card.boneAffixes.length > 6) text(`อีก ${card.boneAffixes.length - 6} ออฟ`, 1305, 515, 17, '#9cafbc', 'right')
@@ -76,7 +76,7 @@ async function draw() {
     const elementIconSize = 50
     ringElementImages[i].slice(0, 1).forEach(img => fit(img, center - elementIconSize / 2, 640, elementIconSize, elementIconSize))
     text(rings[i]?.name || `วง ${i + 1}`, center, 822, 15, '#dce1e8', 'center', 122)
-    text(`${card.rings[i].year.toLocaleString()} ปี`, center, 845, 14, '#b9a4c5', 'center')
+    if (card.rings[i].id && card.rings[i].year > 0) text(`${card.rings[i].year.toLocaleString()} ปี`, center, 845, 14, '#b9a4c5', 'center')
   }
 }
 watch(() => [props.definition, props.code, props.catalog], () => { void draw() }, { deep: true })

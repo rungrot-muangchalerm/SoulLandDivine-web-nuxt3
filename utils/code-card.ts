@@ -1,7 +1,7 @@
 export interface CardDefinition {
   name: string
   heroId: string
-  talent: 'strength' | 'body' | 'agility' | 'skill'
+  talent: '' | 'strength' | 'body' | 'agility' | 'skill'
   talentValue: number
   boneAffixes: string[]
   equipment: Array<{ id: string; stars: number; level: number }>

@@ -2,14 +2,14 @@
 import { ref, computed, watch } from 'vue'
 import { CARD_TALENTS, matchesHeroEquipmentJob, normalizeCardEquipmentStars, cloneCardDefinition, type CardDefinition } from '~/utils/code-card'
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; rewardType: string; effect?: string; slot?: string; job?: number | null; star?: number; quality?: number | null; elementIds?: string[]; description?: string }
-type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements: Asset[]; boneAffixes: Asset[]; defaultCard?: CardDefinition; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
+type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements: Asset[]; boneAffixes: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
 type Template = { id: string; name: string; definition: CardDefinition }
 type Issued = { id: string; code: string; status: string; definition: CardDefinition; redeemedUid?: number; redeemedAt?: string }
 const { data: catalog, error: catalogError } = await useFetch<Catalog>('/api/code-cards/catalog')
 const { data: templates, refresh: reloadTemplates } = await useFetch<Template[]>('/api/code-cards/templates')
 const { data: batches, refresh: reloadBatches } = await useFetch<Array<{ id: string; name: string; quantity: number; used: number; created_at: string }>>('/api/code-cards/batches')
-function blank(): CardDefinition { return { name: 'ไต้มู่ไป๋', heroId: '', talent: 'body', talentValue: 35, boneAffixes: [], equipment: Array.from({ length: 5 }, () => ({ id: '', stars: 0, level: 0 })), rings: Array.from({ length: 10 }, () => ({ id: '', year: 100000 })) } }
-const draft = ref<CardDefinition>(catalog.value?.defaultCard ? cloneCardDefinition(catalog.value.defaultCard) : blank())
+function blank(): CardDefinition { return { name: '', heroId: '', talent: '', talentValue: 0, boneAffixes: [], equipment: Array.from({ length: 5 }, () => ({ id: '', stars: 0, level: 0 })), rings: Array.from({ length: 10 }, () => ({ id: '', year: 0 })) } }
+const draft = ref<CardDefinition>(blank())
 const templateId = ref('')
 const batchId = ref('')
 const quantity = ref(1)
@@ -54,7 +54,7 @@ function reconcileEquipment() {
 watch(() => draft.value.heroId, () => { selectedCodeId.value = ''; reconcileEquipment() })
 function chooseTemplate() {
   const value = templates.value?.find(x => x.id === templateId.value)
-  draft.value = value ? cloneCardDefinition(value.definition) : (catalog.value?.defaultCard ? cloneCardDefinition(catalog.value.defaultCard) : blank())
+  draft.value = value ? cloneCardDefinition(value.definition) : blank()
   affixText.value = draft.value.boneAffixes.join('\n'); selectedCodeId.value = ''; message.value = ''; failure.value = ''; reconcileEquipment()
 }
 async function task(fn: () => Promise<void>) {
@@ -119,14 +119,14 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
         <label>ชื่อแม่แบบ<input v-model="draft.name" maxlength="100" class="form-control" @input="selectedCodeId = ''"></label>
         <label>ค้นหาตัวละคร / ไอเทม<input v-model="search" class="form-control" placeholder="ชื่อ หรือ ID"></label>
         <label>ตัวละคร 1 ตัว<select v-model="draft.heroId" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกตัวละคร</option><option v-for="x in ssrHeroOptions" :key="x.id" :value="x.id">{{ x.name }} · {{ x.id }}</option></select></label><p v-if="selectedHero && !selectedHero.job" role="alert" class="config-note">ยังไม่พบประเภทอาชีพ (Job) ที่ยืนยันได้ของตัวละครนี้ จึงไม่แสดงอุปกรณ์ที่สวมใส่ได้ เพื่อป้องกันการจัดบัตรผิดประเภท</p>
-        <div class="two-cols"><label>พรสวรรค์<select v-model="draft.talent" class="form-select" @change="selectedCodeId = ''"><option v-for="(name, key) in CARD_TALENTS" :key="key" :value="key">{{ name }}</option></select></label><label>แต้ม<input v-model.number="draft.talentValue" type="number" min="0" max="35" class="form-control" @input="selectedCodeId = ''"></label></div>
-        <details open><summary>อาวุธลับและอุปกรณ์ · 5 ชิ้น</summary><div v-for="(slot, i) in draft.equipment" :key="i" class="slot-editor"><label>{{ slots[i] }}<select v-model="slot.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือก{{ slots[i] }}</option><option v-for="x in equipmentOptions(i)" :key="x.id" :value="x.id">{{ x.name }} · {{ x.id }}</option></select></label><p v-if="i > 0 && slot.id" class="config-note">ดาวตามรหัสอุปกรณ์: {{ catalog.equipment.find(x => x.id === slot.id)?.star ?? 0 }} ดาว</p><label>ระดับเสริมบนบัตร<input v-model.number="slot.level" type="number" min="0" max="100" class="form-control" @input="selectedCodeId = ''"></label></div></details>
+        <div class="two-cols"><label>พรสวรรค์<select v-model="draft.talent" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกพรสวรรค์</option><option v-for="(name, key) in CARD_TALENTS" :key="key" :value="key">{{ name }}</option></select></label><label>แต้ม<input  :value="draft.talentValue || ''" type="number" @input="draft.talentValue = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="0" max="35" class="form-control"></label></div>
+        <details open><summary>อาวุธลับและอุปกรณ์ · 5 ชิ้น</summary><div v-for="(slot, i) in draft.equipment" :key="i" class="slot-editor"><label>{{ slots[i] }}<select v-model="slot.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือก{{ slots[i] }}</option><option v-for="x in equipmentOptions(i)" :key="x.id" :value="x.id">{{ x.name }} · {{ x.id }}</option></select></label><p v-if="i > 0 && slot.id" class="config-note">ดาวตามรหัสอุปกรณ์: {{ catalog.equipment.find(x => x.id === slot.id)?.star ?? 0 }} ดาว</p><label>ระดับเสริมบนบัตร<input  :value="slot.level || ''" type="number" @input="slot.level = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="0" max="100" class="form-control"></label></div></details>
         <details><summary>ออฟกระดูก</summary><label>เพิ่มจากข้อมูลเกม<select class="form-select" @change="affixText += (affixText ? '\n' : '') + ($event.target as HTMLSelectElement).value; selectedCodeId = ''"><option value="">เลือกออฟ</option><option v-for="x in catalog.boneAffixes" :key="x.id" :value="x.effect || x.name">{{ x.name }}</option></select></label><label>ข้อความบนบัตร (สูงสุด 6 บรรทัด)<textarea v-model="affixText" rows="4" maxlength="1200" class="form-control" @input="selectedCodeId = ''" /></label></details>
         <details open><summary>วงแหวนวิญญาณ · 10 วง</summary>
           <div v-for="(ring, i) in draft.rings" :key="i" class="ring-entry">
             <div class="ring-editor">
               <label>วง {{ i + 1 }}<select v-model="ring.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกสัตว์วิญญาณ</option><option v-for="x in options(catalog.rings)" :key="x.id" :value="x.id">{{ x.name }}</option></select></label>
-              <label>อายุ (ปี)<input v-model.number="ring.year" type="number" min="1" max="1000000" class="form-control" @input="selectedCodeId = ''"></label>
+              <label>อายุ (ปี)<input  :value="ring.year || ''" type="number" @input="ring.year = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="1" max="1000000" class="form-control"></label>
             </div>
             <div v-if="ringElementOptions(ring).length" class="ring-elements">
 
