@@ -58,7 +58,7 @@ async function draw() {
   const bar = ctx.createLinearGradient(630, 0, 1235, 0); bar.addColorStop(0, '#287fa4'); bar.addColorStop(1, '#64e8c0'); ctx.fillStyle = bar; ctx.fillRect(630, 230, 605 * Math.min(1, card.talentValue / 35), 20)
   if (card.talentValue > 0) text(String(card.talentValue), 1310, 255, 32, '#8ce8d0', 'right')
   text('ออฟกระดูก', 490, 313, 25, '#d5bd88')
-  card.boneAffixes.slice(0, 6).forEach((line, i) => text(`• ${line}`, 498, 349 + i * 32, 22, '#c1cdd7', 'left', 797))
+  card.boneAffixes.slice(0, 6).forEach((line, i) => text(`• ${line}`, 498, 349 + i * 32, 26, '#c1cdd7', 'left', 797))
   if (card.boneAffixes.length > 6) text(`อีก ${card.boneAffixes.length - 6} ออฟ`, 1305, 515, 17, '#9cafbc', 'right')
   box(490, 535, 815, 100, '#50697b', '#091421')
   text(props.code || 'XXXX-XXXX-XXXX', 898, 579, 32, '#f1d696', 'center', 780)

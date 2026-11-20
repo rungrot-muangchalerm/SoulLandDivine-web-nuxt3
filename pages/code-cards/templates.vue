@@ -24,6 +24,41 @@ const message = ref('')
 const failure = ref('')
 const search = ref('')
 const affixText = ref(draft.value.boneAffixes.join('\n'))
+const autoSaveStatus = ref('')
+const lastSavedTemplate = ref<{ id: string; json: string } | null>(null)
+const definitionJson = computed(() => JSON.stringify(previewCard.value))
+let autoSaveTimer: ReturnType<typeof setTimeout> | undefined
+let saveQueue: Promise<void> = Promise.resolve()
+function queueAutosave(id: string, json: string) {
+  saveQueue = saveQueue.catch(() => {}).then(async () => {
+    if (templateId.value !== id || definitionJson.value !== json) return
+    autoSaveStatus.value = 'กำลังบันทึกการเปลี่ยนแปลง…'
+    try {
+      await $fetch('/api/code-cards/templates', { method: 'POST', body: { id, definition: JSON.parse(json) } })
+      if (templateId.value !== id) return
+      lastSavedTemplate.value = { id, json }
+      await reloadTemplates()
+      autoSaveStatus.value = definitionJson.value === json ? 'บันทึกการเปลี่ยนแปลงแล้ว' : 'มีการแก้ไขเพิ่มเติม'
+    } catch (error: any) {
+      if (templateId.value === id) {
+        autoSaveStatus.value = 'บันทึกอัตโนมัติไม่สำเร็จ กรุณากดบันทึกแม่แบบอีกครั้ง'
+        failure.value = error?.data?.statusMessage || error?.message || 'ไม่สามารถอัปเดตแม่แบบได้'
+      }
+    }
+  })
+}
+watch(definitionJson, json => {
+  pendingGeneration = undefined
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  const id = templateId.value
+  if (!id || lastSavedTemplate.value?.id !== id || lastSavedTemplate.value.json === json) return
+  if (!draft.value.name.trim()) {
+    autoSaveStatus.value = 'ต้องระบุชื่อแม่แบบก่อนบันทึก'
+    return
+  }
+  autoSaveStatus.value = 'มีการเปลี่ยนแปลงที่ยังไม่ได้บันทึก'
+  autoSaveTimer = setTimeout(() => { void queueAutosave(id, json) }, 700)
+}, { flush: 'post' })
 watch(affixText, value => { draft.value.boneAffixes = value.split('\n').map(x => x.trim()).filter(Boolean) })
 function options(items: Asset[]) { const q = search.value.toLowerCase().trim(); return q ? items.filter(x => `${x.name} ${x.id}`.toLowerCase().includes(q)) : items }
 const ssrHeroOptions = computed(() => {
@@ -53,10 +88,27 @@ function reconcileEquipment() {
   if (cleared) message.value = 'ล้างอุปกรณ์ที่ไม่ตรง Job ของตัวละคร ' + cleared + ' ช่อง กรุณาเลือกใหม่'
 }
 watch(() => draft.value.heroId, () => { selectedCodeId.value = ''; reconcileEquipment() })
-function chooseTemplate() {
+async function chooseTemplate() {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  await saveQueue
+  const previous = lastSavedTemplate.value
+  const previousJson = definitionJson.value
+  if (previous && previous.json !== previousJson && draft.value.name.trim()) {
+    try {
+      await $fetch('/api/code-cards/templates', { method: 'POST', body: { id: previous.id, definition: JSON.parse(previousJson) } })
+      await reloadTemplates()
+    } catch (error: any) {
+      templateId.value = previous.id
+      failure.value = error?.data?.statusMessage || error?.message || 'บันทึกแม่แบบก่อนเปลี่ยนไม่สำเร็จ'
+      return
+    }
+  }
   const value = templates.value?.find(x => x.id === templateId.value)
   draft.value = value ? cloneCardDefinition(value.definition) : blank()
-  affixText.value = draft.value.boneAffixes.join('\n'); selectedCodeId.value = ''; message.value = ''; failure.value = ''; reconcileEquipment()
+  affixText.value = draft.value.boneAffixes.join('\n')
+  selectedCodeId.value = ''; message.value = ''; failure.value = ''; autoSaveStatus.value = ''
+  reconcileEquipment()
+  lastSavedTemplate.value = value ? { id: value.id, json: definitionJson.value } : null
 }
 async function task(fn: () => Promise<void>) {
   if (busy.value) return
@@ -64,8 +116,14 @@ async function task(fn: () => Promise<void>) {
   try { await fn() } catch (error: any) { failure.value = error?.data?.statusMessage || error?.message || 'ดำเนินการไม่สำเร็จ' } finally { busy.value = false }
 }
 async function save() {
-  const result = await $fetch<{ id: string }>('/api/code-cards/templates', { method: 'POST', body: { id: templateId.value || undefined, definition: previewCard.value } })
-  templateId.value = result.id; await reloadTemplates()
+  if (autoSaveTimer) clearTimeout(autoSaveTimer)
+  await saveQueue
+  const json = definitionJson.value
+  const result = await $fetch<{ id: string }>('/api/code-cards/templates', { method: 'POST', body: { id: templateId.value || undefined, definition: JSON.parse(json) } })
+  templateId.value = result.id
+  lastSavedTemplate.value = { id: result.id, json }
+  await reloadTemplates()
+  autoSaveStatus.value = 'บันทึกแม่แบบแล้ว'
 }
 async function generate() {
   await task(async () => {
@@ -122,7 +180,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
         <label>ตัวละคร 1 ตัว<select v-model="draft.heroId" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกตัวละคร</option><option v-for="x in ssrHeroOptions" :key="x.id" :value="x.id">{{ x.name }} · {{ x.id }}</option></select></label><p v-if="selectedHero && !selectedHero.job" role="alert" class="config-note">ยังไม่พบประเภทอาชีพ (Job) ที่ยืนยันได้ของตัวละครนี้ จึงไม่แสดงอุปกรณ์ที่สวมใส่ได้ เพื่อป้องกันการจัดบัตรผิดประเภท</p>
         <div class="two-cols"><label>พรสวรรค์<select v-model="draft.talent" class="form-select" @change="selectedCodeId = ''"><option value="">เลือกพรสวรรค์</option><option v-for="(name, key) in CARD_TALENTS" :key="key" :value="key">{{ name }}</option></select></label><label>แต้ม<input  :value="draft.talentValue || ''" type="number" @input="draft.talentValue = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="0" max="35" class="form-control"></label></div>
         <details open><summary>อาวุธลับและอุปกรณ์ · 5 ชิ้น</summary><div v-for="(slot, i) in draft.equipment" :key="i" class="slot-editor"><label>{{ slots[i] }}<select v-model="slot.id" class="form-select" @change="selectedCodeId = ''"><option value="">เลือก{{ slots[i] }}</option><option v-for="x in equipmentOptions(i)" :key="x.id" :value="x.id">{{ x.name }} · {{ x.id }}</option></select></label><p v-if="i > 0 && slot.id" class="config-note">ดาวตามรหัสอุปกรณ์: {{ catalog.equipment.find(x => x.id === slot.id)?.star ?? 0 }} ดาว</p><label>ระดับเสริมบนบัตร<input  :value="slot.level || ''" type="number" @input="slot.level = Number(($event.target as HTMLInputElement).value); selectedCodeId = ''" min="0" max="100" class="form-control"></label></div></details>
-        <details><summary>ออฟกระดูก</summary><label>เพิ่มจากข้อมูลเกม<select class="form-select" @change="affixText += (affixText ? '\n' : '') + ($event.target as HTMLSelectElement).value; selectedCodeId = ''"><option value="">เลือกออฟ</option><option v-for="x in catalog.boneAffixes" :key="x.id" :value="x.effect || x.name">{{ x.name }}</option></select></label><label>ข้อความบนบัตร (สูงสุด 6 บรรทัด)<textarea v-model="affixText" rows="4" maxlength="1200" class="form-control" @input="selectedCodeId = ''" /></label></details>
+        <details><summary>ออฟกระดูก</summary><label>เพิ่มจากข้อมูลเกม<select class="form-select" @change="affixText += (affixText ? '\n' : '') + ($event.target as HTMLSelectElement).value; selectedCodeId = ''"><option value="">เลือกออฟ</option><option v-for="x in catalog.boneAffixes" :key="x.id" :value="x.effect || x.name">{{ x.name }}</option></select></label><label>ข้อความบนบัตร (สูงสุด 6 บรรทัด)<textarea v-model="affixText" rows="8" maxlength="1200" class="form-control bone-affix-notes" @input="selectedCodeId = ''" /></label></details>
         <details open><summary>วงแหวนวิญญาณ · 10 วง</summary>
           <div v-for="(ring, i) in draft.rings" :key="i" class="ring-entry">
             <div class="ring-editor">
@@ -141,6 +199,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
 
         </details>
         <p class="config-note">พรสวรรค์ ออฟกระดูก ดาว และระดับเสริมเป็นข้อมูลบิลด์บนบัตร รางวัลที่แลกได้คือตัวละคร 1 ตัว อาวุธลับ อุปกรณ์ 4 ชิ้น และวงแหวน 10 วงตามอายุที่เลือก ไม่ปรับสเตตัสตัวละครเดิมอัตโนมัติ</p>
+        <p v-if="autoSaveStatus" class="config-note" role="status">{{ autoSaveStatus }}</p>
         <button class="btn btn-outline-light w-100" :disabled="busy" @click="task(async () => { await save(); message = 'บันทึกแม่แบบแล้ว' })">บันทึกแม่แบบ</button>
       </section>
       <section class="preview-panel"><CodeCardPreview download-overlay :definition="previewCard" :catalog="catalog" /></section>
@@ -148,6 +207,7 @@ const slots = ['อาวุธลับ', 'สร้อย', 'แหวน', '�
   </div>
 </template>
 <style scoped>
+.bone-affix-notes { min-height: 190px; resize: vertical; font-size: 1rem !important; line-height: 1.55; }
 .cards-page { color: #e6edf4; } .page-heading,.preview-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; } h1 { font-size:1.8rem; margin:8px 0; } h2 { font-size:1.12rem; margin:0 0 12px; } p { color:#9dafc0; margin:0; } .eyebrow { letter-spacing:.16em; color:#d0b77a; font-size:.8rem; } .editor-layout { display:grid; grid-template-columns:330px minmax(0,1fr); gap:24px; align-items:start; } .config-panel,.generate-panel,.history-panel { background:#132131; border:1px solid #34465a; border-radius:14px; padding:20px; } .config-panel { max-height:calc(100vh - 160px); overflow:auto; } label { display:block; font-size:.88rem; color:#c3d0de; margin-bottom:12px; } label .form-control,label .form-select { margin-top:6px; font-size:.88rem; } .two-cols { display:grid; grid-template-columns:1fr 1fr; gap:12px; } details { border-top:1px solid #34465a; padding-top:14px; margin-top:12px; } summary { cursor:pointer; margin-bottom:14px; font-size:.95rem; color:#e5ce9c; } .slot-editor { margin-bottom:14px; } .ring-entry { margin-bottom:16px; border-bottom:1px solid #2b4356; padding-bottom:12px; } .ring-elements { margin:0 0 8px; } .ring-elements-label { display:block; color:#b4c9d9; font-size:.76rem; margin-bottom:6px; } .ring-element-list { display:flex; gap:8px; flex-wrap:wrap; } .ring-element { display:flex; align-items:center; gap:4px; font-size:.78rem; color:#d9dce7; background:#102435; padding:4px 5px; border:1px solid #385066; border-radius:7px; } .ring-element img { object-fit:contain; } .ring-element { cursor:pointer; } .ring-element-active { border-color:#f5cb68; background:#42341a; box-shadow:0 0 0 2px #f5cb68; } .ring-element:focus-visible { outline:2px solid #9ddaff; outline-offset:3px; } .ring-editor { display:grid; grid-template-columns:minmax(0,1fr) 92px; gap:10px; } .config-note { font-size:.85rem; line-height:1.65; margin:16px 0; } .preview-panel { min-width:0; padding-bottom:1rem; } .generate-panel { display:flex; gap:20px; align-items:center; margin:24px 0; flex-wrap:wrap; } .generate-panel>div { flex:1; } .generate-panel label { width:90px; margin:0; } .generate-panel h2 { margin-bottom:5px; } .generate-panel p { font-size:.9rem; } .issued-actions { display:flex; align-items:center; gap:16px; margin:16px 0; font-size:.85rem; color:#9dafc0; } .code-table { overflow:auto; max-height:400px; } .code-button { border:0; background:transparent; color:#efd29a; font-family:monospace; white-space:nowrap; padding:8px 0; text-align:left; } .code-button:focus-visible { outline:2px solid #66d2dd; } .empty-state { padding:24px 0; } th { font-size:.9rem; } @media(max-width:1200px) { .editor-layout { grid-template-columns:280px minmax(0,1fr); gap:16px; } } @media(max-width:900px) { .editor-layout { grid-template-columns:1fr; } .config-panel { max-height:none; order:2; } .preview-panel { order:1; } .page-heading { flex-wrap:wrap; } }
 .card-tabs { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 18px; } .card-tabs a { padding:10px 16px; border:1px solid #435668; color:#d7e3ed; border-radius:9px; text-decoration:none; } .card-tabs a[aria-current="page"] { background:#403820; border-color:#b89948; color:#f8db93; }
 </style>

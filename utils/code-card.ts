@@ -40,7 +40,7 @@ export function validateCard(input: unknown): CardDefinition {
   if (!input || typeof input !== 'object') throw new Error('Invalid card')
   const data = input as CardDefinition
   if (typeof data.name !== 'string' || !data.name.trim() || data.name.length > 100) throw new Error('Card name: 1–100 characters')
-  if (!Object.hasOwn(CARD_TALENTS, data.talent)) throw new Error('Invalid talent')
+  if (data.talent !== '' && !Object.hasOwn(CARD_TALENTS, data.talent)) throw new Error('Invalid talent')
   if (!Array.isArray(data.equipment) || data.equipment.length !== 5) throw new Error('ต้องมีช่องอุปกรณ์ 5 ช่อง')
   if (!Array.isArray(data.rings) || data.rings.length !== 10) throw new Error('ต้องมีวงแหวน 10 วง')
   if (!Array.isArray(data.boneAffixes) || data.boneAffixes.length > 6 || data.boneAffixes.some(x => typeof x !== 'string' || x.length > 200 || /[\x00-\x1f]/.test(x))) throw new Error('Invalid bone affix (maximum 6 lines, 200 characters each)')
@@ -50,7 +50,7 @@ export function validateCard(input: unknown): CardDefinition {
     equipment: data.equipment.map(x => ({ id: itemId(x.id, true), stars: integer(x.stars, 0, 5, 'stars'), level: integer(x.level, 0, 100, 'level') })),
     rings: data.rings.map(x => ({
       id: itemId(x.id, true),
-      year: integer(x.year, 1, 1000000, 'ring year'),
+      year: integer(x.year, 0, 1000000, 'ring year'),
       ...(x.elementId ? { elementId: /^[1-9]\d{0,3}$/.test(x.elementId) ? x.elementId : (() => { throw new Error('Invalid ring element') })() } : {}),
     })),
   }
@@ -72,6 +72,7 @@ export function buildCardRewards(card: CardDefinition): string {
   if (!card.heroId) throw new Error('กรุณาเลือกตัวละคร / hero')
   if (card.equipment.some(x => !x.id)) throw new Error('กรุณาเลือกอุปกรณ์ครบ 5 ช่อง / equipment')
   if (card.rings.some(x => !x.id)) throw new Error('กรุณาเลือกวงแหวนครบ 10 วง / rings')
+  if (card.rings.some(x => x.year < 1)) throw new Error('กรุณาระบุอายุวงแหวนให้ครบ / ring year')
   return [`${card.heroId}:7:1`, ...card.equipment.map((x, i) => `${x.id}:${i === 0 ? 13 : 5}:1`), ...card.rings.map(x => `${x.id}:3:1@${x.year}`)].join('|')
 }
 export function normalizeCardCode(value: string) {
