@@ -112,7 +112,7 @@ test('ring dropdown follows HuntingBase dungeon acquisition order before other r
 test('ring options display the localized ring name without raw item IDs', () => {
   const source = read('pages/code-cards/templates.vue')
   const ringEditor = source.split('<details open><summary>วงแหวนวิญญาณ')[1].split('</details>')[0]
-  assert.match(ringEditor, /v-for="x in options\(sortedRingOptions\)"/)
+  assert.match(ringEditor, /v-for="x in options\(recommendedRingOptions\)"/)
   assert.match(ringEditor, /{{ x\.name }}<\/option>/)
   assert.doesNotMatch(ringEditor, /{{ x\.id }}/)
 })

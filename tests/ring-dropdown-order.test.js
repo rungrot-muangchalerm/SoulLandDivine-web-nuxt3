@@ -29,5 +29,6 @@ test('non-dungeon rings sort after dungeon rings with stable fallback ordering',
 test('editor dropdown uses the ordered list with search filtering', () => {
   const editor = readFileSync(new URL('../pages/code-cards/templates.vue', import.meta.url), 'utf8')
   assert.match(editor, /const sortedRingOptions = computed\(\(\) => sortDungeonRings\(catalog\.value\?\.rings \?\? \[\]\)\)/)
-  assert.match(editor, /v-for="x in options\(sortedRingOptions\)"/)
+  assert.match(editor, /v-for="x in options\(recommendedRingOptions\)"/)
+  assert.match(editor, /sortedRingOptions\.value\.filter\(ring => recommended\.has\(ring\.id\)\)/)
 })

@@ -80,6 +80,8 @@ def main():
         icon=sprite(r.get('Atlas','hero_icon'),r.get('Icon',''),'heroes')
         if not icon: continue
         h=dict(id=r['id'],name=r['HeroName'],iconUrl=icon,rewardType='7',job=hero_job(r),quality=hero_quality(r))
+        # The game's client associates each hero ID with its own recommended soul rings.
+        h['recommendedRingIds'] = list(dict.fromkeys(x for x in r.get('RecommondSoulRing', '').split('|') if x))
         normal_portrait=normal_portraits_by_name.get(r['HeroName'])
         portrait=copy(normal_portrait,'portraits') if normal_portrait else None
         if not portrait and r['id'].startswith('22'):
@@ -111,6 +113,11 @@ def main():
         hunting_base_id=int(r['HuntingBaseId'])
         is_dungeon_ring=r['CEHUA']==hunting_names.get(str(hunting_base_id))
         rings.append(dict(id=r['id'],name=text.get('ItemName') or r.get('CEHUA',r['id']),iconUrl=icon,rewardType='3',backgroundUrl=sprite('item',r['IconBG'],'rings'),frameUrl=sprite('item','item_soul_ring_quality_'+r['Color'],'rings'),maxYear=int(r['MaxYear']),elementIds=r.get('Element','').split('|') if r.get('Element') else [],effect=text.get('Resume',''),sourceName=r.get('CEHUA',''),huntingBaseId=hunting_base_id,isDungeonRing=is_dungeon_ring))
+    ring_id_set = {ring['id'] for ring in rings}
+    for hero in heroes:
+        assert len(hero['recommendedRingIds']) == len(set(hero['recommendedRingIds'])), hero['id']
+        assert all(ring_id in ring_id_set for ring_id in hero['recommendedRingIds']), hero['id']
+        if hero['quality'] == 2: assert hero['recommendedRingIds'], hero['id']
     # The 30 primary SoulRing/Hunting dungeon drops follow HuntingBase ID.
     # Other/special/story rings remain available after the main dungeon progression.
     rings.sort(key=lambda ring: (not ring['isDungeonRing'],ring['huntingBaseId'],int(ring['id'])))
@@ -137,7 +144,7 @@ def main():
         if r['id'] not in specs: continue
         affixes.append(dict(id=r['id'],name=r['Text'],effect=r['Text'],iconUrl=affix_icon,rewardType='4',quality=int(specs[r['id']]['Quality'])))
     default_ids=['111024','111025','111012','111020','111026','111021','111010','111014','111033','111002']
-    catalog=dict(ringFrames=ring_frames,ringElements=ring_elements,heroes=heroes,rings=rings,equipment=equipment,weapons=weapons,boneAffixes=affixes,defaultCard=dict(name=next(h['name'] for h in heroes if h['id']=='23'),heroId='23',equipment=[dict(id='',stars=0,level=0) for _ in range(5)],rings=[dict(id=id,year=1000000) for id in default_ids],talent='body',talentValue=35,boneAffixes=[]),sources=dict(heroes='Client/Hero/HeroCardClient.xml + HeroGodDetailClient.xml',rings='Server/SoulRing/SoulRing.xml + Server/Hunting/HuntingBase.xml (dungeon order) + localized SoulRing_Text.xml; UI Panel_SoulRingDetails.lua',boneAffixes='Server/SoulBone/SoulBoneSpec.xml + localized SoulBoneSpec_Text.xml'))
+    catalog=dict(ringFrames=ring_frames,ringElements=ring_elements,heroes=heroes,rings=rings,equipment=equipment,weapons=weapons,boneAffixes=affixes,defaultCard=dict(name=next(h['name'] for h in heroes if h['id']=='23'),heroId='23',equipment=[dict(id='',stars=0,level=0) for _ in range(5)],rings=[dict(id=id,year=1000000) for id in default_ids],talent='body',talentValue=35,boneAffixes=[]),sources=dict(heroes='Client/Hero/HeroCardClient.xml + RecommondSoulRing + HeroGodDetailClient.xml',rings='Server/SoulRing/SoulRing.xml + Server/Hunting/HuntingBase.xml (dungeon order) + localized SoulRing_Text.xml; UI Panel_SoulRingDetails.lua',boneAffixes='Server/SoulBone/SoulBoneSpec.xml + localized SoulBoneSpec_Text.xml'))
     (WEB/'data/code-card-catalog.json').write_text(json.dumps(catalog,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     for group in ['heroes','rings','ringElements','equipment','weapons','boneAffixes']:
         assert len(catalog[group])>0,group
