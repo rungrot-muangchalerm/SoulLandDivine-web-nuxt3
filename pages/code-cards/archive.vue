@@ -37,36 +37,54 @@ function exportCsv() {
     <div v-if="failure" role="alert" class="alert alert-danger">{{ failure }}</div>
     <section class="history-panel">
       <div class="panel-heading"><h2>บัตรทั้งหมดที่เจนไว้</h2><button class="btn btn-sm btn-outline-light" :disabled="busy" @click="reloadArchive">รีเฟรชสถานะ</button></div>
-      <div v-if="archive?.total" class="issued-actions"><button class="btn btn-outline-light btn-sm" @click="exportCsv">ส่งออก CSV หน้านี้</button><span>ทั้งหมด {{ archive.total }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
+      <div v-if="archive?.total" class="issued-actions"><button class="btn btn-outline-light btn-sm" :disabled="busy || !visibleCards.length" @click="exportCsv">ส่งออก CSV หน้านี้</button><span>ทั้งหมด {{ archive.total }} ใบ · หน้า {{ currentPage }} / {{ pageCount }}</span></div>
     </section>
     <div v-if="catalog && visibleCards.length" class="card-gallery">
       <CodeCardArchiveItem v-for="card in visibleCards" :key="card.id" :card="card" :catalog="catalog" />
     </div>
-    <p v-else-if="!busy && !archive?.total" class="empty-state">ยังไม่มีบัตรที่เจนไว้</p>
+    <p v-else-if="!busy && !failure && !archive?.total" class="empty-state">ยังไม่มีบัตรที่เจนไว้</p>
     <nav v-if="pageCount > 1" class="gallery-pagination" aria-label="หน้าคลังบัตร">
-      <button type="button" class="btn btn-outline-light btn-sm" :disabled="currentPage <= 1" @click="currentPage--">ก่อนหน้า</button>
+      <button type="button" class="btn btn-outline-light btn-sm" :disabled="busy || currentPage <= 1" @click="currentPage--">ก่อนหน้า</button>
       <span>หน้า {{ currentPage }} / {{ pageCount }}</span>
-      <button type="button" class="btn btn-outline-light btn-sm" :disabled="currentPage >= pageCount" @click="currentPage++">ถัดไป</button>
+      <button type="button" class="btn btn-outline-light btn-sm" :disabled="busy || currentPage >= pageCount" @click="currentPage++">ถัดไป</button>
     </nav>
   </div>
 </template>
 <style scoped>
-.cards-page { color:#e6edf4; }
-.page-heading,.panel-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
-h1 { font-size:1.8rem; margin:8px 0; }
-h2 { font-size:1.12rem; margin:0; }
+.cards-page { color:#e6edf4; min-width:0; width:100%; max-width:100%; container-type:inline-size; }
+.page-heading,.panel-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; min-width:0; }
+.page-heading > div { min-width:0; }
+h1 { font-size:clamp(1.4rem,3vw,1.8rem); line-height:1.3; margin:8px 0; overflow-wrap:anywhere; }
+h2 { font-size:1.12rem; line-height:1.4; margin:0; }
 p { color:#9dafc0; margin:0; }
-.eyebrow { letter-spacing:.16em; color:#d0b77a; font-size:.8rem; }
-.card-tabs { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-.card-tabs a { padding:10px 16px; border:1px solid #435668; color:#d7e3ed; border-radius:9px; text-decoration:none; }
+.eyebrow { letter-spacing:.16em; color:#d0b77a; font-size:.76rem; }
+.card-tabs { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; max-width:100%; padding:2px 0 10px; margin-bottom:14px; scrollbar-width:thin; overscroll-behavior-x:contain; }
+.card-tabs a { flex:0 0 auto; white-space:nowrap; padding:10px 14px; border:1px solid #435668; color:#d7e3ed; border-radius:9px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center; }
 .card-tabs a[aria-current="page"] { background:#403820; border-color:#b89948; color:#f8db93; }
-.history-panel { background:#132131; border:1px solid #34465a; border-radius:14px; padding:17px 20px; margin-bottom:20px; }
-label { display:block; color:#c3d0de; font-size:.9rem; }
-.form-select { margin-top:8px; }
-.issued-actions { display:flex; align-items:center; gap:16px; margin:13px 0 0; font-size:.85rem; color:#aebccd; }
-.card-gallery { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; align-items:start; }
-.gallery-pagination { display:flex; justify-content:center; align-items:center; gap:18px; padding:24px 0; color:#cad8e4; }
-.empty-state { text-align:center; padding:55px 15px; background:#152638; border:1px dashed #41566b; border-radius:12px; }
-@media (max-width:1150px) { .card-gallery { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media (max-width:700px) { .card-gallery { grid-template-columns:minmax(0,1fr); } .history-panel { padding:14px; } }
+.card-tabs a:focus-visible { outline:2px solid #9cd9ff; outline-offset:2px; }
+.history-panel { background:#132131; border:1px solid #34465a; border-radius:14px; padding:17px 20px; margin-bottom:20px; min-width:0; }
+.panel-heading { margin-bottom:0; }
+.panel-heading .btn { min-height:44px; }
+.issued-actions { display:flex; align-items:center; gap:12px 16px; flex-wrap:wrap; margin-top:13px; font-size:.85rem; color:#aebccd; min-width:0; }
+.issued-actions span { overflow-wrap:anywhere; }
+.issued-actions .btn { min-height:44px; }
+.card-gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:clamp(12px,2vw,18px); align-items:start; min-width:0; }
+.gallery-pagination { display:flex; justify-content:center; align-items:center; gap:12px; min-width:0; padding:24px 0; color:#cad8e4; }
+.gallery-pagination span { text-align:center; min-width:0; }
+.gallery-pagination .btn { min-height:44px; white-space:nowrap; }
+.empty-state { text-align:center; padding:45px 15px; background:#152638; border:1px dashed #41566b; border-radius:12px; }
+@container (max-width:560px) {
+  .panel-heading { flex-direction:column; align-items:stretch; gap:12px; }
+  .panel-heading .btn { width:100%; }
+  .issued-actions { flex-direction:column; align-items:stretch; gap:10px; }
+  .issued-actions .btn { width:100%; }
+  .gallery-pagination { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); gap:8px; }
+  .gallery-pagination .btn { width:100%; padding-inline:8px; }
+}
+@media (max-width:480px) {
+  .history-panel { padding:14px; border-radius:12px; margin-bottom:14px; }
+  .card-tabs { gap:6px; }
+  .card-tabs a { padding-inline:12px; font-size:.9rem; }
+  .gallery-pagination { padding:18px 0; font-size:.9rem; }
+}
 </style>

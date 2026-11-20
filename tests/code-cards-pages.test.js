@@ -126,7 +126,7 @@ test('archive is a paged responsive card gallery, not a full-width single previe
   assert.match(source, /const visibleCards = computed\(\(\) => archive\.value\?\.cards/)
   assert.doesNotMatch(source, /class="code-table"/)
   assert.doesNotMatch(source, /class="preview-panel"/)
-  assert.match(source, /grid-template-columns:\s*repeat\(3/)
+  assert.match(source, /grid-template-columns:\s*repeat\(auto-fit/)
   assert.match(source, /@click="exportCsv"/)
 })
 test('each archived code uses its own real canvas and per-card PNG download', () => {
