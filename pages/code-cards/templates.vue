@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { createCardRequestId } from '~/utils/code-card-request-id'
 import { CARD_TALENTS, matchesHeroEquipmentJob, normalizeCardEquipmentStars, cloneCardDefinition, sortDungeonRings, type CardDefinition } from '~/utils/code-card'
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; rewardType: string; effect?: string; slot?: string; job?: number | null; star?: number; quality?: number | null; elementIds?: string[]; description?: string }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringElements: Asset[]; boneAffixes: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
@@ -70,7 +71,7 @@ async function save() {
 async function generate() {
   await task(async () => {
     await save()
-    if (!pendingGeneration || pendingGeneration.templateId !== templateId.value || pendingGeneration.quantity !== quantity.value) pendingGeneration = { requestId: crypto.randomUUID(), templateId: templateId.value, quantity: quantity.value }
+    if (!pendingGeneration || pendingGeneration.templateId !== templateId.value || pendingGeneration.quantity !== quantity.value) pendingGeneration = { requestId: createCardRequestId(), templateId: templateId.value, quantity: quantity.value }
     const result = await $fetch<{ batchId: string }>('/api/code-cards/batches', { method: 'POST', body: pendingGeneration })
     batchId.value = result.batchId; await loadBatch(); await reloadBatches(); pendingGeneration = undefined
     message.value = `เจนสำเร็จ ${issued.value.length} ใบ แต่ละโค้ดใช้ได้ครั้งเดียว`

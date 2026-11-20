@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { createCardRequestId } from '~/utils/code-card-request-id'
 import type { CardDefinition } from '~/utils/code-card'
 type Asset = { id: string; name: string; iconUrl: string; portraitUrl?: string; backgroundUrl?: string; frameUrl?: string }
 type Catalog = { heroes: Asset[]; weapons: Asset[]; equipment: Asset[]; rings: Asset[]; ringFrames?: Array<{ minYear: number; maxYear: number; frameUrl: string }> }
@@ -22,7 +23,7 @@ async function generate() {
   if (!Number.isSafeInteger(quantity.value) || quantity.value < 1 || quantity.value > 200) { failure.value = 'เจนได้ครั้งละ 1–200 ใบ'; return }
   busy.value = true; failure.value = ''; message.value = ''
   try {
-    if (!pending || pending.templateId !== templateId.value || pending.quantity !== quantity.value) pending = { requestId: crypto.randomUUID(), templateId: templateId.value, quantity: quantity.value }
+    if (!pending || pending.templateId !== templateId.value || pending.quantity !== quantity.value) pending = { requestId: createCardRequestId(), templateId: templateId.value, quantity: quantity.value }
     const result = await $fetch<{ batchId: string }>('/api/code-cards/batches', { method: 'POST', body: pending })
     generatedBatch.value = result.batchId
     pending = undefined
