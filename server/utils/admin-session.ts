@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { deleteCookie, getCookie, setCookie, type H3Event } from 'h3'
 import { getGameDatabase } from './database'
+import { useSecureAdminCookie } from './admin-cookie'
 
 const TOKEN_COOKIE = 'admin_token'
 const TOKEN_LIFETIME_SECONDS = 60 * 60 * 24 * 30
@@ -153,7 +154,7 @@ export async function getAdminSession(event: H3Event): Promise<AdminSession> {
     setCookie(event, TOKEN_COOKIE, signToken(refreshedClaims, secret), {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecureAdminCookie(event),
       maxAge: TOKEN_LIFETIME_SECONDS,
       path: '/',
     })

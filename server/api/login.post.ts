@@ -1,5 +1,6 @@
 import { deleteCookie, setCookie } from 'h3'
 import { getGameDatabase } from '../utils/database'
+import { useSecureAdminCookie } from '../utils/admin-cookie'
 import { createSession, TOKEN_COOKIE, TOKEN_LIFETIME_SECONDS } from '../utils/admin-session'
 
 interface LoginBody {
@@ -32,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const cookieOptions = {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: useSecureAdminCookie(event),
     maxAge: TOKEN_LIFETIME_SECONDS,
     path: '/',
   } as const
@@ -41,7 +42,7 @@ export default defineEventHandler(async (event) => {
   setCookie(event, TOKEN_COOKIE, token, cookieOptions)
   setCookie(event, 'username', user.username, {
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: useSecureAdminCookie(event),
     maxAge: TOKEN_LIFETIME_SECONDS,
     path: '/',
   })
